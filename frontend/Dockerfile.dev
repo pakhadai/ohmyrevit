@@ -1,0 +1,18 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Копіюємо package files
+COPY package*.json ./
+
+# Встановлюємо залежності
+RUN npm ci
+
+# Копіюємо весь код
+COPY . .
+
+# Відкриваємо порт
+EXPOSE 3000
+
+# Запускаємо в режимі розробки
+CMD ["npm", "run", "dev"]
