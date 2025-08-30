@@ -77,11 +77,11 @@ async def health_check():
         "environment": settings.ENVIRONMENT
     }
 
-# Тут будуть підключатися роутери
-# from app.users.router import router as users_router
+# Підключаємо роутери
+from app.users.router import router as users_router
 # from app.products.router import router as products_router
 # from app.orders.router import router as orders_router
 
-# app.include_router(users_router, prefix="/api/v1/users", tags=["Users"])
+app.include_router(users_router, prefix="/api/v1", tags=["Users & Auth"])
 # app.include_router(products_router, prefix="/api/v1/products", tags=["Products"])
 # app.include_router(orders_router, prefix="/api/v1/orders", tags=["Orders"])

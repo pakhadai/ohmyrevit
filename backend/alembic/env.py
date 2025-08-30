@@ -18,8 +18,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 from app.core.database import Base
 from app.core.config import settings
 
-# Тут будуть імпорти всіх моделей
-# from app.users.models import User
+# ВАЖЛИВО: Імпортуємо всі моделі щоб Alembic їх бачив
+from app.users.models import User
 # from app.products.models import Product, ProductTranslation, Category
 # from app.orders.models import Order, OrderItem, PromoCode
 # from app.subscriptions.models import Subscription, UserProductAccess
