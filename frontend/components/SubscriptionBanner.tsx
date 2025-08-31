@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Crown, Check, Clock } from 'lucide-react'
 import api from '@/lib/api'
-import { useUserStore } from '@/store/userStore'
+import { useAuthStore } from '@/store/authStore'
 
 interface SubscriptionStatus {
   has_active_subscription: boolean
@@ -16,7 +16,7 @@ interface SubscriptionStatus {
 }
 
 export default function SubscriptionBanner() {
-  const { user } = useUserStore()
+  const { user } = useAuthStore()
   const [status, setStatus] = useState<SubscriptionStatus | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
