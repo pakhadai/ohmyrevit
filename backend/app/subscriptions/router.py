@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user # <-- Змінено на get_current_user для узгодженості
 from app.subscriptions.service import SubscriptionService
 from app.payments.cryptomus import CryptomusClient
 from sqlalchemy import select
 from datetime import datetime
 from app.subscriptions.models import Subscription
 
-from backend.app.core.config import settings
+from app.core.config import settings # <-- ВИПРАВЛЕНО ШЛЯХ
 
 router = APIRouter(prefix="/api/v1/subscriptions", tags=["subscriptions"])
 

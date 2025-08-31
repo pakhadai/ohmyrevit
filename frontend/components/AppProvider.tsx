@@ -3,21 +3,25 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import Onboarding from './Onboarding';
-import { useWebApp } from '@telegram-apps/sdk-react';
+// ВИПРАВЛЕНО: Імпортуємо useSDK замість useWebApp
+import { useSDK } from '@telegram-apps/sdk-react';
 
 export default function AppProvider({ children }: { children: React.ReactNode }) {
   const { user, login, isLoading, isAuthenticated } = useAuthStore();
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // ВИПРАВЛЕНО: Хук useWebApp тепер буде працювати коректно,
-  // оскільки він викликається всередині клієнтського TelegramProvider.
-  const webApp = useWebApp();
+  // ВИПРАВЛЕНО: Використовуємо більш надійний хук useSDK
+  const { webApp, initData } = useSDK();
 
   useEffect(() => {
-    if (webApp && webApp.initData && !isAuthenticated && !isLoading) {
-      login(webApp.initData);
+    // Тепер ми отримуємо webApp та initData безпечно з хука useSDK
+    // і використовуємо їх, коли вони стануть доступними.
+    if (webApp && initData && !isAuthenticated && !isLoading) {
+      // Конвертуємо initData в рядок для відправки на бекенд
+      const initDataString = new URLSearchParams(initData as any).toString();
+      login(initDataString);
     }
-  }, [webApp, isAuthenticated, isLoading, login]);
+  }, [webApp, initData, isAuthenticated, isLoading, login]);
 
   useEffect(() => {
     const isOnboardingCompleted = localStorage.getItem('onboardingCompleted');
@@ -49,4 +53,3 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     </>
   );
 }
-

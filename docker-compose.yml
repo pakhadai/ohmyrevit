@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER:-ohmyrevit}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-secretpassword}
-      POSTGRES_DB: ${DB_NAME:-ohmyrevit}
+      POSTGRES_DB: ${DB_NAME:-ohmyrevit_db} # <-- ВИПРАВЛЕНО
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -40,7 +40,7 @@ services:
       dockerfile: Dockerfile
     container_name: ohmyrevit_backend
     environment:
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-ohmyrevit}:${DB_PASSWORD:-secretpassword}@db:5432/${DB_NAME:-ohmyrevit}
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-ohmyrevit}:${DB_PASSWORD:-secretpassword}@db:5432/${DB_NAME:-ohmyrevit_db} # <-- ВИПРАВЛЕНО
       REDIS_URL: redis://redis:6379
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
@@ -103,4 +103,3 @@ volumes:
 networks:
   ohmyrevit_network:
     driver: bridge
-

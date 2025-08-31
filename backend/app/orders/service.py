@@ -3,7 +3,7 @@ from typing import Optional, List
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.orders.models import Order, OrderItem, PromoCode
+from app.orders.models import Order, OrderItem, PromoCode, DiscountType # <-- ДОДАНО DiscountType
 from app.products.models import Product
 from app.users.models import User
 from datetime import datetime

@@ -30,7 +30,7 @@ shell-backend: ## Відкрити shell в backend контейнері
 	docker-compose exec backend bash
 
 shell-db: ## Відкрити psql в контейнері бази даних
-	docker-compose exec db psql -U ohmyrevit ohmyrevit
+	docker-compose exec db psql -U ${DB_USER:-ohmyrevit} ${DB_NAME:-ohmyrevit_db} # <-- ВИПРАВЛЕНО
 
 # Міграції бази даних
 migrate: ## Застосувати міграції
@@ -77,10 +77,10 @@ lint: ## Перевірити код (flake8)
 
 # База даних
 db-backup: ## Створити backup бази даних
-	docker-compose exec db pg_dump -U ohmyrevit ohmyrevit > backups/backup_$(shell date +%Y%m%d_%H%M%S).sql
+	docker-compose exec db pg_dump -U ${DB_USER:-ohmyrevit} ${DB_NAME:-ohmyrevit_db} > backups/backup_$(shell date +%Y%m%d_%H%M%S).sql # <-- ВИПРАВЛЕНО
 
 db-restore: ## Відновити базу даних з backup
-	docker-compose exec -T db psql -U ohmyrevit ohmyrevit < $(file)
+	docker-compose exec -T db psql -U ${DB_USER:-ohmyrevit} ${DB_NAME:-ohmyrevit_db} < $(file) # <-- ВИПРАВЛЕНО
 
 # Початкове налаштування
 init: ## Початкове налаштування проєкту
