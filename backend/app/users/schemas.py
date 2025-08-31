@@ -41,6 +41,7 @@ class UserInDB(UserBase):
     bonus_balance: int
     bonus_streak: int
     last_bonus_claim_date: Optional[date] = None
+    photo_url: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     last_login_at: Optional[datetime] = None
@@ -57,6 +58,8 @@ class UserResponse(BaseModel):
     last_name: Optional[str] = None
     language_code: str
     email: Optional[EmailStr] = None
+    # ДОДАНО: Поле для повернення URL фотографії на фронтенд
+    photo_url: Optional[str] = None
     is_admin: bool
     bonus_balance: int
     bonus_streak: int

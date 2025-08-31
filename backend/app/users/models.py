@@ -22,6 +22,8 @@ class User(Base):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=True)
     language_code = Column(String(10), default="uk")
+    # ДОДАНО: Поле для зберігання URL фотографії
+    photo_url = Column(String(500), nullable=True)
 
     # Контактні дані
     email = Column(String(255), unique=True, nullable=True, index=True)

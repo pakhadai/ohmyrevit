@@ -4,7 +4,9 @@ export interface User {
   telegram_id: number;
   username?: string;
   first_name: string;
+  last_name?: string; // ДОДАНО: Прізвище може бути відсутнім
   language_code: string;
+  photo_url?: string; // ДОДАНО: URL фотографії
   email?: string;
   is_admin: boolean;
   bonus_balance: number;
