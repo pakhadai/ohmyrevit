@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 255 255 255;
+    --foreground: 0 0 0;
+    --primary: 59 130 246;
+    --secondary: 156 163 175;
+    --accent: 16 185 129;
+    --destructive: 239 68 68;
+    --border: 229 231 235;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 15 23 42;
+    --foreground: 248 250 252;
+    --primary: 59 130 246;
+    --secondary: 71 85 105;
+    --accent: 16 185 129;
+    --destructive: 239 68 68;
+    --border: 30 41 59;
+  }
+}
+
+@layer components {
+  .nav-blur {
+    @apply backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border border-gray-200/50 dark:border-slate-700/50;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-xl;
+  }
+
+  .btn-primary {
+    @apply bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors;
+  }
+}
+
+/* Анімація для навігації */
+.nav-hide {
+  transform: translateY(100%);
+  transition: transform 0.3s ease-in-out;
+}
+
+.nav-show {
+  transform: translateY(0);
+  transition: transform 0.3s ease-in-out;
+}
