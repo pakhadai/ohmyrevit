@@ -6,6 +6,7 @@ from app.orders.service import OrderService
 from app.payments.cryptomus import CryptomusClient
 from app.orders.schemas import CreateOrderRequest, OrderResponse
 from typing import Optional
+from app.subscriptions.models import UserProductAccess
 
 router = APIRouter(prefix="/api/v1/orders", tags=["orders"])
 

@@ -4,6 +4,9 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.subscriptions.service import SubscriptionService
 from app.payments.cryptomus import CryptomusClient
+from sqlalchemy import select
+from datetime import datetime
+from app.subscriptions.models import Subscription
 
 router = APIRouter(prefix="/api/v1/subscriptions", tags=["subscriptions"])
 

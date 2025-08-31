@@ -51,6 +51,8 @@ services:
       CRYPTOMUS_MERCHANT_ID: ${CRYPTOMUS_MERCHANT_ID}
       RESEND_API_KEY: ${RESEND_API_KEY}
       SENTRY_DSN: ${SENTRY_DSN}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:8000}
     volumes:
       - ./backend:/app
       - backend_uploads:/app/uploads

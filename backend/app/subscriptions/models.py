@@ -2,7 +2,7 @@
 Моделі для підписок та доступів
 """
 from sqlalchemy import (
-    Column, Integer, ForeignKey, DateTime, Enum
+    Column, Integer, String, ForeignKey, DateTime, Enum, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -11,6 +11,7 @@ from app.core.database import Base
 
 
 class SubscriptionStatus(str, enum.Enum):
+    PENDING = "pending"
     ACTIVE = "active"
     EXPIRED = "expired"
     CANCELLED = "cancelled"
