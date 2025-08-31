@@ -8,6 +8,7 @@ import logging
 from app.core.config import settings
 from app.core.database import engine, Base
 
+
 # Налаштування логування
 logging.basicConfig(
     level=logging.INFO if settings.DEBUG else logging.WARNING,
@@ -18,25 +19,16 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Менеджер життєвого циклу додатку
-    """
-    # Startup
-    logger.info("Starting OhMyRevit application...")
-
-    # Створення таблиць (для розробки, в продакшені використовуємо Alembic)
-    if settings.ENVIRONMENT == "development":
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-    logger.info("Application started successfully")
+    """Lifecycle події для ініціалізації додатку"""
+    # Створюємо таблиці при старті (для розробки)
+    # В продакшені використовуйте Alembic міграції
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
     yield
 
-    # Shutdown
-    logger.info("Shutting down OhMyRevit application...")
+    # Cleanup при зупинці
     await engine.dispose()
-    logger.info("Application shutdown complete")
 
 
 # Створення FastAPI додатку
@@ -52,7 +44,10 @@ app = FastAPI(
 # Налаштування CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=[
+        "https://web.telegram.org",
+        "http://localhost:3000",  # Для локальної розробки
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -79,9 +74,12 @@ async def health_check():
 
 # Підключаємо роутери
 from app.users.router import router as users_router
-# from app.products.router import router as products_router
+from app.auth.router import router as auth_router
+from app.products.router import router as products_router, admin_router as products_admin_router
 # from app.orders.router import router as orders_router
 
 app.include_router(users_router, prefix="/api/v1", tags=["Users & Auth"])
-# app.include_router(products_router, prefix="/api/v1/products", tags=["Products"])
+app.include_router(products_router, prefix="/api/v1/products", tags=["Products"])
 # app.include_router(orders_router, prefix="/api/v1/orders", tags=["Orders"])
+app.include_router(auth_router)
+app.include_router(products_admin_router)

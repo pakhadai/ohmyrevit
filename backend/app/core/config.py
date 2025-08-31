@@ -4,6 +4,7 @@
 from pydantic_settings import BaseSettings
 from typing import List
 from functools import lru_cache
+from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -27,8 +28,8 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_USERNAME: str = ""
 
     # DeepL API
-    DEEPL_API_KEY: str = ""
-    DEEPL_API_URL: str = "https://api-free.deepl.com/v2/translate"
+    DEEPL_API_KEY: Optional[str] = None
+    DEEPL_API_FREE: bool = True
 
     # Cryptomus
     CRYPTOMUS_API_KEY: str = ""
@@ -62,7 +63,7 @@ class Settings(BaseSettings):
     MAX_PAGE_SIZE: int = 100
 
     # Supported languages
-    SUPPORTED_LANGUAGES: List[str] = ["uk", "en", "ru"]
+    SUPPORTED_LANGUAGES: list = ["uk", "en", "ru"]
     DEFAULT_LANGUAGE: str = "uk"
 
     # Subscription
@@ -72,6 +73,11 @@ class Settings(BaseSettings):
     DAILY_BONUS_AMOUNT: int = 10
     BONUS_TO_USD_RATE: int = 100  # 100 бонусів = $1
     MAX_BONUS_DISCOUNT_PERCENT: int = 50
+
+    # Налаштування для файлів
+    UPLOAD_DIR: str = "./uploads"
+    MAX_FILE_SIZE_MB: int = 500
+    ALLOWED_FILE_EXTENSIONS: list = [".zip", ".rar", ".7z"]
 
     class Config:
         env_file = ".env"
@@ -94,4 +100,4 @@ def get_settings() -> Settings:
 
 
 # Глобальний об'єкт налаштувань
-settings = get_settings()
+settings = Settings()

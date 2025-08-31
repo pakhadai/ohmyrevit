@@ -20,7 +20,8 @@ from app.core.config import settings
 
 # ВАЖЛИВО: Імпортуємо всі моделі щоб Alembic їх бачив
 from app.users.models import User
-# from app.products.models import Product, ProductTranslation, Category
+from app.products.models import Product, ProductTranslation, Category
+
 # from app.orders.models import Order, OrderItem, PromoCode
 # from app.subscriptions.models import Subscription, UserProductAccess
 
