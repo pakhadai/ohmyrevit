@@ -4,6 +4,7 @@ import './globals.css';
 import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
 import { Toaster } from 'react-hot-toast';
+import AppProvider from '@/components/AppProvider';
 
 const inter = Inter({ subsets: ['latin', 'cyrillic'] });
 
@@ -19,13 +20,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="uk">
-      <body className={`${inter.className} bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100`}>
-        <Header />
-        <main className="pt-16 pb-20 min-h-screen">
-          {children}
-        </main>
-        <BottomNav />
-        <Toaster position="top-center" />
+      <AppProvider>
+        <body className={`${inter.className} bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100`}>
+          <Header />
+          <main className="pt-16 pb-20 min-h-screen">
+            {children}
+          </main>
+          <BottomNav />
+          <Toaster position="top-center" />
+        </AppProvider>
       </body>
     </html>
   );

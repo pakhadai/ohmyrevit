@@ -8,6 +8,8 @@ from sqlalchemy import select
 from datetime import datetime
 from app.subscriptions.models import Subscription
 
+from backend.app.core.config import settings
+
 router = APIRouter(prefix="/api/v1/subscriptions", tags=["subscriptions"])
 
 
@@ -29,7 +31,7 @@ async def create_subscription_checkout(
         # Створюємо платіж
         cryptomus = CryptomusClient()
         payment_data = await cryptomus.create_payment(
-            amount=5.00,  # $5 за місяць
+            amount=settings.SUBSCRIPTION_PRICE_USD,
             order_id=f"sub_{subscription.id}"
         )
 
@@ -39,7 +41,7 @@ async def create_subscription_checkout(
         return {
             "subscription_id": subscription.id,
             "payment_url": payment_data["result"]["url"],
-            "amount": 5.00
+            "amount": settings.SUBSCRIPTION_PRICE_USD
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
