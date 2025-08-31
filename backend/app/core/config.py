@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # Telegram
     TELEGRAM_BOT_TOKEN: str
@@ -40,6 +41,10 @@ class Settings(BaseSettings):
     # Resend
     RESEND_API_KEY: str = ""
     FROM_EMAIL: str = "noreply@ohmyrevit.com"
+
+    # URLs
+    FRONTEND_URL: str
+    BACKEND_URL: str
 
     # Sentry
     SENTRY_DSN: str = ""
