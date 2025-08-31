@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
+from datetime import date, datetime
 
 from app.core.database import get_db
 from app.users.dependencies import get_current_user
@@ -11,9 +12,45 @@ from app.subscriptions.models import UserProductAccess, Subscription, Subscripti
 from app.profile.schemas import DownloadsResponse, DownloadableProduct
 from app.users.schemas import UserResponse, UserUpdate, BonusClaimResponse
 from app.core.config import settings
-from datetime import date, datetime
+from app.bonuses.service import BonusService
 
 router = APIRouter(prefix="/api/v1/profile", tags=["Profile"])
+
+
+@router.post("/bonus/claim")
+async def claim_daily_bonus(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Отримання щоденного бонусу
+    """
+    bonus_service = BonusService(db)
+    result = await bonus_service.claim_daily_bonus(current_user.id)
+    return result
+
+@router.get("/bonus/info")
+async def get_bonus_info(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Інформація про бонусний статус користувача
+    """
+    bonus_service = BonusService(db)
+    info = await bonus_service.get_bonus_info(current_user.id)
+    return info
+
+@router.get("/favorites")
+async def get_favorites(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Отримання списку обраних товарів
+    """
+    # TODO: Реалізувати після додавання таблиці favorites
+    return {"message": "Coming soon"}
 
 
 @router.get("/downloads", response_model=DownloadsResponse)

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useCartStore } from '@/store/cartStore'
-import { useUserStore } from '@/store/userStore'
+import { useAuthStore } from '@/store/authStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trash2, Tag, Coins } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -21,7 +21,7 @@ export default function CartPage() {
     clearCart
   } = useCartStore()
 
-  const { user } = useUserStore()
+  const { user } = useAuthStore()
   const [promoInput, setPromoInput] = useState('')
   const [bonusInput, setBonusInput] = useState(0)
   const [discount, setDiscount] = useState(0)

@@ -75,9 +75,9 @@ class Settings(BaseSettings):
     SUBSCRIPTION_PRICE_USD: float = 5.0
 
     # Bonus system
-    DAILY_BONUS_AMOUNT: int = 10
+    DAILY_BONUS_BASE: int = 10
     BONUS_TO_USD_RATE: int = 100  # 100 бонусів = $1
-    MAX_BONUS_DISCOUNT_PERCENT: int = 50
+    MAX_BONUS_DISCOUNT_PERCENT: float = 0.5
 
     # Налаштування для файлів
     UPLOAD_DIR: str = "./uploads"

@@ -1,3 +1,4 @@
+# backend/app/orders/service.py
 from typing import Optional, List
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +9,7 @@ from app.users.models import User
 from datetime import datetime
 from fastapi import HTTPException
 from app.core.config import settings
+
 
 class OrderService:
     def __init__(self, db: AsyncSession):
@@ -77,56 +79,56 @@ class OrderService:
         """Створює замовлення з товарами"""
 
         # Отримуємо товари
-        products = await self.db.execute(
+        products_result = await self.db.execute(
             select(Product).where(Product.id.in_(product_ids))
         )
-        products = products.scalars().all()
+        products = products_result.scalars().all()
 
         if not products:
             raise ValueError("Товари не знайдено")
 
         # Розраховуємо subtotal
-        subtotal = sum(
-            p.sale_price if p.is_on_sale and p.sale_price else p.price
-            for p in products
-        )
+        subtotal = sum(p.get_actual_price() for p in products)
 
         # Розраховуємо знижку
-        discount_amount, discount_type = await self.calculate_discount(
-            subtotal, promo_code, use_bonus_points
+        user = await self.db.get(User, user_id)
+
+        discount_data = await self.calculate_discount(
+            subtotal, promo_code, use_bonus_points or 0, self.db
         )
 
         # Фінальна сума
-        final_total = subtotal - discount_amount
+        final_total = subtotal - discount_data["discount_amount"]
 
         # Створюємо замовлення
         order = Order(
             user_id=user_id,
             subtotal=subtotal,
-            discount_amount=discount_amount,
+            discount_amount=discount_data["discount_amount"],
             final_total=final_total,
-            status="pending"
+            status="pending",
+            promo_code_id=discount_data["promo_code_id"],
+            bonus_used=discount_data["bonus_used"]
         )
         self.db.add(order)
         await self.db.flush()  # Щоб отримати order.id
 
         # Додаємо товари до замовлення
         for product in products:
-            price = product.sale_price if product.is_on_sale and product.sale_price else product.price
             order_item = OrderItem(
                 order_id=order.id,
                 product_id=product.id,
-                price_at_purchase=price
+                price_at_purchase=product.get_actual_price()
             )
             self.db.add(order_item)
 
         # Якщо використовувались бонуси - списуємо їх
-        if discount_type == "bonus" and use_bonus_points:
-            user = await self.db.get(User, user_id)
-            points_to_deduct = min(use_bonus_points, user.bonus_balance)
-            user.bonus_balance -= points_to_deduct
+        if discount_data["bonus_used"] > 0:
+            user.bonus_balance -= discount_data["bonus_used"]
 
         await self.db.commit()
         return order
 
-order_service = OrderService()
+
+# Створюємо екземпляр сервісу
+order_service = OrderService
