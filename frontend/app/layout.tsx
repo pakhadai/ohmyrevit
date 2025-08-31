@@ -20,8 +20,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="uk">
-      <AppProvider>
-        <body className={`${inter.className} bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100`}>
+      <body className={`${inter.className} bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100`}>
+        <AppProvider>
           <Header />
           <main className="pt-16 pb-20 min-h-screen">
             {children}
