@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Встановлюємо залежності
-RUN npm ci
+RUN npm install
 
 # Копіюємо весь код
 COPY . .
@@ -16,3 +16,4 @@ EXPOSE 3000
 
 # Запускаємо в режимі розробки
 CMD ["npm", "run", "dev"]
+

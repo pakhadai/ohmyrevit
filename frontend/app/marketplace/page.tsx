@@ -22,7 +22,8 @@ export default function MarketplacePage() {
     try {
       setLoading(true);
       const data = await productsAPI.getProducts({ sort: sortBy });
-      setProducts(data.items);
+      // ВИПРАВЛЕНО: Змінено data.items на data.products
+      setProducts(data.products);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {

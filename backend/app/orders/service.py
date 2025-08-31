@@ -18,9 +18,9 @@ class OrderService:
     async def calculate_discount(
             self,
             subtotal: Decimal,
+            user_id: int,  # ДОДАНО: ID користувача для перевірки балансу бонусів
             promo_code: Optional[str],
             bonus_points: int,
-            db: AsyncSession
     ) -> dict:
         """
         Розрахунок знижки
@@ -31,14 +31,11 @@ class OrderService:
         bonus_used = 0
 
         if promo_code and bonus_points > 0:
-            raise HTTPException(
-                status_code=400,
-                detail="Можна застосувати тільки один вид знижки"
-            )
+            raise ValueError("Можна застосувати тільки один вид знижки")
 
         # Перевірка промокоду
         if promo_code:
-            result = await db.execute(
+            result = await self.db.execute(
                 select(PromoCode).where(
                     PromoCode.code == promo_code,
                     PromoCode.is_active == True
@@ -47,9 +44,9 @@ class OrderService:
             promo = result.scalar_one_or_none()
 
             if not promo:
-                raise HTTPException(status_code=400, detail="Невалідний промокод")
+                raise ValueError("Невалідний або прострочений промокод")
 
-            if promo.discount_type == "percentage":
+            if promo.discount_type == DiscountType.PERCENTAGE:
                 discount_amount = subtotal * (promo.value / 100)
             else:
                 discount_amount = promo.value
@@ -58,10 +55,19 @@ class OrderService:
 
         # Перевірка бонусів
         elif bonus_points > 0:
-            max_bonus_discount = subtotal * Decimal(settings.MAX_BONUS_DISCOUNT_PERCENT / 100)
+            user = await self.db.get(User, user_id)
+            if not user:
+                raise ValueError("Користувача не знайдено")
+            if user.bonus_balance < bonus_points:
+                raise ValueError("Недостатньо бонусів на рахунку")
+
+            max_bonus_discount = subtotal * Decimal(settings.MAX_BONUS_DISCOUNT_PERCENT)
             bonus_value = Decimal(bonus_points / settings.BONUS_TO_USD_RATE)
-            discount_amount = min(bonus_value, max_bonus_discount)
-            bonus_used = int(discount_amount * settings.BONUS_TO_USD_RATE)
+
+            # ВИПРАВЛЕНО: Розраховуємо точну суму знижки та кількість використаних бонусів
+            actual_discount = min(bonus_value, max_bonus_discount)
+            discount_amount = actual_discount
+            bonus_used = int(actual_discount * settings.BONUS_TO_USD_RATE)
 
         return {
             "discount_amount": discount_amount,
@@ -89,12 +95,12 @@ class OrderService:
 
         # Розраховуємо subtotal
         subtotal = sum(p.get_actual_price() for p in products)
+        if subtotal == 0:
+            raise ValueError("Не можна створювати замовлення з нульовою вартістю.")
 
         # Розраховуємо знижку
-        user = await self.db.get(User, user_id)
-
         discount_data = await self.calculate_discount(
-            subtotal, promo_code, use_bonus_points or 0, self.db
+            subtotal, user_id, promo_code, use_bonus_points or 0
         )
 
         # Фінальна сума
@@ -105,7 +111,7 @@ class OrderService:
             user_id=user_id,
             subtotal=subtotal,
             discount_amount=discount_data["discount_amount"],
-            final_total=final_total,
+            final_total=max(final_total, Decimal(0)),  # Сума не може бути негативною
             status="pending",
             promo_code_id=discount_data["promo_code_id"],
             bonus_used=discount_data["bonus_used"]
@@ -124,11 +130,9 @@ class OrderService:
 
         # Якщо використовувались бонуси - списуємо їх
         if discount_data["bonus_used"] > 0:
+            user = await self.db.get(User, user_id)
             user.bonus_balance -= discount_data["bonus_used"]
 
         await self.db.commit()
+        await self.db.refresh(order)
         return order
-
-
-# Створюємо екземпляр сервісу
-order_service = OrderService

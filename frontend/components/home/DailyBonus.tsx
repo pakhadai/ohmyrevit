@@ -3,15 +3,24 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Gift, TrendingUp, Clock } from 'lucide-react';
-// Імпортуємо напряму з вашого централізованого файлу
 import { profileAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 
 export default function DailyBonus() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, setUser } = useAuthStore();
   const [bonusInfo, setBonusInfo] = useState<any>(null);
   const [timeLeft, setTimeLeft] = useState('');
+
+  const fetchBonusInfo = async () => {
+    try {
+      // ВИПРАВЛЕНО: Використовуємо спеціальний ендпоінт для отримання інформації про бонус
+      const data = await profileAPI.getBonusInfo();
+      setBonusInfo(data);
+    } catch (error) {
+      console.error('Error fetching bonus info:', error);
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -20,62 +29,59 @@ export default function DailyBonus() {
   }, [isAuthenticated]);
 
   useEffect(() => {
+    if (!bonusInfo) return;
+
     const timer = setInterval(() => {
-      updateTimeLeft();
+      if (bonusInfo.can_claim_today) {
+        setTimeLeft('');
+        return;
+      }
+
+      const now = new Date();
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+
+      const diff = tomorrow.getTime() - now.getTime();
+      if (diff <= 0) {
+        fetchBonusInfo(); // Час вийшов, оновлюємо дані
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setTimeLeft(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
     }, 1000);
+
     return () => clearInterval(timer);
   }, [bonusInfo]);
 
-  const fetchBonusInfo = async () => {
-    try {
-      // У вашому backend є роут /profile/bonus/info, але немає методу в api.ts
-      // Давайте додамо його або використаємо існуючий
-      // Поки що припустимо, що getProfile повертає потрібну інформацію
-      const data = await profileAPI.getProfile();
-      setBonusInfo({
-          balance: data.bonus_balance,
-          streak: data.bonus_streak,
-          // Логіку can_claim_today та next_claim_time потрібно буде реалізувати на фронтенді
-          // або додати окремий ендпоінт на бекенді
-          can_claim_today: data.last_bonus_claim_date !== new Date().toISOString().split('T')[0],
-      });
-    } catch (error) {
-      console.error('Error fetching bonus info:', error);
-    }
-  };
-
-  const updateTimeLeft = () => {
-    if (!bonusInfo || bonusInfo.can_claim_today) return;
-
-    const now = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-
-    const diff = tomorrow.getTime() - now.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-    setTimeLeft(`${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-  };
-
   const claimBonus = async () => {
     try {
-      // Викликаємо правильний метод з api.ts
       const result = await profileAPI.claimBonus();
       if (result.success) {
         toast.success(`🎉 ${result.message}`);
+        // Оновлюємо стан бонусів у глобальному сховищі
+        if(user) {
+            setUser({...user, bonus_balance: result.new_balance, bonus_streak: result.streak});
+        }
+        // Оновлюємо локальний стан компонента
         fetchBonusInfo();
+      } else {
+        toast.error(result.message || 'Не вдалося отримати бонус');
       }
-    } catch (error) {
-      toast.error('Помилка при отриманні бонусу');
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Помилка при отриманні бонусу');
     }
   };
 
-  if (!isAuthenticated || !bonusInfo) return null;
+  if (!isAuthenticated || !bonusInfo) {
+    // Можна повернути скелетон-завантажувач для кращого UX
+    return null;
+  }
 
-  // ... (решта JSX коду залишається без змін)
   return (
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
@@ -98,17 +104,20 @@ export default function DailyBonus() {
           <div className="bg-white/20 rounded-lg p-3">
             <div className="flex justify-between text-sm mb-2">
               <span>Стрік-прогрес</span>
-              <span>{bonusInfo.streak}/7</span>
+              <span>{bonusInfo.streak % 7}/7</span>
             </div>
             <div className="bg-white/30 rounded-full h-2 overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: `${(bonusInfo.streak % 7) * 14.28}%` }}
-                className="bg-white h-full"
+                animate={{ width: `${(bonusInfo.streak % 7) / 7 * 100}%` }}
+                className="bg-white h-full rounded-full"
               />
             </div>
             <p className="text-xs mt-1 opacity-90">
-              Ще {7 - (bonusInfo.streak % 7)} днів до бонусу x7
+              {bonusInfo.streak > 0 && bonusInfo.streak % 7 === 0
+                ? 'Ви отримали супер-бонус!'
+                : `Ще ${7 - (bonusInfo.streak % 7)} днів до бонусу за тиждень`
+              }
             </p>
           </div>
 

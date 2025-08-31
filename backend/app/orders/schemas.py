@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from decimal import Decimal
 from datetime import datetime
@@ -18,6 +18,19 @@ class CreateOrderRequest(BaseModel):
             }
         }
 
+# ДОДАНО: Схеми для валідації промокоду/бонусів
+class ApplyDiscountRequest(BaseModel):
+    product_ids: List[int]
+    promo_code: Optional[str] = None
+    use_bonus_points: Optional[int] = Field(None, ge=0)
+
+class ApplyDiscountResponse(BaseModel):
+    success: bool
+    discount_amount: float = 0.0
+    final_total: float
+    message: Optional[str] = None
+    bonus_points_used: int = 0
+
 
 class OrderResponse(BaseModel):
     id: int
@@ -28,8 +41,7 @@ class OrderResponse(BaseModel):
     status: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderItemResponse(BaseModel):
@@ -37,8 +49,7 @@ class OrderItemResponse(BaseModel):
     product_id: int
     price_at_purchase: Decimal
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CheckoutResponse(BaseModel):

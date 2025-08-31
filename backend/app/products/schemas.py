@@ -46,15 +46,15 @@ class CategoryResponse(CategoryBase):
 
 class ProductBase(BaseModel):
     """Базові поля товару"""
-    price: Decimal = Field(..., ge=0, decimal_places=2)
+    price: Decimal = Field(..., ge=0)
     product_type: ProductTypeEnum = ProductTypeEnum.PREMIUM
     main_image_url: str = Field(..., max_length=500)
     gallery_image_urls: Optional[List[str]] = []
     zip_file_path: str = Field(..., max_length=500)
-    file_size_mb: Decimal = Field(..., ge=0, decimal_places=2)
+    file_size_mb: Decimal = Field(..., ge=0)
     compatibility: Optional[str] = Field(None, max_length=200)
     is_on_sale: bool = False
-    sale_price: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    sale_price: Optional[Decimal] = Field(None, ge=0)
 
 
 class ProductCreate(ProductBase):
@@ -86,15 +86,15 @@ class ProductUpdate(BaseModel):
     """Схема для оновлення товару"""
     title_uk: Optional[str] = Field(None, min_length=1, max_length=200)
     description_uk: Optional[str] = Field(None, min_length=1)
-    price: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    price: Optional[Decimal] = Field(None, ge=0)
     product_type: Optional[ProductTypeEnum] = None
     main_image_url: Optional[str] = Field(None, max_length=500)
     gallery_image_urls: Optional[List[str]] = None
     zip_file_path: Optional[str] = Field(None, max_length=500)
-    file_size_mb: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    file_size_mb: Optional[Decimal] = Field(None, ge=0)
     compatibility: Optional[str] = Field(None, max_length=200)
     is_on_sale: Optional[bool] = None
-    sale_price: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    sale_price: Optional[Decimal] = Field(None, ge=0)
     category_ids: Optional[List[int]] = None
 
 

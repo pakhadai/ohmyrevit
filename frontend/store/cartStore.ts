@@ -1,21 +1,15 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-
-interface CartItem {
-  id: number
-  title: string
-  price: number
-  salePrice?: number
-  image: string
-}
+import { Product } from '@/types' // ВИПРАВЛЕНО: Використовуємо глобальний тип Product
 
 interface CartStore {
-  items: CartItem[]
+  // ВИПРАВЛЕНО: Зберігаємо повні об'єкти Product
+  items: Product[]
   promoCode: string | null
   useBonusPoints: number
 
   // Actions
-  addItem: (item: CartItem) => void
+  addItem: (item: Product) => void
   removeItem: (id: number) => void
   clearCart: () => void
   setPromoCode: (code: string | null) => void
@@ -62,7 +56,8 @@ export const useCartStore = create<CartStore>()(
       getTotalPrice: () => {
         const { items } = get()
         return items.reduce((total, item) => {
-          const price = item.salePrice || item.price
+          // ВИПРАВЛЕНО: Використовуємо sale_price, а не salePrice
+          const price = item.sale_price || item.price
           return total + price
         }, 0)
       },
