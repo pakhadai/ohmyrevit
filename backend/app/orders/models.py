@@ -1,59 +1,71 @@
-from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, DateTime, Enum, Date
+"""
+Моделі для замовлень та промокодів
+"""
+from sqlalchemy import (
+    Column, Integer, String, Numeric, Boolean,
+    ForeignKey, DateTime, Enum, Text
+)
 from sqlalchemy.orm import relationship
-from app.core.database import Base
+from sqlalchemy.sql import func
 import enum
-from datetime import datetime
+from app.core.database import Base
 
 
-class OrderStatus(enum.Enum):
-    pending = "pending"
-    paid = "paid"
-    failed = "failed"
+class OrderStatus(str, enum.Enum):
+    PENDING = "pending"
+    PAID = "paid"
+    FAILED = "failed"
 
 
-class DiscountType(enum.Enum):
-    percentage = "percentage"
-    fixed = "fixed"
-
-
-class Order(Base):
-    __tablename__ = "orders"
-
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    subtotal = Column(Numeric(10, 2))
-    discount_amount = Column(Numeric(10, 2), default=0)
-    final_total = Column(Numeric(10, 2))
-    status = Column(Enum(OrderStatus), default=OrderStatus.pending)
-    payment_id = Column(String, nullable=True)  # ID від Cryptomus
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    # Зв'язки
-    user = relationship("User", back_populates="orders")
-    items = relationship("OrderItem", back_populates="order")
-
-
-class OrderItem(Base):
-    __tablename__ = "order_items"
-
-    id = Column(Integer, primary_key=True)
-    order_id = Column(Integer, ForeignKey("orders.id"))
-    product_id = Column(Integer, ForeignKey("products.id"))
-    price_at_purchase = Column(Numeric(10, 2))
-
-    # Зв'язки
-    order = relationship("Order", back_populates="items")
-    product = relationship("Product")
+class DiscountType(str, enum.Enum):
+    PERCENTAGE = "percentage"
+    FIXED = "fixed"
 
 
 class PromoCode(Base):
     __tablename__ = "promo_codes"
 
-    id = Column(Integer, primary_key=True)
-    code = Column(String, unique=True)
-    discount_type = Column(Enum(DiscountType))
-    value = Column(Numeric(10, 2))
-    expires_at = Column(DateTime, nullable=True)
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(50), unique=True, nullable=False, index=True)
+    discount_type = Column(Enum(DiscountType), nullable=False)
+    value = Column(Numeric(10, 2), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
     max_uses = Column(Integer, nullable=True)
     current_uses = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    subtotal = Column(Numeric(10, 2), nullable=False)
+    discount_amount = Column(Numeric(10, 2), default=0)
+    bonus_used = Column(Integer, default=0)
+    final_total = Column(Numeric(10, 2), nullable=False)
+    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    promo_code_id = Column(Integer, ForeignKey('promo_codes.id'), nullable=True)
+    payment_url = Column(String(500), nullable=True)
+    payment_id = Column(String(200), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Зв'язки
+    user = relationship("User", backref="orders")
+    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    promo_code = relationship("PromoCode")
+
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey('orders.id'), nullable=False)
+    product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
+    price_at_purchase = Column(Numeric(10, 2), nullable=False)
+
+    # Зв'язки
+    order = relationship("Order", back_populates="items")
+    product = relationship("Product")

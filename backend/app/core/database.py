@@ -2,9 +2,10 @@
 Налаштування підключення до PostgreSQL через SQLAlchemy
 """
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base, sessionmaker
 from typing import AsyncGenerator
 from app.core.config import settings
+
 
 # Створення асинхронного движка
 engine = create_async_engine(
@@ -27,6 +28,15 @@ AsyncSessionLocal = async_sessionmaker(
 
 # Базовий клас для моделей
 Base = declarative_base()
+
+# Dependency для FastAPI
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """

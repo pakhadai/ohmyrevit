@@ -6,7 +6,8 @@ from app.orders.models import Order, OrderItem, PromoCode
 from app.products.models import Product
 from app.users.models import User
 from datetime import datetime
-
+from fastapi import HTTPException
+from app.core.config import settings
 
 class OrderService:
     def __init__(self, db: AsyncSession):
@@ -15,58 +16,56 @@ class OrderService:
     async def calculate_discount(
             self,
             subtotal: Decimal,
-            promo_code: Optional[str] = None,
-            bonus_points: Optional[int] = None
-    ) -> tuple[Decimal, str]:
+            promo_code: Optional[str],
+            bonus_points: int,
+            db: AsyncSession
+    ) -> dict:
         """
-        Розраховує знижку. Повертає (сума_знижки, тип_знижки)
-        ВАЖЛИВО: Можна застосувати або промокод АБО бонуси, не обидва
+        Розрахунок знижки
+        Можна застосувати АБО промокод АБО бонуси, не обидва
         """
         discount_amount = Decimal(0)
-        discount_type = "none"
+        promo_code_id = None
+        bonus_used = 0
 
-        # Перевірка: не можна використати обидва типи знижок
-        if promo_code and bonus_points:
-            raise ValueError("Можна застосувати лише один тип знижки")
+        if promo_code and bonus_points > 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Можна застосувати тільки один вид знижки"
+            )
 
-        # Промокод
+        # Перевірка промокоду
         if promo_code:
-            promo = await self.db.execute(
+            result = await db.execute(
                 select(PromoCode).where(
                     PromoCode.code == promo_code,
                     PromoCode.is_active == True
                 )
             )
-            promo = promo.scalar_one_or_none()
+            promo = result.scalar_one_or_none()
 
-            if promo:
-                # Перевірка терміну дії
-                if promo.expires_at and promo.expires_at < datetime.utcnow():
-                    raise ValueError("Промокод прострочений")
+            if not promo:
+                raise HTTPException(status_code=400, detail="Невалідний промокод")
 
-                # Перевірка ліміту використань
-                if promo.max_uses and promo.current_uses >= promo.max_uses:
-                    raise ValueError("Промокод вже використано максимальну кількість разів")
+            if promo.discount_type == "percentage":
+                discount_amount = subtotal * (promo.value / 100)
+            else:
+                discount_amount = promo.value
 
-                # Розрахунок знижки
-                if promo.discount_type.value == "percentage":
-                    discount_amount = subtotal * (promo.value / 100)
-                else:  # fixed
-                    discount_amount = min(promo.value, subtotal)
+            promo_code_id = promo.id
 
-                discount_type = "promo"
+        # Перевірка бонусів
+        elif bonus_points > 0:
+            max_bonus_discount = subtotal * Decimal(settings.MAX_BONUS_DISCOUNT_PERCENT / 100)
+            bonus_value = Decimal(bonus_points / settings.BONUS_TO_USD_RATE)
+            discount_amount = min(bonus_value, max_bonus_discount)
+            bonus_used = int(discount_amount * settings.BONUS_TO_USD_RATE)
 
-                # Оновлюємо лічильник використань
-                promo.current_uses += 1
-
-        # Бонуси (100 бонусів = $1, максимум 50% від суми)
-        elif bonus_points and bonus_points > 0:
-            bonus_value = Decimal(bonus_points / 100)  # конвертація в долари
-            max_discount = subtotal * Decimal(0.5)  # максимум 50%
-            discount_amount = min(bonus_value, max_discount)
-            discount_type = "bonus"
-
-        return discount_amount, discount_type
+        return {
+            "discount_amount": discount_amount,
+            "promo_code_id": promo_code_id,
+            "bonus_used": bonus_used
+        }
 
     async def create_order(
             self,
@@ -129,3 +128,5 @@ class OrderService:
 
         await self.db.commit()
         return order
+
+order_service = OrderService()
