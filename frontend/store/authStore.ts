@@ -30,22 +30,41 @@ export const useAuthStore = create<AuthState>()(
 
       login: async (initData: object) => {
         set({ isLoading: true });
+
         try {
+          console.log('🔐 AuthStore: Починаємо авторизацію...');
           const response = await authAPI.loginTelegram(initData);
 
+          console.log('✅ AuthStore: Отримана відповідь:', response);
+
+          // Перевіряємо наявність необхідних даних
+          if (response.user && response.access_token) {
+            set({
+              user: response.user,
+              token: response.access_token,
+              isAuthenticated: true,
+              isLoading: false,
+              lastLoginAt: Date.now(),
+            });
+
+            console.log('✅ AuthStore: Користувач авторизований:', response.user.first_name);
+
+            // НЕ показуємо toast тут - він вже показується в AppProvider
+          } else {
+            throw new Error('Неповні дані авторизації');
+          }
+        } catch (error: any) {
+          console.error('❌ AuthStore: Помилка авторизації:', error);
+
           set({
-            user: response.user,
-            token: response.access_token,
-            isAuthenticated: true,
             isLoading: false,
-            lastLoginAt: Date.now(), // ДОДАНО: Зберігаємо час входу
+            isAuthenticated: false,
+            user: null,
+            token: null
           });
 
-          toast.success('Успішний вхід!');
-        } catch (error) {
-          console.error('Login error:', error);
-          toast.error('Помилка авторизації');
-          set({ isLoading: false });
+          // Кидаємо помилку далі для обробки в AppProvider
+          throw error;
         }
       },
 
