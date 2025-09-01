@@ -10,18 +10,24 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  lastLoginAt: number | null; // ДОДАНО: Час останнього успішного логіну
 
   // Методи
   login: (initData: object) => Promise<void>;
   logout: () => void;
   setUser: (user: User) => void;
+  checkTokenValidity: () => void; // ДОДАНО: Метод для перевірки актуальності токена
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      // ...
-      // ВИПРАВЛЕНО: Змінено тип initData на object
+      user: null,
+      token: null,
+      isLoading: false,
+      isAuthenticated: false,
+      lastLoginAt: null, // ДОДАНО
+
       login: async (initData: object) => {
         set({ isLoading: true });
         try {
@@ -32,6 +38,7 @@ export const useAuthStore = create<AuthState>()(
             token: response.access_token,
             isAuthenticated: true,
             isLoading: false,
+            lastLoginAt: Date.now(), // ДОДАНО: Зберігаємо час входу
           });
 
           toast.success('Успішний вхід!');
@@ -47,12 +54,28 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           token: null,
           isAuthenticated: false,
+          lastLoginAt: null, // ДОДАНО: Очищуємо час
         });
         toast.success('Ви вийшли з системи');
       },
 
       setUser: (user: User) => {
         set({ user });
+      },
+
+      // ДОДАНО: Новий метод для перевірки
+      checkTokenValidity: () => {
+        const { lastLoginAt } = get();
+        if (!lastLoginAt) return;
+
+        // 24 години в мілісекундах
+        const TOKEN_LIFETIME_MS = 24 * 60 * 60 * 1000;
+
+        if (Date.now() - lastLoginAt > TOKEN_LIFETIME_MS) {
+          // Якщо токен прострочений - викликаємо logout
+          get().logout();
+          toast.error("Сесія застаріла. Будь ласка, увійдіть знову.");
+        }
       },
     }),
     {
@@ -61,6 +84,7 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
+        lastLoginAt: state.lastLoginAt, // ДОДАНО: Зберігаємо в localStorage
       }),
     }
   )

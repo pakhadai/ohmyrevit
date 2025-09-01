@@ -14,7 +14,7 @@ from app.orders.models import Order  # Додано
 from typing import Optional
 from app.subscriptions.models import UserProductAccess
 
-router = APIRouter(prefix="/api/v1/orders", tags=["Orders"])
+router = APIRouter(tags=["Orders"])
 
 
 # ДОДАНО: Новий ендпоінт для перевірки знижки в реальному часі

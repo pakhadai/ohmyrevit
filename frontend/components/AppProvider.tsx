@@ -9,18 +9,21 @@ import Onboarding from './Onboarding';
 import { useSDK } from '@telegram-apps/sdk-react';
 
 export default function AppProvider({ children }: { children: React.ReactNode }) {
-  const { user, login, isLoading, isAuthenticated } = useAuthStore();
+  const { user, login, isLoading, isAuthenticated, checkTokenValidity } = useAuthStore(); // ДОДАНО: checkTokenValidity
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   // ВИПРАВЛЕНО: Використовуємо useSDK, щоб безпечно отримати initData
   const { initData } = useSDK();
 
   useEffect(() => {
+    // ДОДАНО: Перевіряємо токен при кожному завантаженні
+    checkTokenValidity();
+
     // Передаємо об'єкт initData напряму, коли він доступний
     if (initData && !isAuthenticated && !isLoading) {
       login(initData);
     }
-  }, [initData, isAuthenticated, isLoading, login]);
+  }, [initData, isAuthenticated, isLoading, login, checkTokenValidity]); // ДОДАНО: checkTokenValidity в залежності
 
   useEffect(() => {
     const isOnboardingCompleted = localStorage.getItem('onboardingCompleted');

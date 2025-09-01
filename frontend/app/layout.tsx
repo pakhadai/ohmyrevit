@@ -5,7 +5,7 @@ import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
 import { Toaster } from 'react-hot-toast';
 import AppProvider from '@/components/AppProvider';
-import TelegramProvider from '@/components/TelegramProvider'; // ВИПРАВЛЕНО: Імпортуємо нову клієнтську обгортку
+import TelegramProvider from '@/components/TelegramProvider';
 
 const inter = Inter({ subsets: ['latin', 'cyrillic'] });
 

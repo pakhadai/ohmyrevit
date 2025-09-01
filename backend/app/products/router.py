@@ -20,8 +20,8 @@ from app.products.schemas import (
 )
 
 # Створюємо роутери
-router = APIRouter(prefix="/api/v1/products", tags=["Products"])
-admin_router = APIRouter(prefix="/api/v1/admin/products", tags=["Admin Products"])
+router = APIRouter(tags=["Products"])
+admin_router = APIRouter(tags=["Admin Products"])
 
 
 # ========== Публічні ендпоінти ==========

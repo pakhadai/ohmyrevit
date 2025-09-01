@@ -14,7 +14,7 @@ from app.users.schemas import UserResponse, UserUpdate, BonusClaimResponse
 from app.core.config import settings
 from app.bonuses.service import BonusService
 
-router = APIRouter(prefix="/api/v1/profile", tags=["Profile"])
+router = APIRouter(tags=["Profile"])
 
 
 @router.post("/bonus/claim")

@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER:-ohmyrevit}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-secretpassword}
-      POSTGRES_DB: ${DB_NAME:-ohmyrevit_db} # <-- ВИПРАВЛЕНО
+      POSTGRES_DB: ${DB_NAME:-ohmyrevit_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -14,7 +14,8 @@ services:
     networks:
       - ohmyrevit_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ohmyrevit}"]
+      # ВИПРАВЛЕНО: Додано ім'я бази даних для коректної перевірки
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ohmyrevit} -d ${DB_NAME:-ohmyrevit_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,7 +41,7 @@ services:
       dockerfile: Dockerfile
     container_name: ohmyrevit_backend
     environment:
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-ohmyrevit}:${DB_PASSWORD:-secretpassword}@db:5432/${DB_NAME:-ohmyrevit_db} # <-- ВИПРАВЛЕНО
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-ohmyrevit}:${DB_PASSWORD:-secretpassword}@db:5432/${DB_NAME:-ohmyrevit_db}
       REDIS_URL: redis://redis:6379
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}

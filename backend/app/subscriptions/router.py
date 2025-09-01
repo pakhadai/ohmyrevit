@@ -10,7 +10,7 @@ from app.subscriptions.models import Subscription
 
 from app.core.config import settings # <-- ВИПРАВЛЕНО ШЛЯХ
 
-router = APIRouter(prefix="/api/v1/subscriptions", tags=["subscriptions"])
+router = APIRouter(tags=["subscriptions"])
 
 
 @router.post("/checkout")

@@ -56,7 +56,8 @@ class Settings(BaseSettings):
     # CORS
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
-        "https://t.me"
+        "https://t.me",
+        "https://dev.ohmyrevit.pp.ua",
     ]
 
     # Files

@@ -2,7 +2,16 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['localhost', 'example.com'],
+    domains: ['localhost', 'dev.ohmyrevit.pp.ua'],
+  },
+  // Додано для усунення попередження про Cross-origin
+  devIndicators: {
+    buildActivity: true,
+    buildActivityPosition: 'bottom-right',
+  },
+  experimental: {
+    // Дозволяємо доступ з вашого домену для розробки
+    allowedDevOrigins: ["https://dev.ohmyrevit.pp.ua"],
   },
   async rewrites() {
     return [

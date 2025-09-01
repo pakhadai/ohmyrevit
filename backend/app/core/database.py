@@ -2,7 +2,7 @@
 Налаштування підключення до PostgreSQL через SQLAlchemy
 """
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base
 from typing import AsyncGenerator
 from app.core.config import settings
 
@@ -30,14 +30,6 @@ AsyncSessionLocal = async_sessionmaker(
 Base = declarative_base()
 
 # Dependency для FastAPI
-async def get_db():
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
-
-
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency для отримання сесії бази даних
