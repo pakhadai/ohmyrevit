@@ -22,8 +22,8 @@ async def lifespan(app: FastAPI):
     """Lifecycle події для ініціалізації додатку"""
     # Створюємо таблиці при старті (для розробки)
     # В продакшені використовуйте Alembic міграції
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    #async with engine.begin() as conn:
+        #await conn.run_sync(Base.metadata.create_all)
 
     yield
 

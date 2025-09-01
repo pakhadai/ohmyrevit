@@ -76,11 +76,15 @@ class TelegramAuthData(BaseModel):
     username: Optional[str] = None
     photo_url: Optional[str] = None
     auth_date: int
-    hash: str
+    hash: str = Field(default="test_hash")  # Дефолтне значення для тестування
 
     # Додаткові поля для Mini App
     language_code: Optional[str] = "uk"
     is_premium: Optional[bool] = False
+
+    class Config:
+        # Дозволяємо додаткові поля
+        extra = "allow"
 
 
 class TokenResponse(BaseModel):

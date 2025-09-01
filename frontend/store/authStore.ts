@@ -1,3 +1,4 @@
+// frontend/store/authStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User } from '@/types';
@@ -11,7 +12,7 @@ interface AuthState {
   isAuthenticated: boolean;
 
   // Методи
-  login: (initData: string) => Promise<void>;
+  login: (initData: object) => Promise<void>;
   logout: () => void;
   setUser: (user: User) => void;
 }
@@ -19,12 +20,9 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      user: null,
-      token: null,
-      isLoading: false,
-      isAuthenticated: false,
-
-      login: async (initData: string) => {
+      // ...
+      // ВИПРАВЛЕНО: Змінено тип initData на object
+      login: async (initData: object) => {
         set({ isLoading: true });
         try {
           const response = await authAPI.loginTelegram(initData);
@@ -58,7 +56,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'auth-storage', // Ім'я для localStorage
+      name: 'auth-storage',
       partialize: (state) => ({
         user: state.user,
         token: state.token,
