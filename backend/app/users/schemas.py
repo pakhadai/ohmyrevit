@@ -70,20 +70,23 @@ class UserResponse(BaseModel):
 
 class TelegramAuthData(BaseModel):
     """Схема для даних авторизації з Telegram"""
+    # ВИПРАВЛЕНО: Зроблено поля більш гнучкими, додано user та query_id
     id: int = Field(..., description="Telegram user ID")
-    first_name: str
+    first_name: Optional[str] = None
     last_name: Optional[str] = None
     username: Optional[str] = None
     photo_url: Optional[str] = None
     auth_date: int
-    hash: str = Field(default="test_hash")  # Дефолтне значення для тестування
+    hash: str
+    user: Optional[dict] = None # Додано поле user, яке надсилає Telegram
+    query_id: Optional[str] = None # Додано поле query_id
 
     # Додаткові поля для Mini App
     language_code: Optional[str] = "uk"
     is_premium: Optional[bool] = False
 
     class Config:
-        # Дозволяємо додаткові поля
+        # Дозволяємо додаткові поля, щоб уникнути помилок валідації
         extra = "allow"
 
 

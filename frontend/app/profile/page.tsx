@@ -1,3 +1,4 @@
+// frontend/app/profile/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,7 +8,7 @@ import {
   FileText, Gift, TrendingUp, Clock
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { profileAPI } from '@/lib/api/profile';
+import { profileAPI } from '@/lib/api'; // ВИПРАВЛЕНО: Імпортуємо з нового файлу
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
@@ -143,7 +144,9 @@ export default function ProfilePage() {
                         <div>
                           <h3 className="font-semibold">{product.title}</h3>
                           <p className="text-sm text-gray-500">
-                            {product.file_size_mb} MB • {product.compatibility}
+                            {/* Додамо перевірку наявності полів перед виводом */}
+                            {product.file_size_mb && `${product.file_size_mb} MB`}
+                            {product.compatibility && ` • ${product.compatibility}`}
                           </p>
                         </div>
                       </div>
