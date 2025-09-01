@@ -4,20 +4,15 @@ const nextConfig = {
   images: {
     domains: ['localhost', 'dev.ohmyrevit.pp.ua'],
   },
-  // Додано для усунення попередження про Cross-origin
-  devIndicators: {
-    buildActivity: true,
-    buildActivityPosition: 'bottom-right',
-  },
   experimental: {
-    // Дозволяємо доступ з вашого домену для розробки
+    // ВИПРАВЛЕНО: Додаємо дозвіл для вашого домену розробки
     allowedDevOrigins: ["https://dev.ohmyrevit.pp.ua"],
   },
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://backend:8000/api/:path*',
+        destination: 'http://backend:8000/api/:path*', // Перенаправлення на бекенд-контейнер
       },
     ];
   },

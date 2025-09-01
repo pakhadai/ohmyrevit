@@ -13,13 +13,14 @@ import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 
 
-if settings.SENTRY_DSN:
+# Ініціалізуємо Sentry, тільки якщо DSN вказано
+if settings.SENTRY_DSN and settings.SENTRY_DSN.strip():
     sentry_sdk.init(
         dsn=settings.SENTRY_DSN,
         integrations=[
             FastApiIntegration(transaction_style="endpoint"),
         ],
-        traces_sample_rate=0.1,  # 10% транзакцій для performance monitoring
+        traces_sample_rate=0.1,
         environment=settings.ENVIRONMENT,
     )
 
