@@ -13,6 +13,7 @@ from app.products.models import Product
 from app.orders.models import Order  # Додано
 from typing import Optional
 from app.subscriptions.models import UserProductAccess
+from app.core.email import email_service
 
 router = APIRouter(tags=["Orders"])
 
@@ -149,6 +150,22 @@ async def cryptomus_webhook(
 
     if status == "paid" and order.status != "paid":
         order.status = "paid"
+
+        # Відправляємо email з підтвердженням
+        if order.user.email:
+            products_for_email = []
+            for item in order.items:
+                products_for_email.append({
+                    'title': item.product.get_translation('uk').title,
+                    'price': float(item.price_at_purchase)
+                })
+
+            await email_service.send_order_confirmation(
+                user_email=order.user.email,
+                order_id=order.id,
+                products=products_for_email,
+                total_amount=float(order.final_total)
+            )
 
         # Надаємо доступ до товарів
         for item in order.items:

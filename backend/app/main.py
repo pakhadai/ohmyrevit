@@ -9,7 +9,19 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.profile.router import router as profile_router
 from app.subscriptions.router import router as subscriptions_router
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
 
+
+if settings.SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        integrations=[
+            FastApiIntegration(transaction_style="endpoint"),
+        ],
+        traces_sample_rate=0.1,  # 10% транзакцій для performance monitoring
+        environment=settings.ENVIRONMENT,
+    )
 
 # Налаштування логування
 logging.basicConfig(
