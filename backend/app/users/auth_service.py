@@ -26,23 +26,18 @@ class AuthService:
     def verify_telegram_auth(auth_data: dict) -> bool:
         """
         Перевірка підпису даних від Telegram
-
-        ДЛЯ РОЗРОБКИ: Повертаємо True якщо немає токену або в режимі DEBUG
         """
-        # В режимі розробки пропускаємо валідацію
         if settings.DEBUG or not settings.TELEGRAM_BOT_TOKEN:
             return True
 
         auth_dict = auth_data.copy()
         received_hash = auth_dict.pop('hash', '')
 
-        # Якщо немає хешу - це тестовий режим
-        if not received_hash or received_hash == 'test_hash' or received_hash == 'test_hash_for_development':
-            return settings.DEBUG  # Дозволяємо тільки в DEBUG режимі
+        if not received_hash or received_hash == 'test_hash_for_development':
+            return settings.DEBUG
 
-        # Перевірка часу (дані не старші 1 дня)
         auth_date = auth_dict.get('auth_date', 0)
-        if time.time() - int(auth_date) > 86400:
+        if time.time() - int(auth_date) > 86400: # 1 day
             return False
 
         check_string_parts = []
@@ -92,9 +87,9 @@ class AuthService:
             auth_data: TelegramAuthData
     ) -> User:
         """
-        Автентифікація користувача через Telegram
+        Автентифікація користувача через Telegram.
+        Створює нового користувача або ОНОВЛЮЄ існуючого актуальними даними з Telegram.
         """
-        # Перевіряємо підпис (в DEBUG режимі завжди пропускає)
         auth_data_dict = auth_data.model_dump()
         if not AuthService.verify_telegram_auth(auth_data_dict):
             raise HTTPException(
@@ -102,16 +97,15 @@ class AuthService:
                 detail="Invalid Telegram authentication data"
             )
 
-        # Шукаємо користувача
         result = await db.execute(
             select(User).where(User.telegram_id == auth_data.id)
         )
         user = result.scalar_one_or_none()
 
-        # Готуємо дані для оновлення/створення
-        update_fields = {
-            'username': auth_data.username or f'user_{auth_data.id}',
-            'first_name': auth_data.first_name or 'User',
+        # Готуємо дані для оновлення/створення. Ці дані будуть оновлюватися при кожному вході.
+        user_data = {
+            'username': auth_data.username,
+            'first_name': auth_data.first_name or f'User {auth_data.id}',
             'last_name': auth_data.last_name,
             'language_code': auth_data.language_code or 'uk',
             'photo_url': auth_data.photo_url,
@@ -120,20 +114,18 @@ class AuthService:
 
         if user:
             # Оновлюємо існуючого користувача
-            for key, value in update_fields.items():
-                if value is not None:
-                    setattr(user, key, value)
+            for key, value in user_data.items():
+                setattr(user, key, value)
         else:
             # Створюємо нового користувача
             user = User(
                 telegram_id=auth_data.id,
-                **update_fields
+                **user_data
             )
             # Для першого користувача робимо адміном
-            first_user = await db.execute(select(User).limit(1))
-            if not first_user.scalar_one_or_none():
+            first_user_check = await db.execute(select(User.id).limit(1))
+            if not first_user_check.scalar_one_or_none():
                 user.is_admin = True
-
             db.add(user)
 
         await db.commit()

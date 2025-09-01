@@ -5,69 +5,41 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Download, Heart, Users, HelpCircle,
-  FileText, Gift, TrendingUp, Clock
+  FileText, Gift, Mail, Save
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { profileAPI } from '@/lib/api'; // ВИПРАВЛЕНО: Імпортуємо з нового файлу
+import { profileAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
+import Link from 'next/link';
 
 export default function ProfilePage() {
-  const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState('downloads');
-  const [downloads, setDownloads] = useState([]);
-  const [bonusInfo, setBonusInfo] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const { user, setUser } = useAuthStore();
+  const [email, setEmail] = useState(user?.email || '');
 
   useEffect(() => {
-    fetchData();
-  }, [activeTab]);
+    if (user) {
+      setEmail(user.email || '');
+    }
+  }, [user]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const handleEmailSave = async () => {
     try {
-      switch(activeTab) {
-        case 'downloads':
-          const downloadsData = await profileAPI.getDownloads();
-          setDownloads(downloadsData.products);
-          break;
-        case 'bonuses':
-          const bonusData = await profileAPI.getBonusInfo();
-          setBonusInfo(bonusData);
-          break;
-      }
+      const updatedUser = await profileAPI.updateProfile({ email });
+      setUser(updatedUser);
+      toast.success('Email успішно збережено!');
     } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
+      toast.error('Помилка при збереженні email.');
+      console.error('Update email error:', error);
     }
   };
 
-  const claimBonus = async () => {
-    try {
-      const result = await profileAPI.claimDailyBonus();
-      if (result.success) {
-        toast.success(result.message);
-        setBonusInfo({
-          ...bonusInfo,
-          balance: result.new_balance,
-          streak: result.streak,
-          can_claim_today: false
-        });
-      } else {
-        toast.error(result.message);
-      }
-    } catch (error) {
-      toast.error('Помилка при отриманні бонусу');
-    }
-  };
-
-  const tabs = [
-    { id: 'downloads', label: 'Завантаження', icon: Download },
-    { id: 'favorites', label: 'Вибрані', icon: Heart },
-    { id: 'bonuses', label: 'Бонуси', icon: Gift },
-    { id: 'referrals', label: 'Реферали', icon: Users },
-    { id: 'support', label: 'Підтримка', icon: HelpCircle },
-    { id: 'faq', label: 'FAQ', icon: FileText }
+  const menuItems = [
+    { href: '/profile/downloads', label: 'Завантаження', icon: Download },
+    { href: '/profile/favorites', label: 'Вибрані', icon: Heart },
+    { href: '/profile/bonuses', label: 'Бонуси', icon: Gift },
+    { href: '/profile/referrals', label: 'Реферали', icon: Users },
+    { href: '/profile/support', label: 'Підтримка', icon: HelpCircle },
+    { href: '/profile/faq', label: 'FAQ', icon: FileText }
   ];
 
   return (
@@ -75,152 +47,67 @@ export default function ProfilePage() {
       {/* Шапка профілю */}
       <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 mb-6 text-white">
         <div className="flex items-center gap-4">
-          <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-2xl font-bold">
-            {user?.first_name?.[0] || 'U'}
-          </div>
+            <img
+              src={user?.photo_url || `https://avatar.vercel.sh/${user?.username || user?.id}.png`}
+              alt="Profile"
+              className="w-24 h-24 rounded-full border-4 border-white/50 object-cover"
+            />
           <div>
-            <h1 className="text-2xl font-bold">{user?.first_name}</h1>
+            <h1 className="text-2xl font-bold">{user?.first_name} {user?.last_name}</h1>
             <p className="opacity-90">@{user?.username || 'user'}</p>
-            <div className="flex gap-4 mt-2">
-              <span className="flex items-center gap-1">
-                <Gift size={16} />
-                {user?.bonus_balance || 0} бонусів
-              </span>
-              <span className="flex items-center gap-1">
-                <TrendingUp size={16} />
-                Стрік: {user?.bonus_streak || 0} днів
-              </span>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Таби */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          return (
+      {/* Редагування Email */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 mb-6 shadow-sm">
+        <h2 className="text-lg font-semibold mb-3">Контактна інформація</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Ваш email використовуватиметься для важливих сповіщень та відновлення доступу.
+        </p>
+        <div className="flex items-center gap-2">
+            <div className="relative flex-grow">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="email"
+                name="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Ваш Email"
+                className="w-full pl-10 pr-4 py-2 border dark:border-slate-700 rounded-lg bg-transparent"
+              />
+            </div>
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-all ${
-                activeTab === tab.id
-                  ? 'bg-purple-500 text-white'
-                  : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200'
-              }`}
+                onClick={handleEmailSave}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0 flex items-center gap-2"
             >
-              <Icon size={18} />
-              {tab.label}
+                <Save size={18}/>
+                <span>Зберегти</span>
             </button>
-          );
-        })}
+        </div>
       </div>
 
-      {/* Контент */}
-      <div className="min-h-[400px]">
-        {loading ? (
-          <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
-          </div>
-        ) : (
-          <>
-            {/* Вкладка Завантаження */}
-            {activeTab === 'downloads' && (
-              <div className="grid gap-4">
-                {downloads.length > 0 ? (
-                  downloads.map((product: any) => (
-                    <motion.div
-                      key={product.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-white dark:bg-gray-800 rounded-lg p-4 flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-4">
-                        <img
-                          src={product.main_image_url}
-                          alt={product.title}
-                          className="w-16 h-16 rounded-lg object-cover"
-                        />
-                        <div>
-                          <h3 className="font-semibold">{product.title}</h3>
-                          <p className="text-sm text-gray-500">
-                            {/* Додамо перевірку наявності полів перед виводом */}
-                            {product.file_size_mb && `${product.file_size_mb} MB`}
-                            {product.compatibility && ` • ${product.compatibility}`}
-                          </p>
-                        </div>
-                      </div>
-                      <button className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
-                        <Download size={18} />
-                        Завантажити
-                      </button>
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <Download size={48} className="mx-auto mb-4 opacity-50" />
-                    <p>У вас поки немає доступних завантажень</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Вкладка Бонуси */}
-            {activeTab === 'bonuses' && bonusInfo && (
-              <div className="space-y-6">
-                {/* Щоденний бонус */}
-                <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl p-6 text-white">
-                  <h2 className="text-xl font-bold mb-4">Щоденний бонус</h2>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-3xl font-bold">{bonusInfo.streak} днів</p>
-                      <p className="opacity-90">Поточний стрік</p>
-                    </div>
-                    <button
-                      onClick={claimBonus}
-                      disabled={!bonusInfo.can_claim_today}
-                      className={`px-6 py-3 rounded-lg font-semibold ${
-                        bonusInfo.can_claim_today
-                          ? 'bg-white text-orange-500 hover:bg-gray-100'
-                          : 'bg-white/30 text-white cursor-not-allowed'
-                      }`}
-                    >
-                      {bonusInfo.can_claim_today ? 'Отримати бонус' : 'Вже отримано'}
-                    </button>
-                  </div>
-                  {!bonusInfo.can_claim_today && (
-                    <p className="mt-4 flex items-center gap-2">
-                      <Clock size={16} />
-                      Наступний бонус через {bonusInfo.next_claim_time}
-                    </p>
-                  )}
+      {/* Меню профілю */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {menuItems.map(item => {
+          const Icon = item.icon;
+          return (
+            <Link key={item.href} href={item.href}>
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="bg-white dark:bg-slate-800 rounded-lg p-5 flex items-center gap-4 cursor-pointer shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="p-3 bg-gray-100 dark:bg-slate-700 rounded-lg">
+                  <Icon size={22} className="text-purple-500" />
                 </div>
-
-                {/* Статистика */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-                    <p className="text-gray-500 text-sm">Поточний баланс</p>
-                    <p className="text-2xl font-bold">{bonusInfo.balance}</p>
-                    <p className="text-sm text-gray-500">≈ ${(bonusInfo.balance / 100).toFixed(2)}</p>
-                  </div>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-                    <p className="text-gray-500 text-sm">Максимальний стрік</p>
-                    <p className="text-2xl font-bold">{bonusInfo.streak}</p>
-                    <p className="text-sm text-gray-500">днів поспіль</p>
-                  </div>
+                <div>
+                  <h3 className="font-semibold">{item.label}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Перейти до розділу</p>
                 </div>
-              </div>
-            )}
-
-            {/* Інші вкладки - заглушки */}
-            {['favorites', 'referrals', 'support', 'faq'].includes(activeTab) && (
-              <div className="text-center py-12 text-gray-500">
-                <p className="text-xl mb-2">Скоро буде!</p>
-                <p>Цей розділ в розробці</p>
-              </div>
-            )}
-          </>
-        )}
+              </motion.div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

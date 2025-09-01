@@ -10,7 +10,9 @@ from app.users.models import User
 from app.products.models import Product, ProductTranslation
 from app.subscriptions.models import UserProductAccess, Subscription, SubscriptionStatus
 from app.profile.schemas import DownloadsResponse, DownloadableProduct
-from app.users.schemas import UserResponse, UserUpdate, BonusClaimResponse
+# ДОДАНО: імпорт TelegramAuthData та AuthService
+from app.users.schemas import UserResponse, UserUpdate, BonusClaimResponse, TelegramAuthData
+from app.users.auth_service import AuthService
 from app.core.config import settings
 from app.bonuses.service import BonusService
 
@@ -19,8 +21,8 @@ router = APIRouter(tags=["Profile"])
 
 @router.post("/bonus/claim")
 async def claim_daily_bonus(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """
     Отримання щоденного бонусу
@@ -29,10 +31,11 @@ async def claim_daily_bonus(
     result = await bonus_service.claim_daily_bonus(current_user.id)
     return result
 
+
 @router.get("/bonus/info")
 async def get_bonus_info(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """
     Інформація про бонусний статус користувача
@@ -41,10 +44,11 @@ async def get_bonus_info(
     info = await bonus_service.get_bonus_info(current_user.id)
     return info
 
+
 @router.get("/favorites")
 async def get_favorites(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """
     Отримання списку обраних товарів
@@ -128,30 +132,44 @@ async def get_current_user_profile(
 ):
     """
     Отримання профілю поточного користувача
-
-    Потребує валідний JWT токен в заголовку Authorization.
     """
     return UserResponse.model_validate(current_user)
 
 
-@router.patch("/me", response_model=UserResponse)
-async def update_current_user_profile(
-        user_update: UserUpdate,
+# ДОДАНО: Новий ендпоінт для синхронізації з Telegram
+@router.post("/me/telegram-sync", response_model=UserResponse)
+async def sync_profile_with_telegram(
+        auth_data: TelegramAuthData,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
     """
-    Оновлення профілю поточного користувача
-
-    Дозволяє оновити email, телефон та інші дані профілю.
+    Оновлює дані профілю (ім'я, юзернейм, фото) з даних Telegram
     """
-    # Оновлюємо тільки передані поля
-    update_data = user_update.model_dump(exclude_unset=True)
+    auth_data_dict = auth_data.model_dump(exclude_unset=True)
+    if not AuthService.verify_telegram_auth(auth_data_dict):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Telegram authentication data"
+        )
 
-    for field, value in update_data.items():
-        setattr(current_user, field, value)
+    if auth_data.id != current_user.telegram_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Telegram data does not match the current user"
+        )
 
-    # Оновлюємо час модифікації
+    update_fields = {
+        'first_name': auth_data.first_name,
+        'last_name': auth_data.last_name,
+        'username': auth_data.username,
+        'photo_url': auth_data.photo_url,
+    }
+
+    for field, value in update_fields.items():
+        if value is not None:
+            setattr(current_user, field, value)
+
     current_user.updated_at = datetime.utcnow()
 
     await db.commit()
@@ -159,5 +177,30 @@ async def update_current_user_profile(
 
     return UserResponse.model_validate(current_user)
 
-# ВИДАЛЕНО: Ця функція була дублікатом і містила неправильну логіку.
-# Правильна реалізація знаходиться у /bonus/claim.
+
+# ЗМІНЕНО: Ендпоінт тепер оновлює лише поля, не пов'язані з Telegram
+@router.patch("/me", response_model=UserResponse)
+async def update_current_user_profile(
+        user_update: UserUpdate,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Оновлення профілю поточного користувача (тільки email та телефон)
+    """
+    update_data = user_update.model_dump(exclude_unset=True)
+    allowed_fields = ['email', 'phone']
+
+    is_updated = False
+    for field, value in update_data.items():
+        if field in allowed_fields:
+            setattr(current_user, field, value)
+            is_updated = True
+
+    if is_updated:
+        current_user.updated_at = datetime.utcnow()
+
+    await db.commit()
+    await db.refresh(current_user)
+
+    return UserResponse.model_validate(current_user)
