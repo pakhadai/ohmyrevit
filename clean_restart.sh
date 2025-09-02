@@ -37,9 +37,9 @@ docker-compose build --no-cache
 echo -e "\n${YELLOW}Крок 6: Запуск контейнерів...${NC}"
 docker-compose up -d
 
-# Крок 7: Очікування готовності БД
-echo -e "\n${YELLOW}Крок 7: Очікування готовності бази даних...${NC}"
-sleep 10
+# Крок 7: Очікування готовності БД та сервісів
+echo -e "\n${YELLOW}Крок 7: Очікування готовності сервісів...${NC}"
+sleep 20
 
 # Крок 8: Застосування міграцій
 echo -e "\n${YELLOW}Крок 8: Застосування міграцій...${NC}"
@@ -49,22 +49,21 @@ docker-compose exec backend alembic upgrade head
 echo -e "\n${YELLOW}Крок 9: Перевірка статусу сервісів...${NC}"
 docker-compose ps
 
-# Крок 10: Тестування API
-echo -e "\n${YELLOW}Крок 10: Тестування API...${NC}"
-sleep 5
-API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)
+# Крок 10: Тестування сервісів через публічну адресу
+echo -e "\n${YELLOW}Крок 10: Тестування публічної доступності...${NC}"
+
+API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://dev.ohmyrevit.pp.ua/health)
 if [ "$API_STATUS" -eq 200 ]; then
-    echo -e "${GREEN}✓ API працює${NC}"
+    echo -e "${GREEN}✓ API публічно доступний${NC}"
 else
-    echo -e "${RED}✗ API не відповідає (код: $API_STATUS)${NC}"
+    echo -e "${RED}✗ API публічно не відповідає (код: $API_STATUS)${NC}"
 fi
 
-# Перевірка фронтенду
-FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000)
+FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://dev.ohmyrevit.pp.ua/)
 if [ "$FRONTEND_STATUS" -eq 200 ]; then
-    echo -e "${GREEN}✓ Frontend працює${NC}"
+    echo -e "${GREEN}✓ Frontend публічно доступний${NC}"
 else
-    echo -e "${RED}✗ Frontend не відповідає (код: $FRONTEND_STATUS)${NC}"
+    echo -e "${RED}✗ Frontend публічно не відповідає (код: $FRONTEND_STATUS)${NC}"
 fi
 
 echo -e "\n${GREEN}✅ Перезапуск завершено!${NC}"

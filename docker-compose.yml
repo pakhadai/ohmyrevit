@@ -3,7 +3,10 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: ohmyrevit_cloudflared
     restart: unless-stopped
-    command: tunnel --no-autoupdate run --url http://nginx:80
+    command: tunnel --config /etc/cloudflared/config.yml run 2c52553e-1ffd-46b3-a653-1e52a8cac070
+    volumes:
+      - ./config.yml:/etc/cloudflared/config.yml
+      - ./2c52553e-1ffd-46b3-a653-1e52a8cac070.json:/etc/cloudflared/2c52553e-1ffd-46b3-a653-1e52a8cac070.json
     networks:
       - ohmyrevit_network
     depends_on:
@@ -46,8 +49,6 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.dev
     container_name: ohmyrevit_frontend
-    ports:
-      - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: ${BACKEND_URL}/api/v1
       NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
@@ -57,12 +58,12 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-      - /app/.next  # Змінено - тепер .next не буде в named volume
+      - /app/.next
     depends_on:
       - backend
     networks:
       - ohmyrevit_network
-    command: npm run dev  # Видалено rm -rf .next
+    command: npm run dev
     restart: unless-stopped
 
   db:
@@ -111,7 +112,6 @@ services:
 volumes:
   postgres_data:
   backend_uploads:
-  frontend_next:
 
 networks:
   ohmyrevit_network:
