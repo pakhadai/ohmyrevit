@@ -55,7 +55,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   const [initReady, setInitReady] = useState(false);
 
   useEffect(() => {
-    // Перевіряємо збережений токен
+    // Перевіряємо збережений токен при завантаженні
     checkTokenValidity();
 
     // Функція для ініціалізації з Telegram
@@ -64,65 +64,16 @@ export default function AppProvider({ children }: { children: React.ReactNode })
       if (isAuthenticated || initAttempted) return;
 
       console.log('🔄 Початок ініціалізації Telegram WebApp...');
+      setInitAttempted(true); // Позначаємо, що спроба ініціалізації була
 
-      // Перевіряємо наявність Telegram WebApp
-      if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-        const tg = window.Telegram.WebApp;
+      const tg = window.Telegram?.WebApp;
 
-        // Повідомляємо Telegram що додаток готовий
-        tg.ready();
-        tg.expand();
-
-        console.log('📱 Telegram WebApp знайдено:', {
-          version: tg.version,
-          platform: tg.platform,
-          colorScheme: tg.colorScheme
-        });
-
-        // Отримуємо дані користувача
-        const initDataUnsafe = tg.initDataUnsafe;
-        console.log('👤 Дані від Telegram:', initDataUnsafe);
-
-        if (initDataUnsafe && initDataUnsafe.user) {
-          const telegramUser = initDataUnsafe.user;
-
-          // Формуємо об'єкт для авторизації з УСІМА полями
-          const authData = {
-            id: telegramUser.id,
-            first_name: telegramUser.first_name || 'User',
-            last_name: telegramUser.last_name || '',
-            username: telegramUser.username || '',
-            photo_url: telegramUser.photo_url || '',
-            language_code: telegramUser.language_code || 'uk',
-            is_premium: telegramUser.is_premium || false,
-            auth_date: initDataUnsafe.auth_date,
-            hash: initDataUnsafe.hash,
-            query_id: initDataUnsafe.query_id || '',
-            // Дублюємо user для сумісності з бекендом
-            user: telegramUser
-          };
-
-          console.log('✅ Відправляємо дані на авторизацію:', authData);
-
-          try {
-            // Викликаємо логін і чекаємо на результат
-            await login(authData);
-            console.log('✅ Авторизація успішна!');
-            toast.success('Вхід виконано успішно!');
-          } catch (error) {
-            console.error('❌ Помилка авторизації:', error);
-            toast.error('Помилка входу. Спробуйте пізніше.');
-          }
-
-          setInitAttempted(true);
-        } else {
-          console.warn('⚠️ Немає даних користувача від Telegram');
-
-          // Для тестування в браузері (тільки в режимі розробки!)
-          if (process.env.NODE_ENV === 'development') {
+      if (!tg) {
+          console.warn('⚠️ Telegram WebApp не доступний.');
+           // Для тестування в браузері (тільки в режимі розробки!)
+           if (process.env.NODE_ENV === 'development') {
             console.log('🧪 Режим розробки: використовуємо тестові дані');
-
-            // Генеруємо випадкові дані для тестування
+             // Генеруємо випадкові дані для тестування
             const randomId = Math.floor(Math.random() * 1000000) + 100000;
             const testData = {
               id: randomId,
@@ -145,35 +96,84 @@ export default function AppProvider({ children }: { children: React.ReactNode })
                 is_premium: false
               }
             };
-
-            try {
+             try {
               await login(testData);
               console.log('✅ Тестова авторизація успішна!');
             } catch (error) {
               console.error('❌ Помилка тестової авторизації:', error);
             }
-
-            setInitAttempted(true);
           }
+          return;
+      }
+
+      // Повідомляємо Telegram що додаток готовий
+      tg.ready();
+      tg.expand();
+
+      console.log('📱 Telegram WebApp знайдено:', {
+        version: tg.version,
+        platform: tg.platform,
+        colorScheme: tg.colorScheme
+      });
+
+      // Отримуємо дані користувача
+      const initDataUnsafe = tg.initDataUnsafe;
+      console.log('👤 Дані від Telegram:', initDataUnsafe);
+
+      if (initDataUnsafe && initDataUnsafe.user) {
+        const telegramUser = initDataUnsafe.user;
+
+        // Формуємо об'єкт для авторизації з УСІМА полями
+        const authData = {
+          id: telegramUser.id,
+          first_name: telegramUser.first_name || 'User',
+          last_name: telegramUser.last_name || '',
+          username: telegramUser.username || '',
+          photo_url: telegramUser.photo_url || '',
+          language_code: telegramUser.language_code || 'uk',
+          is_premium: telegramUser.is_premium || false,
+          auth_date: initDataUnsafe.auth_date,
+          hash: initDataUnsafe.hash,
+          query_id: initDataUnsafe.query_id || '',
+          // Дублюємо user для сумісності з бекендом
+          user: telegramUser
+        };
+
+        console.log('✅ Відправляємо дані на авторизацію:', authData);
+
+        try {
+          // Викликаємо логін і чекаємо на результат
+          await login(authData);
+          console.log('✅ Авторизація успішна!');
+          toast.success('Вхід виконано успішно!');
+        } catch (error) {
+          console.error('❌ Помилка авторизації:', error);
+          toast.error('Помилка входу. Спробуйте пізніше.');
         }
       } else {
-        console.warn('⚠️ Telegram WebApp не доступний, спробуємо ще раз...');
-
-        // Спробуємо ще раз через 500мс (максимум 10 спроб)
-        setTimeout(() => {
-          if (!initAttempted) {
-            initializeTelegram();
-          }
-        }, 500);
+        console.warn('⚠️ Немає даних користувача від Telegram');
       }
     };
 
-    // Запускаємо ініціалізацію після завантаження сторінки
-    if (typeof window !== 'undefined') {
-      // Невелика затримка для повної ініціалізації Telegram WebApp
-      setTimeout(initializeTelegram, 100);
-    }
+    // Додаємо прослуховувач події готовності Telegram WebApp
+    window.addEventListener('telegramWebAppReady', initializeTelegram);
+
+    // Додатково викликаємо ініціалізацію через короткий час як fallback
+    // для середовищ, де подія може не спрацювати (наприклад, деякі десктопні клієнти)
+    const fallbackTimeout = setTimeout(() => {
+        if (!initAttempted) {
+            initializeTelegram();
+        }
+    }, 1500);
+
+
+    // Очищуємо прослуховувач при розмонтуванні компонента
+    return () => {
+      window.removeEventListener('telegramWebAppReady', initializeTelegram);
+      clearTimeout(fallbackTimeout);
+    };
   }, [isAuthenticated, login, checkTokenValidity, initAttempted]);
+
 
   // Перевіряємо чи показувати онбординг
   useEffect(() => {

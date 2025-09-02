@@ -12,7 +12,8 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://backend:8000/api/:path*', // Перенаправлення на бекенд-контейнер
+        // ВИПРАВЛЕНО: Змінено на https та зовнішню адресу
+        destination: 'https://dev.ohmyrevit.pp.ua/api/:path*', // Перенаправлення на бекенд
       },
     ];
   },

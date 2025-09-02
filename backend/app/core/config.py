@@ -1,11 +1,11 @@
 """
 Конфігурація додатку з використанням Pydantic Settings
 """
-from pydantic_settings import BaseSettings
-from typing import List
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List, Any
 from functools import lru_cache
 from typing import Optional
-
+from pydantic import field_validator
 
 class Settings(BaseSettings):
     """
@@ -54,11 +54,15 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # CORS
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "https://t.me",
-        "https://dev.ohmyrevit.pp.ua",
-    ]
+    ALLOWED_ORIGINS: List[str] = []
+
+    # ВИПРАВЛЕНО: Додано валідатор для коректного парсингу рядка з .env
+    @field_validator("ALLOWED_ORIGINS", mode='before')
+    @classmethod
+    def assemble_allowed_origins(cls, v: Any) -> List[str]:
+        if isinstance(v, str):
+            return [i.strip() for i in v.split(",")]
+        return v
 
     # Files
     MAX_UPLOAD_SIZE_MB: int = 100
@@ -85,17 +89,7 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_MB: int = 500
     ALLOWED_FILE_EXTENSIONS: list = [".zip", ".rar", ".7z"]
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-
-        # Парсинг списків з env
-        @classmethod
-        def parse_env_var(cls, field_name: str, raw_val: str):
-            if field_name == 'ALLOWED_ORIGINS':
-                return [origin.strip() for origin in raw_val.split(',')]
-            return raw_val
-
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra='ignore')
 
 @lru_cache()
 def get_settings() -> Settings:
@@ -104,6 +98,5 @@ def get_settings() -> Settings:
     """
     return Settings()
 
-
 # Глобальний об'єкт налаштувань
-settings = Settings()
+settings = get_settings()
