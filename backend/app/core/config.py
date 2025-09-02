@@ -89,6 +89,14 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_MB: int = 500
     ALLOWED_FILE_EXTENSIONS: list = [".zip", ".rar", ".7z"]
 
+    @field_validator("ALLOWED_FILE_EXTENSIONS", mode="before")
+    @classmethod
+    def assemble_allowed_file_extensions(cls, v: Any) -> List[str]:
+        if isinstance(v, str):
+            # розбиваємо рядок по комі та прибираємо пробіли
+            return [i.strip() for i in v.split(",")]
+        return v
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra='ignore')
 
 @lru_cache()

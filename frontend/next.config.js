@@ -2,13 +2,22 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['localhost', 'dev.ohmyrevit.pp.ua', 'avatar.vercel.sh'],
+    domains: ['localhost', 'dev.ohmyrevit.pp.ua'],
   },
-  async rewrites() {
+  // Вимкніть PWA/Service Worker для уникнення конфліктів
+  pwa: {
+    disable: true,
+  },
+  async headers() {
     return [
       {
-        source: '/api/:path*',
-        destination: 'https://dev.ohmyrevit.pp.ua/api/:path*',
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
       },
     ];
   },
