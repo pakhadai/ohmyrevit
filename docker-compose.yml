@@ -3,10 +3,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: ohmyrevit_cloudflared
     restart: unless-stopped
-    command: tunnel --config /etc/cloudflared/config.yml run
-    volumes:
-      - ./config.yml:/etc/cloudflared/config.yml
-      - ./2be39487-878c-4780-a32e-e55a82d8e335.json:/etc/cloudflared/2be39487-878c-4780-a32e-e55a82d8e335.json
+    command: tunnel --no-autoupdate run --url http://nginx:80
     networks:
       - ohmyrevit_network
     depends_on:
@@ -49,6 +46,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.dev
     container_name: ohmyrevit_frontend
+    ports:
+      - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: ${BACKEND_URL}/api/v1
       NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}

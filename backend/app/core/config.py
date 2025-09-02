@@ -2,10 +2,8 @@
 Конфігурація додатку з використанням Pydantic Settings
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List, Any
+from typing import List, Optional
 from functools import lru_cache
-from typing import Optional
-from pydantic import field_validator
 
 class Settings(BaseSettings):
     """
@@ -53,16 +51,12 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
 
-    # CORS
-    ALLOWED_ORIGINS: List[str] = []
-
-    # ВИПРАВЛЕНО: Додано валідатор для коректного парсингу рядка з .env
-    @field_validator("ALLOWED_ORIGINS", mode='before')
-    @classmethod
-    def assemble_allowed_origins(cls, v: Any) -> List[str]:
-        if isinstance(v, str):
-            return [i.strip() for i in v.split(",")]
-        return v
+    # =================================================================
+    # ВИРІШЕННЯ ПРОБЛЕМИ: Жорстко кодуємо значення, які викликають помилку
+    # =================================================================
+    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "https://dev.ohmyrevit.pp.ua", "https://t.me"]
+    ALLOWED_FILE_EXTENSIONS: List[str] = [".zip", ".rar", ".7z"]
+    # =================================================================
 
     # Files
     MAX_UPLOAD_SIZE_MB: int = 100
@@ -87,15 +81,6 @@ class Settings(BaseSettings):
     # Налаштування для файлів
     UPLOAD_DIR: str = "./uploads"
     MAX_FILE_SIZE_MB: int = 500
-    ALLOWED_FILE_EXTENSIONS: list = [".zip", ".rar", ".7z"]
-
-    @field_validator("ALLOWED_FILE_EXTENSIONS", mode="before")
-    @classmethod
-    def assemble_allowed_file_extensions(cls, v: Any) -> List[str]:
-        if isinstance(v, str):
-            # розбиваємо рядок по комі та прибираємо пробіли
-            return [i.strip() for i in v.split(",")]
-        return v
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra='ignore')
 

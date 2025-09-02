@@ -1,7 +1,9 @@
-tunnel: 2be39487-878c-4780-a32e-e55a82d8e335
-credentials-file: /etc/cloudflared/2be39487-878c-4780-a32e-e55a82d8e335.json
+tunnel: 2c52553e-1ffd-46b3-a653-1e52a8cac070
+credentials-file: /etc/cloudflared/2c52553e-1ffd-46b3-a653-1e52a8cac070.json
 
 ingress:
   - hostname: dev.ohmyrevit.pp.ua
     service: http://nginx:80
+    originRequest:
+      no-tls-verify: true
   - service: http_status:404
