@@ -1,7 +1,7 @@
 """
 Головний файл FastAPI додатку OhMyRevit
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
@@ -11,7 +11,6 @@ from app.profile.router import router as profile_router
 from app.subscriptions.router import router as subscriptions_router
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
-
 
 # Ініціалізуємо Sentry, тільки якщо DSN вказано
 if settings.SENTRY_DSN and settings.SENTRY_DSN.strip():
@@ -35,13 +34,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle події для ініціалізації додатку"""
-    # Створюємо таблиці при старті (для розробки)
-    # В продакшені використовуйте Alembic міграції
-    #async with engine.begin() as conn:
-        #await conn.run_sync(Base.metadata.create_all)
-
     yield
-
     # Cleanup при зупинці
     await engine.dispose()
 
@@ -88,12 +81,21 @@ async def health_check():
 from app.users.router import router as users_router
 from app.products.router import router as products_router, admin_router as products_admin_router
 from app.orders.router import router as orders_router
-from app.admin.router import router as admin_router
+from app.admin.router import router as admin_main_router
 
-app.include_router(users_router, prefix="/api/v1", tags=["Users & Auth"])
-app.include_router(products_router, prefix="/api/v1/products", tags=["Products"])
-app.include_router(orders_router, prefix="/api/v1/orders", tags=["Orders"])
+# Основні роутери API
+api_v1_router = APIRouter(prefix="/api/v1")
+api_v1_router.include_router(users_router, tags=["Users & Auth"])
+api_v1_router.include_router(products_router, prefix="/products", tags=["Products"])
+api_v1_router.include_router(orders_router, prefix="/orders", tags=["Orders"])
+api_v1_router.include_router(profile_router, prefix="/profile", tags=["Profile"])
+api_v1_router.include_router(subscriptions_router, prefix="/subscriptions", tags=["Subscriptions"])
+
+# Адмін-роутери
+admin_router = APIRouter(prefix="/api/v1/admin")
+admin_router.include_router(admin_main_router) # Роутер для дашборду, користувачів і т.д.
+admin_router.include_router(products_admin_router, prefix="/products", tags=["Admin Products"])
+
+app.include_router(api_v1_router)
 app.include_router(admin_router)
-app.include_router(products_admin_router, prefix="/api/v1/admin/products", tags=["Admin Products"])
-app.include_router(profile_router, prefix="/api/v1/profile", tags=["Profile"])
-app.include_router(subscriptions_router, prefix="/api/v1/subscriptions", tags=["Subscriptions"])
+
