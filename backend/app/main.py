@@ -84,6 +84,7 @@ from app.products.router import router as products_router, admin_router as produ
 from app.orders.router import router as orders_router
 from app.admin.router import router as admin_main_router
 
+
 # Основні роутери API v1
 api_v1_router = APIRouter(prefix="/api/v1")
 api_v1_router.include_router(users_router)
@@ -96,7 +97,6 @@ api_v1_router.include_router(subscriptions_router, prefix="/subscriptions")
 admin_router_v1 = APIRouter()
 admin_router_v1.include_router(admin_main_router) # Роутер для дашборду, користувачів і т.д.
 admin_router_v1.include_router(products_admin_router, prefix="/products")
-
 
 # Реєструємо всі роутери в додатку
 app.include_router(api_v1_router)

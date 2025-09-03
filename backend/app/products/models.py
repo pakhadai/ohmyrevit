@@ -5,9 +5,10 @@ from sqlalchemy import (
     Column, Integer, String, Text, Numeric, Boolean,
     ForeignKey, Table, DateTime, Enum, ARRAY, UniqueConstraint
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.sql import func
 import enum
+from typing import List, Optional
 from app.core.database import Base
 
 
@@ -32,7 +33,7 @@ class Category(Base):
     __tablename__ = "categories"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False)
+    # Поле 'name' видаляється, назва буде в таблиці перекладів
     slug = Column(String(100), unique=True, nullable=False, index=True)
 
     # Зв'язки
@@ -41,9 +42,45 @@ class Category(Base):
         secondary=product_categories,
         back_populates="categories"
     )
+    translations: Mapped[List["CategoryTranslation"]] = relationship(
+        "CategoryTranslation",
+        back_populates="category",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
+    def get_translation(self, language_code: str = 'uk'):
+        """Отримати переклад для конкретної мови"""
+        for translation in self.translations:
+            if translation.language_code == language_code:
+                return translation
+        # Fallback на українську
+        for translation in self.translations:
+            if translation.language_code == 'uk':
+                return translation
+        return None
 
     def __repr__(self):
-        return f"<Category(name={self.name})>"
+        return f"<Category(slug={self.slug})>"
+
+
+# ДОДАНО: Нова модель для перекладів категорій
+class CategoryTranslation(Base):
+    __tablename__ = "category_translations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category_id = Column(Integer, ForeignKey('categories.id', ondelete='CASCADE'), nullable=False)
+    language_code = Column(String(3), nullable=False) # 'uk', 'en', 'ru'
+    name = Column(String(100), nullable=False)
+
+    category = relationship("Category", back_populates="translations")
+
+    __table_args__ = (
+        UniqueConstraint('category_id', 'language_code', name='uq_category_language'),
+    )
+
+    def __repr__(self):
+        return f"<CategoryTranslation(category_id={self.category_id}, lang={self.language_code})>"
 
 
 class Product(Base):

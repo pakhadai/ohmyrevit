@@ -7,8 +7,9 @@ export default function Head() {
       <meta name="description" content="Преміум контент для Autodesk Revit" />
       <link rel="icon" href="/favicon.ico" />
 
-      {/* Telegram Web App Script - ВАЖЛИВО! */}
-      <script src="https://telegram.org/js/telegram-web-app.js"></script>
+      {/* ВАЖЛИВО: Цей скрипт перенесено в layout.tsx для уникнення дублювання.
+        <script src="https://telegram.org/js/telegram-web-app.js"></script>
+      */}
     </>
   );
 }

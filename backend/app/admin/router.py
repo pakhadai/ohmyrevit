@@ -1,20 +1,74 @@
 """
 Головний роутер адмін-панелі
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from typing import List, Optional
+from sqlalchemy import select, func
+from typing import List, Optional, Dict
 from datetime import datetime, timedelta
+import aiofiles
+from pathlib import Path
+import logging
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.users.dependencies import get_current_admin_user
 from app.users.models import User
 from app.products.models import Product, Category
 from app.orders.models import Order, PromoCode
 from app.subscriptions.models import Subscription
 
-router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
+# ВИПРАВЛЕНО: Префікс видалено, оскільки він задається в app/main.py
+router = APIRouter(tags=["Admin"])
+logger = logging.getLogger(__name__)
+
+
+UPLOAD_DIR = Path(settings.UPLOAD_PATH)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
+ALLOWED_ARCHIVE_TYPES = ["application/zip", "application/x-rar-compressed", "application/x-7z-compressed", "application/octet-stream"]
+
+async def save_upload_file(upload_file: UploadFile, destination: Path) -> float:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    file_size = 0
+    try:
+        async with aiofiles.open(destination, 'wb') as out_file:
+            while content := await upload_file.read(1024 * 1024):
+                await out_file.write(content)
+                file_size += len(content)
+    except Exception as e:
+        logger.error(f"Помилка збереження файлу {upload_file.filename}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Не вдалося зберегти файл.")
+    return round(file_size / (1024 * 1024), 2)
+
+@router.post("/upload/image", response_model=Dict[str, float | str])
+async def upload_image(
+    file: UploadFile = File(...),
+    admin: User = Depends(get_current_admin_user)
+):
+    """Завантаження одного зображення"""
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Недопустимий тип файлу.")
+
+    file_path = UPLOAD_DIR / "images" / file.filename
+    file_size_mb = await save_upload_file(file, file_path)
+
+    return {"file_path": f"/uploads/images/{file.filename}", "file_size_mb": file_size_mb}
+
+@router.post("/upload/archive", response_model=Dict[str, float | str])
+async def upload_archive(
+    file: UploadFile = File(...),
+    admin: User = Depends(get_current_admin_user)
+):
+    """Завантаження одного архіву"""
+    if file.content_type not in ALLOWED_ARCHIVE_TYPES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Недопустимий тип файлу.")
+
+    file_path = UPLOAD_DIR / "archives" / file.filename
+    file_size_mb = await save_upload_file(file, file_path)
+
+    return {"file_path": f"/uploads/archives/{file.filename}", "file_size_mb": file_size_mb}
 
 
 # ========== DASHBOARD ==========

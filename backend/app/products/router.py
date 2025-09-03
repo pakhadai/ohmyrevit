@@ -18,7 +18,7 @@ from app.products.schemas import (
     CategoryCreate,
     CategoryResponse
 )
-from app.products.models import Category
+from app.products.models import Category, CategoryTranslation
 from sqlalchemy import select
 
 # Створюємо роутери
@@ -183,9 +183,27 @@ async def update_product_translation(
 # ========== Категорії ==========
 
 @router.get("/categories", response_model=List[CategoryResponse])
-async def get_categories(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Category).order_by(Category.name))
-    return result.scalars().all()
+async def get_categories(
+        accept_language: Optional[str] = Header(default="uk"),
+        db: AsyncSession = Depends(get_db)
+):
+    """Отримання списку категорій з перекладом"""
+    language_code = _parse_language_header(accept_language)
+
+    result = await db.execute(
+        select(Category).options(selectinload(Category.translations))
+    )
+    categories = result.scalars().all()
+
+    response_data = []
+    for category in categories:
+        translation = category.get_translation(language_code)
+        response_data.append({
+            "id": category.id,
+            "slug": category.slug,
+            "name": translation.name if translation else category.slug
+        })
+    return response_data
 
 
 @admin_router.post("/categories", response_model=CategoryResponse)
