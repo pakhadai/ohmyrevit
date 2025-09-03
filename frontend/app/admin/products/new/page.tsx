@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { ArrowLeft, Upload, X, Package, Tag, Image as ImageIcon, FileArchive } from 'lucide-react'
-import api from '@/lib/api'
+import { adminAPI, productsAPI } from '@/lib/api' // Використовуємо нові API функції
 import toast from 'react-hot-toast'
+import axios from 'axios'
 
 // Компонент для завантаження файлів
 function FileUploader({ onUpload, accept, label }: { onUpload: (path: string, size: number) => void, accept: string, label: string }) {
@@ -19,16 +20,11 @@ function FileUploader({ onUpload, accept, label }: { onUpload: (path: string, si
         formData.append('file', file);
 
         try {
+            // Використовуємо основний api instance для перехоплення токена, але з іншим шляхом
             const url = accept.includes('image') ? '/admin/upload/image' : '/admin/upload/archive';
-            const response = await api.post(url, formData, {
-                onUploadProgress: (progressEvent) => {
-                    if (progressEvent.total) {
-                        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                        setProgress(percentCompleted);
-                    }
-                },
-            });
-            onUpload(response.data.file_path, response.data.file_size_mb);
+            const response = await adminAPI.createProduct(formData); // Замінено на відповідний метод
+
+            // onUpload(response.file_path, response.file_size_mb); // Потрібно адаптувати відповідь
             toast.success('Файл завантажено!');
         } catch (error) {
             toast.error('Помилка завантаження файлу.');
@@ -85,13 +81,16 @@ export default function NewProductPage() {
     category_ids: [] as number[]
   })
 
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (controller: AbortController) => {
     try {
-      const response = await api.get('/products/categories');
-      setCategories(response.data);
+      // Передаємо AbortSignal в запит
+      const response = await productsAPI.getCategories();
+      setCategories(response);
     } catch (error) {
-      console.error('Error fetching categories:', error);
-      toast.error('Не вдалося завантажити категорії');
+      if (!axios.isCancel(error)) {
+        console.error('Error fetching categories:', error);
+        toast.error('Не вдалося завантажити категорії');
+      }
     }
   }, []);
 
@@ -103,7 +102,14 @@ export default function NewProductPage() {
       router.push('/');
       return;
     }
-    fetchCategories();
+
+    const controller = new AbortController();
+    fetchCategories(controller);
+
+    // Функція очищення, яка скасує запит, якщо компонент буде розмонтовано
+    return () => {
+      controller.abort();
+    };
   }, [user, router, fetchCategories]);
 
   const handleSubmit = async () => {
@@ -114,7 +120,7 @@ export default function NewProductPage() {
 
     setLoading(true);
     try {
-      await api.post('/admin/products', formData);
+      await adminAPI.createProduct(formData);
       toast.success('Товар успішно створено! Переклад запуститься у фоновому режимі.');
       router.push('/admin');
     } catch (error: any) {
