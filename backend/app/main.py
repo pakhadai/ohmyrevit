@@ -88,10 +88,12 @@ async def health_check():
 from app.users.router import router as users_router
 from app.products.router import router as products_router, admin_router as products_admin_router
 from app.orders.router import router as orders_router
+from app.admin.router import router as admin_router
 
 app.include_router(users_router, prefix="/api/v1", tags=["Users & Auth"])
 app.include_router(products_router, prefix="/api/v1/products", tags=["Products"])
 app.include_router(orders_router, prefix="/api/v1/orders", tags=["Orders"])
+app.include_router(admin_router)
 app.include_router(products_admin_router, prefix="/api/v1/admin/products", tags=["Admin Products"])
 app.include_router(profile_router, prefix="/api/v1/profile", tags=["Profile"])
 app.include_router(subscriptions_router, prefix="/api/v1/subscriptions", tags=["Subscriptions"])

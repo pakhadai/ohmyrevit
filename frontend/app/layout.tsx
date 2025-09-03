@@ -6,7 +6,7 @@ import BottomNav from '@/components/layout/BottomNav';
 import { Toaster } from 'react-hot-toast';
 import AppProvider from '@/components/AppProvider';
 import TelegramProvider from '@/components/TelegramProvider';
-import Script from 'next/script'; // ДОДАНО: Імпорт Script
+import Script from 'next/script';
 
 const inter = Inter({ subsets: ['latin', 'cyrillic'] });
 
@@ -21,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="uk">
-      <body> {/* ВИДАЛЕНО: класи з тегу body, оскільки вони можуть заважати */}
+    <html lang="uk" suppressHydrationWarning>
+      <body>
         <TelegramProvider>
           <AppProvider>
             <div className={`${inter.className} bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100`}>
@@ -35,7 +35,6 @@ export default function RootLayout({
             </div>
           </AppProvider>
         </TelegramProvider>
-        {/* ДОДАНО: Коректне завантаження скрипта Telegram */}
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
@@ -44,3 +43,4 @@ export default function RootLayout({
     </html>
   );
 }
+
