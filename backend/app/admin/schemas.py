@@ -1,0 +1,101 @@
+"""
+Pydantic схеми для адмін-панелі
+"""
+from pydantic import BaseModel, ConfigDict, Field
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+from decimal import Decimal
+
+
+class FileUploadResponse(BaseModel):
+    """Відповідь після завантаження файлу"""
+    file_path: str
+    file_size_mb: float
+    filename: str
+
+
+class DashboardStats(BaseModel):
+    """Статистика для дашборду"""
+    users: Dict[str, int]
+    products: Dict[str, int]
+    subscriptions: Dict[str, int]
+    orders: Dict[str, Any]
+    revenue: Dict[str, float]
+
+
+class UserBrief(BaseModel):
+    """Скорочена інформація про користувача"""
+    id: int
+    telegram_id: int
+    username: Optional[str]
+    first_name: str
+    last_name: Optional[str]
+    email: Optional[str]
+    is_admin: bool
+    is_active: bool = True
+    bonus_balance: int
+    bonus_streak: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserListResponse(BaseModel):
+    """Відповідь зі списком користувачів"""
+    users: List[UserBrief]
+    total: int
+    skip: int
+    limit: int
+
+
+class CategoryResponse(BaseModel):
+    """Відповідь для категорії"""
+    id: int
+    slug: str
+    name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PromoCodeCreate(BaseModel):
+    """Схема створення промокоду"""
+    code: str = Field(..., min_length=3, max_length=50)
+    discount_type: str = Field(..., pattern="^(percentage|fixed)$")
+    value: float = Field(..., gt=0)
+    max_uses: Optional[int] = Field(None, gt=0)
+    expires_at: Optional[datetime] = None
+
+
+class PromoCodeResponse(BaseModel):
+    """Відповідь для промокоду"""
+    id: int
+    code: str
+    discount_type: str
+    value: float
+    expires_at: Optional[datetime]
+    max_uses: Optional[int]
+    current_uses: int
+    is_active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderBrief(BaseModel):
+    """Скорочена інформація про замовлення"""
+    id: int
+    user: Dict[str, Any]
+    subtotal: float
+    discount_amount: float
+    final_total: float
+    status: str
+    items_count: int
+    created_at: str
+
+
+class OrderListResponse(BaseModel):
+    """Відповідь зі списком замовлень"""
+    orders: List[OrderBrief]
+    total: int
+    skip: int
+    limit: int

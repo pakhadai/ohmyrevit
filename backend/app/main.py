@@ -3,6 +3,7 @@
 """
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import logging
 from app.core.config import settings
@@ -59,6 +60,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_PATH), name="uploads")
 
 # Базовий ендпоінт для перевірки
 @app.get("/")
@@ -83,7 +85,6 @@ from app.users.router import router as users_router
 from app.products.router import router as products_router, admin_router as products_admin_router
 from app.orders.router import router as orders_router
 from app.admin.router import router as admin_main_router
-
 
 # Основні роутери API v1
 api_v1_router = APIRouter(prefix="/api/v1")

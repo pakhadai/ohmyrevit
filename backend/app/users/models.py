@@ -31,7 +31,7 @@ class User(Base):
 
     # Права доступу
     is_admin = Column(Boolean, default=False)
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True, server_default='true')
 
     # Бонусна система
     bonus_balance = Column(Integer, default=0)

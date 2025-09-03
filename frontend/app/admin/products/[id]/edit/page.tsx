@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { ArrowLeft, Upload, X, Package, Tag, Image as ImageIcon, FileArchive } from 'lucide-react'
-import api from '@/lib/api'
+// import api from '@/lib/api'
 import toast from 'react-hot-toast'
 
 // Компонент для завантаження файлів

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { ArrowLeft, Upload, X, Package, Tag, Image as ImageIcon, FileArchive } from 'lucide-react'
-import { adminAPI, productsAPI } from '@/lib/api' // Використовуємо нові API функції
+// import { adminAPI, productsAPI } from '@/lib/api' // Використовуємо нові API функції
 import toast from 'react-hot-toast'
 import axios from 'axios'
 
