@@ -21,9 +21,7 @@ function UsersManagement() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.get('/admin/users', {
-        params: { search, limit: 50 }
-      });
+      const response = await api.get('/admin/users', { params: { search, limit: 50 } });
       setUsers(response.data.users);
     } catch (error) {
       toast.error('Помилка завантаження користувачів');
@@ -113,11 +111,8 @@ function ProductsManagement() {
     try {
       const response = await api.get('/products');
       setProducts(response.data.products);
-    } catch (error) {
-      toast.error('Помилка завантаження товарів');
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { toast.error('Помилка завантаження товарів'); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
@@ -129,11 +124,8 @@ function ProductsManagement() {
       await api.delete(`/admin/products/${productId}`);
       toast.success('Товар видалено');
       fetchProducts();
-    } catch (error) {
-      toast.error('Помилка видалення товару');
-    } finally {
-      setShowDeleteModal(null);
-    }
+    } catch (error) { toast.error('Помилка видалення товару'); }
+    finally { setShowDeleteModal(null); }
   };
 
   if (loading) return <div className="text-center py-8">Завантаження...</div>;
@@ -207,11 +199,8 @@ function OrdersManagement() {
     try {
       const response = await api.get('/admin/orders');
       setOrders(response.data.orders);
-    } catch (error) {
-      toast.error('Помилка завантаження замовлень');
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { toast.error('Помилка завантаження замовлень'); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
@@ -269,11 +258,8 @@ function PromoCodesManagement() {
     try {
       const response = await api.get('/admin/promo-codes');
       setPromoCodes(response.data);
-    } catch (error) {
-      toast.error('Помилка завантаження промокодів');
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { toast.error('Помилка завантаження промокодів'); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchPromoCodes() }, [fetchPromoCodes]);

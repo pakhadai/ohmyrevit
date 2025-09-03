@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 
 from app.core.database import get_db
-from app.core.auth import get_current_user, require_admin
+from app.core.auth import require_admin
 from app.users.models import User
 from app.products.service import product_service
 from app.products.schemas import (
@@ -18,96 +18,50 @@ from app.products.schemas import (
     CategoryCreate,
     CategoryResponse
 )
+from app.products.models import Category
+from sqlalchemy import select
 
 # Створюємо роутери
-router = APIRouter(tags=["Products"])
-admin_router = APIRouter(tags=["Admin Products"])
+router = APIRouter()
+admin_router = APIRouter()
 
 
 # ========== Публічні ендпоінти ==========
 
 @router.get("", response_model=PaginatedProductsResponse)
 async def get_products(
-        # Заголовок для визначення мови
-        accept_language: Optional[str] = Header(default="uk"),
-        # Параметри фільтрації
-        category_id: Optional[int] = Query(None, description="ID категорії"),
-        product_type: Optional[str] = Query(None, description="Тип товару: free або premium"),
-        is_on_sale: Optional[bool] = Query(None, description="Тільки товари зі знижкою"),
-        min_price: Optional[float] = Query(None, ge=0, description="Мінімальна ціна"),
-        max_price: Optional[float] = Query(None, ge=0, description="Максимальна ціна"),
-        sort_by: Optional[str] = Query("newest", description="Сортування: price_asc, price_desc, newest, popular"),
-        # Пагінація
-        limit: int = Query(20, ge=1, le=100, description="Кількість товарів на сторінку"),
-        offset: int = Query(0, ge=0, description="Зсув для пагінації"),
-        # База даних
-        db: AsyncSession = Depends(get_db)
+    accept_language: Optional[str] = Header(default="uk"),
+    category_id: Optional[int] = Query(None),
+    product_type: Optional[str] = Query(None),
+    is_on_sale: Optional[bool] = Query(None),
+    min_price: Optional[float] = Query(None, ge=0),
+    max_price: Optional[float] = Query(None, ge=0),
+    sort_by: Optional[str] = Query("newest"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db)
 ):
-    """
-    Отримання списку товарів з фільтрацією та пагінацією
-
-    Приймає заголовок Accept-Language для визначення мови:
-    - uk - українська (за замовчуванням)
-    - en - англійська
-    - ru - російська
-    """
-    # Парсимо мову з заголовка
     language_code = _parse_language_header(accept_language)
-
-    # Створюємо об'єкт фільтрів
     filters = ProductFilter(
-        category_id=category_id,
-        product_type=product_type,
-        is_on_sale=is_on_sale,
-        min_price=min_price,
-        max_price=max_price,
-        sort_by=sort_by
+        category_id=category_id, product_type=product_type, is_on_sale=is_on_sale,
+        min_price=min_price, max_price=max_price, sort_by=sort_by
     )
-
-    # Отримуємо товари
-    result = await product_service.get_products_list(
-        language_code=language_code,
-        db=db,
-        filters=filters,
-        limit=limit,
-        offset=offset
+    return await product_service.get_products_list(
+        language_code=language_code, db=db, filters=filters, limit=limit, offset=offset
     )
-
-    return result
-
 
 @router.get("/{product_id}", response_model=ProductResponse)
 async def get_product(
-        product_id: int,
-        accept_language: Optional[str] = Header(default="uk"),
-        db: AsyncSession = Depends(get_db),
-        background_tasks: BackgroundTasks = BackgroundTasks()
+    product_id: int,
+    accept_language: Optional[str] = Header(default="uk"),
+    db: AsyncSession = Depends(get_db),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    """
-    Отримання детальної інформації про товар
-
-    Збільшує лічильник переглядів
-    """
-    # Парсимо мову
     language_code = _parse_language_header(accept_language)
-
-    # Отримуємо товар
-    product = await product_service.get_product(
-        product_id=product_id,
-        language_code=language_code,
-        db=db
-    )
-
+    product = await product_service.get_product(product_id=product_id, language_code=language_code, db=db)
     if not product:
         raise HTTPException(status_code=404, detail="Товар не знайдено")
-
-    # Збільшуємо лічильник переглядів у фоні
-    background_tasks.add_task(
-        product_service.increment_view_count,
-        product_id,
-        db
-    )
-
+    background_tasks.add_task(product_service.increment_view_count, product_id, db)
     return product
 
 
@@ -229,17 +183,9 @@ async def update_product_translation(
 # ========== Категорії ==========
 
 @router.get("/categories", response_model=List[CategoryResponse])
-async def get_categories(
-        db: AsyncSession = Depends(get_db)
-):
-    """Отримання списку всіх категорій"""
-    from sqlalchemy import select
-    from app.products.models import Category
-
-    result = await db.execute(select(Category))
-    categories = result.scalars().all()
-
-    return categories
+async def get_categories(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Category).order_by(Category.name))
+    return result.scalars().all()
 
 
 @admin_router.post("/categories", response_model=CategoryResponse)

@@ -11,6 +11,8 @@ declare global {
   }
 }
 
+let isLoginToastShown = false;
+
 export default function AppProvider({ children }: { children: React.ReactNode }) {
   const { user, login, isLoading, isAuthenticated } = useAuthStore();
   const [showOnboarding, setShowOnboarding] = useState(false);
