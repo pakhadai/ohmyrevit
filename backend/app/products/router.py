@@ -20,6 +20,7 @@ from app.products.schemas import (
 )
 from app.products.models import Category, CategoryTranslation
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload, joinedload
 
 # Створюємо роутери
 router = APIRouter()
@@ -191,18 +192,24 @@ async def get_categories(
     language_code = _parse_language_header(accept_language)
 
     result = await db.execute(
-        select(Category).options(selectinload(Category.translations))
+        select(Category).options(
+            joinedload(Category.translations)
+        )
     )
-    categories = result.scalars().all()
+    categories = result.scalars().unique().all()
 
     response_data = []
     for category in categories:
-        translation = category.get_translation(language_code)
-        response_data.append({
-            "id": category.id,
-            "slug": category.slug,
-            "name": translation.name if translation else category.slug
-        })
+        translation = next(
+            (t for t in category.translations if t.language_code == language_code),
+            next((t for t in category.translations if t.language_code == 'uk'), None)
+        )
+        if translation:
+            response_data.append({
+                "id": category.id,
+                "slug": category.slug,
+                "name": translation.name
+            })
     return response_data
 
 
