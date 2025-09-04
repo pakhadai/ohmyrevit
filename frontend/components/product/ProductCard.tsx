@@ -28,6 +28,9 @@ export default function ProductCard({ product }: ProductCardProps) {
     ? Math.round(((product.price - product.sale_price) / product.price) * 100)
     : 0;
 
+  // ВИПРАВЛЕНО: Визначаємо URL зображення, з плейсхолдером як запасний варіант
+  const imageUrl = product.main_image_url || '/placeholder.jpg';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -35,14 +38,20 @@ export default function ProductCard({ product }: ProductCardProps) {
       transition={{ duration: 0.3 }}
       className="group relative bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
     >
-      <Link href={`/product/${product.id}`}>
+      <Link href={`/product/${product.id}`} passHref>
         {/* Зображення */}
         <div className="relative aspect-square overflow-hidden">
           <Image
-            src={product.main_image_url}
+            src={imageUrl} // ВИПРАВЛЕНО: Використовуємо змінну imageUrl
             alt={product.title}
             fill
             className="object-cover group-hover:scale-110 transition-transform duration-500"
+            // Додаємо обробник помилок, щоб уникнути падіння сторінки, якщо зображення недоступне
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.onerror = null; // запобігаємо нескінченному циклу
+              target.src = '/placeholder.jpg';
+            }}
           />
 
           {/* Бейджі */}
@@ -76,7 +85,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           {/* Ціна */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              {product.is_on_sale ? (
+              {product.is_on_sale && product.sale_price ? (
                 <>
                   <span className="text-lg font-bold text-blue-500">
                     ${product.sale_price}

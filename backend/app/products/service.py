@@ -3,7 +3,7 @@
 """
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
 from fastapi import BackgroundTasks, HTTPException
 import logging
@@ -150,7 +150,11 @@ class ProductService:
 
         if not translation:
             logger.warning(f"Переклад товару {product_id} для мови {language_code} не знайдено")
-            return None
+            # Fallback на українську, якщо переклад для поточної мови відсутній
+            translation = product.get_translation('uk')
+            if not translation:
+                return None
+
 
         # Формуємо відповідь
         return {
@@ -161,13 +165,14 @@ class ProductService:
             "product_type": product.product_type.value,
             "main_image_url": product.main_image_url,
             "gallery_image_urls": product.gallery_image_urls,
+            "zip_file_path": product.zip_file_path, # Додано відсутнє поле
             "file_size_mb": float(product.file_size_mb),
             "compatibility": product.compatibility,
             "is_on_sale": product.is_on_sale,
             "sale_price": float(product.sale_price) if product.sale_price else None,
             "actual_price": float(product.get_actual_price()),
             "categories": [
-                {"id": cat.id, "name": cat.name, "slug": cat.slug}
+                {"id": cat.id, "name": cat.get_translation(language_code).name if cat.get_translation(language_code) else cat.slug, "slug": cat.slug}
                 for cat in product.categories
             ],
             "views_count": product.views_count,
@@ -199,7 +204,7 @@ class ProductService:
         # Базовий запит
         query = select(Product).options(
             selectinload(Product.translations),
-            selectinload(Product.categories)
+            selectinload(Product.categories).selectinload(Category.translations) # Жадібне завантаження перекладів категорій
         )
 
         # Застосовуємо фільтри
@@ -237,7 +242,7 @@ class ProductService:
         # Виконуємо запит з пагінацією
         query = query.limit(limit).offset(offset)
         result = await db.execute(query)
-        products = result.scalars().all()
+        products = result.scalars().unique().all()
 
         # Формуємо список товарів з перекладами
         products_list = []
@@ -254,7 +259,7 @@ class ProductService:
                     "is_on_sale": product.is_on_sale,
                     "sale_price": float(product.sale_price) if product.sale_price else None,
                     "actual_price": float(product.get_actual_price()),
-                    "categories": [cat.name for cat in product.categories],
+                    "categories": [cat.get_translation(language_code).name if cat.get_translation(language_code) else cat.slug for cat in product.categories],
                     "views_count": product.views_count
                 })
 
@@ -264,9 +269,20 @@ class ProductService:
             count_query = count_query.join(Product.categories).where(
                 Category.id == filters.category_id
             )
+        # Додаємо інші фільтри до підрахунку
+        if filters:
+            if filters.product_type:
+                count_query = count_query.where(Product.product_type == filters.product_type)
+            if filters.is_on_sale is not None:
+                count_query = count_query.where(Product.is_on_sale == filters.is_on_sale)
+            if filters.min_price is not None:
+                count_query = count_query.where(Product.price >= filters.min_price)
+            if filters.max_price is not None:
+                count_query = count_query.where(Product.price <= filters.max_price)
+
 
         total_result = await db.execute(count_query)
-        total_count = total_result.scalar()
+        total_count = total_result.scalar() or 0
 
         return {
             "products": products_list,
@@ -295,9 +311,11 @@ class ProductService:
         Returns:
             Оновлений товар
         """
-        # Знаходимо товар
+        # === ВИРІШЕННЯ ПРОБЛЕМИ: "Жадібно" завантажуємо категорії одразу ===
         result = await db.execute(
-            select(Product).where(Product.id == product_id)
+            select(Product)
+            .options(selectinload(Product.categories))
+            .where(Product.id == product_id)
         )
         product = result.scalar_one_or_none()
 
@@ -305,21 +323,26 @@ class ProductService:
             raise HTTPException(status_code=404, detail="Товар не знайдено")
 
         # Оновлюємо основні поля
-        update_fields = update_data.dict(exclude_unset=True, exclude={'title_uk', 'description_uk', 'category_ids'})
+        update_fields = update_data.model_dump(exclude_unset=True, exclude={'title_uk', 'description_uk', 'category_ids'})
         for field, value in update_fields.items():
             setattr(product, field, value)
 
         # Оновлюємо категорії якщо вказані
         if update_data.category_ids is not None:
-            categories = await db.execute(
-                select(Category).where(Category.id.in_(update_data.category_ids))
-            )
-            product.categories = categories.scalars().all()
+            if update_data.category_ids:
+                categories = await db.execute(
+                    select(Category).where(Category.id.in_(update_data.category_ids))
+                )
+                product.categories = categories.scalars().all()
+            else:
+                # Якщо передано пустий список - видаляємо всі категорії
+                product.categories = []
+
 
         # Якщо оновлюється текст - оновлюємо переклади
         if update_data.title_uk or update_data.description_uk:
             # Знаходимо українську версію
-            uk_translation = await db.execute(
+            uk_translation_result = await db.execute(
                 select(ProductTranslation).where(
                     and_(
                         ProductTranslation.product_id == product_id,
@@ -327,7 +350,10 @@ class ProductService:
                     )
                 )
             )
-            uk_trans = uk_translation.scalar_one_or_none()
+            uk_trans = uk_translation_result.scalar_one_or_none()
+
+            title_to_translate = ""
+            description_to_translate = ""
 
             if uk_trans:
                 if update_data.title_uk:
@@ -335,14 +361,30 @@ class ProductService:
                 if update_data.description_uk:
                     uk_trans.description = update_data.description_uk
 
-                # Запускаємо переклад у фоні
-                if background_tasks:
-                    background_tasks.add_task(
-                        self._translate_product_background,
-                        product_id,
-                        uk_trans.title,
-                        uk_trans.description
-                    )
+                title_to_translate = uk_trans.title
+                description_to_translate = uk_trans.description
+            else:
+                 # Створюємо український переклад, якщо його раптом немає
+                uk_trans = ProductTranslation(
+                    product_id=product.id,
+                    language_code='uk',
+                    title=update_data.title_uk or "Без назви",
+                    description=update_data.description_uk or "Без опису",
+                    is_auto_translated=False
+                )
+                db.add(uk_trans)
+                title_to_translate = uk_trans.title
+                description_to_translate = uk_trans.description
+
+
+            # Запускаємо переклад у фоні
+            if background_tasks:
+                background_tasks.add_task(
+                    self._translate_product_background,
+                    product_id,
+                    title_to_translate,
+                    description_to_translate
+                )
 
         await db.commit()
         await db.refresh(product)
@@ -390,18 +432,11 @@ class ProductService:
             product_id: ID товару
             db: Сесія БД
         """
-        result = await db.execute(
-            select(Product).where(Product.id == product_id)
-        )
-        product = result.scalar_one_or_none()
+        product = await db.get(Product, product_id)
 
         if product:
             product.views_count += 1
             await db.commit()
-
-
-# Додаємо імпорт для func
-from sqlalchemy import func
 
 
 # Створюємо екземпляр сервісу

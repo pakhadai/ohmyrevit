@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 from app.core.config import settings
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select # Додано
 from app.products.models import Product, ProductTranslation
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,9 @@ class TranslationService:
         if not self.deepl_api_key:
             logger.error("DeepL API key не налаштовано!")
             return None
+        if not text:
+            logger.warning("Спроба перекласти порожній текст.")
+            return ""
 
         # Підготовка параметрів запиту
         params = {
@@ -81,29 +85,13 @@ class TranslationService:
             db: AsyncSession
     ) -> Dict[str, bool]:
         """
-        Переклад товару на всі цільові мови
-
-        Args:
-            product_id: ID товару
-            title_uk: Назва українською
-            description_uk: Опис українською
-            db: Сесія бази даних
-
-        Returns:
-            Словник з результатами перекладу для кожної мови
+        Переклад товару на всі цільові мови.
+        Цей метод тепер є ідемпотентним: він оновить існуючі переклади або створить нові.
         """
         results = {}
 
-        # Спочатку зберігаємо українську версію
-        uk_translation = ProductTranslation(
-            product_id=product_id,
-            language_code='uk',
-            title=title_uk,
-            description=description_uk,
-            is_auto_translated=False,
-            translated_at=datetime.utcnow()
-        )
-        db.add(uk_translation)
+        # === ВИРІШЕННЯ ПРОБЛЕМИ: Не створюємо український переклад повторно ===
+        # Українська версія вже створюється в product_service, тому ми її тут не чіпаємо.
 
         # Перекладаємо на кожну цільову мову
         for lang in self.target_languages:
@@ -120,19 +108,18 @@ class TranslationService:
                     target_lang=lang
                 )
 
-                if translated_title and translated_description:
-                    # Зберігаємо переклад
-                    translation = ProductTranslation(
+                if translated_title is not None and translated_description is not None:
+                    # === ПОКРАЩЕННЯ: Оновлюємо існуючий переклад або створюємо новий ===
+                    await self.update_translation(
                         product_id=product_id,
                         language_code=lang.lower(),
                         title=translated_title,
                         description=translated_description,
-                        is_auto_translated=True,
-                        translated_at=datetime.utcnow()
+                        is_auto=True, # Позначаємо, що це авто-переклад
+                        db=db
                     )
-                    db.add(translation)
                     results[lang] = True
-                    logger.info(f"Товар {product_id} успішно перекладено на {lang}")
+                    logger.info(f"Товар {product_id} успішно перекладено та збережено на {lang}")
                 else:
                     results[lang] = False
                     logger.warning(f"Не вдалося перекласти товар {product_id} на {lang}")
@@ -141,13 +128,13 @@ class TranslationService:
                 logger.error(f"Помилка при перекладі товару {product_id} на {lang}: {str(e)}")
                 results[lang] = False
 
-        # Зберігаємо всі переклади
+        # Зберігаємо всі зміни
         try:
             await db.commit()
         except Exception as e:
             logger.error(f"Помилка збереження перекладів: {str(e)}")
             await db.rollback()
-            raise
+            # У фоновому завданні не варто піднімати виключення, просто логуємо
 
         return results
 
@@ -157,33 +144,25 @@ class TranslationService:
             language_code: str,
             title: str,
             description: str,
-            db: AsyncSession
+            db: AsyncSession,
+            is_auto: bool = False # Додано параметр для розрізнення ручного та авто-оновлення
     ) -> bool:
         """
-        Оновлення існуючого перекладу
-
-        Args:
-            product_id: ID товару
-            language_code: Код мови
-            title: Нова назва
-            description: Новий опис
-            db: Сесія бази даних
-
-        Returns:
-            True при успіху, False при помилці
+        Оновлення або створення існуючого перекладу.
         """
         try:
             # Шукаємо існуючий переклад
-            translation = await db.query(ProductTranslation).filter(
-                ProductTranslation.product_id == product_id,
-                ProductTranslation.language_code == language_code
-            ).first()
+            result = await db.execute(select(ProductTranslation).filter_by(
+                product_id=product_id, language_code=language_code
+            ))
+            translation = result.scalar_one_or_none()
 
             if translation:
                 # Оновлюємо
                 translation.title = title
                 translation.description = description
-                translation.is_auto_translated = False
+                # Якщо це ручне оновлення, знімаємо позначку авто-перекладу
+                translation.is_auto_translated = is_auto
                 translation.translated_at = datetime.utcnow()
             else:
                 # Створюємо новий
@@ -192,16 +171,17 @@ class TranslationService:
                     language_code=language_code,
                     title=title,
                     description=description,
-                    is_auto_translated=False,
+                    is_auto_translated=is_auto,
                     translated_at=datetime.utcnow()
                 )
                 db.add(translation)
 
-            await db.commit()
+            # Commit тут не робимо, він буде в головному методі translate_product
+            await db.flush()
             return True
 
         except Exception as e:
-            logger.error(f"Помилка оновлення перекладу: {str(e)}")
+            logger.error(f"Помилка оновлення/створення перекладу: {str(e)}")
             await db.rollback()
             return False
 

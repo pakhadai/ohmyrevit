@@ -2,7 +2,6 @@ import pytest
 from httpx import AsyncClient
 from app.main import app
 
-
 @pytest.mark.asyncio
 async def test_create_order():
     async with AsyncClient(app=app, base_url="http://test") as client:
@@ -10,7 +9,7 @@ async def test_create_order():
         login_response = await client.post("/api/v1/auth/telegram", json={
             "telegram_id": 123456,
             "first_name": "Test",
-            "username": "testuser"
+            "username": "te"
         })
         token = login_response.json()["access_token"]
 

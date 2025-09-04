@@ -3,63 +3,66 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
-import { ArrowLeft, Upload, X, Package, Tag, Image as ImageIcon, FileArchive } from 'lucide-react'
-// import api from '@/lib/api'
+import { ArrowLeft, Upload, X, Package, Tag, Image as ImageIcon, FileArchive, Loader } from 'lucide-react'
+import { adminAPI, productsAPI } from '@/lib/api' // ПОКРАЩЕННЯ: Використовуємо централізований API
 import toast from 'react-hot-toast'
 
-// Компонент для завантаження файлів
-function FileUploader({ onUpload, accept, label }: { onUpload: (path: string, size: number) => void, accept: string, label: string }) {
+// ПОКРАЩЕННЯ: Компонент завантажувача файлів винесено для перевикористання
+function FileUploader({
+    onUpload,
+    accept,
+    label
+}: {
+    onUpload: (path: string, size: number) => void,
+    accept: string,
+    label: string
+}) {
     const [isUploading, setIsUploading] = useState(false);
     const [progress, setProgress] = useState(0);
 
     const handleFileUpload = async (file: File) => {
         setIsUploading(true);
         setProgress(0);
-        const formData = new FormData();
-        formData.append('file', file);
 
         try {
-            const url = accept.includes('image') ? '/admin/upload/image' : '/admin/upload/archive';
-            const response = await api.post(url, formData, {
-                onUploadProgress: (progressEvent) => {
-                    if (progressEvent.total) {
-                        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                        setProgress(percentCompleted);
-                    }
-                },
-            });
-            onUpload(response.data.file_path, response.data.file_size_mb);
-            toast.success('Файл завантажено!');
-        } catch (error) {
-            toast.error('Помилка завантаження файлу.');
+            const isImage = accept.includes('image');
+            const uploadFunction = isImage ? adminAPI.uploadImage : adminAPI.uploadArchive;
+            const response = await uploadFunction(file);
+
+            onUpload(response.file_path, response.file_size_mb);
+            toast.success('Файл успішно завантажено!');
+        } catch (error: any) {
+            toast.error(error.message || 'Помилка завантаження файлу.');
         } finally {
             setIsUploading(false);
         }
     };
 
     return (
-        <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
+        <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center h-full flex flex-col justify-center">
             <input
                 type="file"
                 accept={accept}
                 className="hidden"
                 id={label}
                 onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
+                disabled={isUploading}
             />
             <label htmlFor={label} className="cursor-pointer">
-                <div className="flex flex-col items-center">
-                    <Upload className="w-10 h-10 text-gray-400 mb-2" />
-                    <span className="text-sm font-semibold">{label}</span>
-                    <p className="text-xs text-gray-500">Перетягніть або натисніть для вибору</p>
-                </div>
-            </label>
-            {isUploading && (
-                <div className="mt-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
+                {isUploading ? (
+                    <div className="flex flex-col items-center">
+                        <Loader className="w-8 h-8 text-purple-500 animate-spin mb-2" />
+                        <span className="text-sm font-semibold">Завантаження...</span>
+                        <p className="text-xs text-gray-500">{progress}%</p>
                     </div>
-                </div>
-            )}
+                ) : (
+                    <div className="flex flex-col items-center">
+                        <Upload className="w-10 h-10 text-gray-400 mb-2" />
+                        <span className="text-sm font-semibold">{label}</span>
+                        <p className="text-xs text-gray-500">Натисніть для вибору</p>
+                    </div>
+                )}
+            </label>
         </div>
     );
 }
@@ -67,7 +70,7 @@ function FileUploader({ onUpload, accept, label }: { onUpload: (path: string, si
 export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
-  const productId = params.id;
+  const productId = params.id as string;
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -89,10 +92,8 @@ export default function EditProductPage() {
 
   const fetchProduct = useCallback(async () => {
     try {
-      const response = await api.get(`/products/${productId}`, {
-        headers: { 'Accept-Language': 'uk' }
-      });
-      const product = response.data;
+      // Запитуємо дані саме українською для редагування
+      const product = await productsAPI.getProductById(productId, 'uk');
       setFormData({
         title_uk: product.title,
         description_uk: product.description,
@@ -108,7 +109,7 @@ export default function EditProductPage() {
         category_ids: product.categories.map((cat: any) => cat.id)
       });
     } catch (error) {
-      toast.error('Помилка завантаження товару');
+      toast.error('Помилка завантаження даних товару');
       router.push('/admin');
     } finally {
       setFetching(false);
@@ -117,10 +118,10 @@ export default function EditProductPage() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const response = await api.get('/products/categories');
-      setCategories(response.data);
+      const response = await productsAPI.getCategories();
+      setCategories(response);
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error('Помилка завантаження категорій:', error);
       toast.error('Не вдалося завантажити категорії');
     }
   }, []);
@@ -141,31 +142,31 @@ export default function EditProductPage() {
 
   const handleSubmit = async () => {
     if (!formData.title_uk || !formData.main_image_url || !formData.zip_file_path) {
-      toast.error("Будь ласка, заповніть всі обов'язкові поля: Назва, Головне зображення, ZIP файл.");
+      toast.error("Будь ласка, заповніть обов'язкові поля: Назва, Головне зображення, ZIP-архів.");
       return;
     }
 
     setLoading(true);
     try {
-      await api.put(`/admin/products/${productId}`, formData);
-      toast.success('Товар оновлено!');
+      await adminAPI.updateProduct(productId, formData);
+      toast.success('Товар успішно оновлено!');
       router.push('/admin');
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Помилка оновлення товару');
+      toast.error(error.message || 'Помилка оновлення товару');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-      if (window.confirm(`Ви впевнені, що хочете видалити товар #${productId}?`)) {
+      if (window.confirm(`Ви впевнені, що хочете видалити товар #${productId}? Цю дію неможливо скасувати.`)) {
           setLoading(true);
           try {
-              await api.delete(`/admin/products/${productId}`);
+              await adminAPI.deleteProduct(productId);
               toast.success('Товар успішно видалено');
               router.push('/admin');
-          } catch (error) {
-              toast.error('Помилка видалення товару');
+          } catch (error: any) {
+              toast.error(error.message || 'Помилка видалення товару');
               setLoading(false);
           }
       }
@@ -181,7 +182,7 @@ export default function EditProductPage() {
 
   if (fetching) {
     return (
-      <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div></div>
+      <div className="min-h-screen flex items-center justify-center"><Loader className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500" /></div>
     );
   }
 
@@ -230,13 +231,13 @@ export default function EditProductPage() {
                     </div>
                     <div>
                         <label className="block text-sm font-medium mb-2">Ціна зі знижкою ($)</label>
-                        <input type="number" step="0.01" min="0" placeholder="Вкажіть, якщо є" disabled={!formData.is_on_sale} value={formData.sale_price || ''} onChange={(e) => setFormData({ ...formData, sale_price: e.target.value ? Number(e.target.value) : null })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50" />
+                        <input type="number" step="0.01" min="0" placeholder="Необов'язково" disabled={!formData.is_on_sale} value={formData.sale_price || ''} onChange={(e) => setFormData({ ...formData, sale_price: e.target.value ? Number(e.target.value) : null })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50" />
                     </div>
                 </div>
                  <div className="mt-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" checked={formData.is_on_sale} onChange={(e) => setFormData({ ...formData, is_on_sale: e.target.checked, sale_price: e.target.checked ? formData.sale_price : null })} className="w-4 h-4" />
-                        <span>Активувати знижку</span>
+                        <span>Товар по знижці</span>
                     </label>
                  </div>
             </div>
@@ -257,13 +258,15 @@ export default function EditProductPage() {
                         )}
                     </div>
                     <div>
-                        <h3 className="font-medium mb-2">Галерея</h3>
+                        <h3 className="font-medium mb-2">Галерея (до 6 зображень)</h3>
                         <div className="grid grid-cols-3 gap-2">
                              {formData.gallery_image_urls.map((url, index) => (
                               <div key={index} className="relative group"><img src={url} alt={`Gallery ${index + 1}`} className="w-full h-20 object-cover rounded-lg border dark:border-gray-600" /><button type="button" onClick={() => removeGalleryImage(index)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button></div>
                             ))}
                             {formData.gallery_image_urls.length < 6 && (
-                                <FileUploader onUpload={(path) => setFormData({...formData, gallery_image_urls: [...formData.gallery_image_urls, path]})} accept="image/*" label="Додати"/>
+                                <div className="h-20">
+                                    <FileUploader onUpload={(path) => setFormData({...formData, gallery_image_urls: [...formData.gallery_image_urls, path]})} accept="image/*" label="Додати фото"/>
+                                </div>
                             )}
                         </div>
                     </div>

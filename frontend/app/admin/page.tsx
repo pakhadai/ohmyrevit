@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect, useCallback, Fragment } from 'react';
 import {
   Users, Package, ShoppingCart, CreditCard, TrendingUp, Tag, Settings,
@@ -26,19 +28,24 @@ class AdminAPI {
   }
 
   private async request(url: string, options: RequestInit = {}) {
+    const headers: Record<string, string> = {
+      ...options.headers,
+      'Authorization': this.token ? `Bearer ${this.token}` : '',
+    };
+
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
+
     const response = await fetch(`${API_URL}${url}`, {
       ...options,
-      headers: {
-        ...options.headers,
-        'Authorization': this.token ? `Bearer ${this.token}` : '',
-        'Content-Type': options.body instanceof FormData ? undefined : 'application/json',
-      },
+      headers,
       body: options.body instanceof FormData ? options.body : options.body ? JSON.stringify(options.body) : undefined,
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Network error' }));
-      throw new Error(error.detail || `Error: ${response.status}`);
+      const error = await response.json().catch(() => ({ detail: 'Мережева помилка' }));
+      throw new Error(error.detail || `Помилка: ${response.status}`);
     }
 
     return response.json();
@@ -73,7 +80,7 @@ class AdminAPI {
   async giveSubscription(userId: number, days: number) {
     return this.request(`/admin/users/${userId}/subscription`, {
       method: 'POST',
-      body: { days }
+      body: JSON.stringify({ days })
     });
   }
 
@@ -218,7 +225,7 @@ function ProductsManagement() {
       setProducts(productsRes.products || []);
       setCategories(categoriesRes || []);
     } catch (error) {
-      toast.error('Failed to load data');
+      toast.error('Не вдалося завантажити дані');
     } finally {
       setLoading(false);
     }
@@ -233,9 +240,9 @@ function ProductsManagement() {
     try {
       const response = await api.uploadImage(file, formData.main_image_url);
       setFormData({ ...formData, main_image_url: response.file_path });
-      toast.success('Image uploaded successfully');
+      toast.success('Зображення успішно завантажено');
     } catch (error) {
-      toast.error('Failed to upload image');
+      toast.error('Не вдалося завантажити зображення');
     } finally {
       setUploadingImage(false);
     }
@@ -250,9 +257,9 @@ function ProductsManagement() {
         zip_file_path: response.file_path,
         file_size_mb: response.file_size_mb
       });
-      toast.success('Archive uploaded successfully');
+      toast.success('Архів успішно завантажено');
     } catch (error) {
-      toast.error('Failed to upload archive');
+      toast.error('Не вдалося завантажити архів');
     } finally {
       setUploadingArchive(false);
     }
@@ -262,15 +269,15 @@ function ProductsManagement() {
     try {
       if (editingProduct) {
         await api.updateProduct(editingProduct.id, formData);
-        toast.success('Product updated successfully');
+        toast.success('Товар успішно оновлено');
       } else {
         await api.createProduct(formData);
-        toast.success('Product created successfully');
+        toast.success('Товар успішно створено');
       }
       resetForm();
       fetchData();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save product');
+      toast.error(error.message || 'Не вдалося зберегти товар');
     }
   };
 
@@ -294,13 +301,13 @@ function ProductsManagement() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+    if (!confirm('Ви впевнені, що хочете видалити цей товар?')) return;
     try {
       await api.deleteProduct(id);
-      toast.success('Product deleted successfully');
+      toast.success('Товар успішно видалено');
       fetchData();
     } catch (error) {
-      toast.error('Failed to delete product');
+      toast.error('Не вдалося видалити товар');
     }
   };
 
@@ -328,34 +335,34 @@ function ProductsManagement() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold">Products Management</h2>
+        <h2 className="text-xl font-bold">Керування товарами</h2>
         <button
           onClick={() => setShowForm(!showForm)}
           className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
         >
           <PlusCircle size={18} />
-          {showForm ? 'Hide Form' : 'New Product'}
+          {showForm ? 'Сховати форму' : 'Новий товар'}
         </button>
       </div>
 
       {showForm && (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 shadow">
           <h3 className="font-semibold mb-4">
-            {editingProduct ? 'Edit Product' : 'New Product'}
+            {editingProduct ? 'Редагувати товар' : 'Новий товар'}
           </h3>
 
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input
                 type="text"
-                placeholder="Title (Ukrainian)"
+                placeholder="Назва (українською)"
                 value={formData.title_uk}
                 onChange={(e) => setFormData({...formData, title_uk: e.target.value})}
                 className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
               />
               <input
                 type="number"
-                placeholder="Price"
+                placeholder="Ціна"
                 value={formData.price}
                 onChange={(e) => setFormData({...formData, price: Number(e.target.value)})}
                 className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
@@ -363,7 +370,7 @@ function ProductsManagement() {
             </div>
 
             <textarea
-              placeholder="Description (Ukrainian)"
+              placeholder="Опис (українською)"
               value={formData.description_uk}
               onChange={(e) => setFormData({...formData, description_uk: e.target.value})}
               className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
@@ -372,7 +379,7 @@ function ProductsManagement() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Main Image</label>
+                <label className="block text-sm font-medium mb-2">Головне зображення</label>
                 <input
                   type="file"
                   accept="image/*"
@@ -386,7 +393,7 @@ function ProductsManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Archive File</label>
+                <label className="block text-sm font-medium mb-2">Файл архіву</label>
                 <input
                   type="file"
                   accept=".zip,.rar,.7z"
@@ -396,14 +403,14 @@ function ProductsManagement() {
                 />
                 {formData.zip_file_path && (
                   <p className="mt-2 text-sm text-gray-600">
-                    File: {formData.zip_file_path.split('/').pop()} ({formData.file_size_mb} MB)
+                    Файл: {formData.zip_file_path.split('/').pop()} ({formData.file_size_mb} МБ)
                   </p>
                 )}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Categories</label>
+              <label className="block text-sm font-medium mb-2">Категорії</label>
               <div className="flex flex-wrap gap-2">
                 {categories.map((cat) => (
                   <label key={cat.id} className="flex items-center gap-1">
@@ -431,13 +438,13 @@ function ProductsManagement() {
                   checked={formData.is_on_sale}
                   onChange={(e) => setFormData({...formData, is_on_sale: e.target.checked})}
                 />
-                <span>On Sale</span>
+                <span>Знижка</span>
               </label>
 
               {formData.is_on_sale && (
                 <input
                   type="number"
-                  placeholder="Sale Price"
+                  placeholder="Ціна зі знижкою"
                   value={formData.sale_price || ''}
                   onChange={(e) => setFormData({...formData, sale_price: e.target.value ? Number(e.target.value) : null})}
                   className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
@@ -450,13 +457,13 @@ function ProductsManagement() {
                 onClick={handleSubmit}
                 className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
               >
-                {editingProduct ? 'Update' : 'Create'}
+                {editingProduct ? 'Оновити' : 'Створити'}
               </button>
               <button
                 onClick={resetForm}
                 className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200"
               >
-                Cancel
+                Скасувати
               </button>
             </div>
           </div>
@@ -464,7 +471,7 @@ function ProductsManagement() {
       )}
 
       {products.length === 0 ? (
-        <EmptyState message="No products yet" icon={Package} />
+        <EmptyState message="Товарів ще немає" icon={Package} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {products.map((product) => (
@@ -483,7 +490,7 @@ function ProductsManagement() {
                   <span className="font-bold text-lg">${product.price}</span>
                   {product.is_on_sale && (
                     <span className="text-sm bg-red-500 text-white px-2 py-1 rounded">
-                      SALE: ${product.sale_price}
+                      ЗНИЖКА: ${product.sale_price}
                     </span>
                   )}
                 </div>
@@ -493,14 +500,14 @@ function ProductsManagement() {
                     className="flex-1 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
                   >
                     <Edit size={16} className="inline mr-1" />
-                    Edit
+                    Редагувати
                   </button>
                   <button
                     onClick={() => handleDelete(product.id)}
                     className="flex-1 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
                   >
                     <Trash2 size={16} className="inline mr-1" />
-                    Delete
+                    Видалити
                   </button>
                 </div>
               </div>
@@ -530,7 +537,7 @@ function UsersManagement() {
       const response = await api.getUsers({ search });
       setUsers(response.users || []);
     } catch (error) {
-      toast.error('Failed to load users');
+      toast.error('Не вдалося завантажити користувачів');
     } finally {
       setLoading(false);
     }
@@ -546,20 +553,20 @@ function UsersManagement() {
   const toggleAdmin = async (userId: number) => {
     try {
       await api.toggleUserAdmin(userId);
-      toast.success('Admin status updated');
+      toast.success('Статус адміна оновлено');
       fetchUsers();
     } catch (error) {
-      toast.error('Failed to update admin status');
+      toast.error('Не вдалося оновити статус адміна');
     }
   };
 
   const toggleActive = async (userId: number) => {
     try {
       await api.toggleUserActive(userId);
-      toast.success('User status updated');
+      toast.success('Статус користувача оновлено');
       fetchUsers();
     } catch (error) {
-      toast.error('Failed to update user status');
+      toast.error('Не вдалося оновити статус користувача');
     }
   };
 
@@ -567,13 +574,13 @@ function UsersManagement() {
     if (!selectedUser) return;
     try {
       await api.addUserBonus(selectedUser.id, bonusAmount, bonusReason);
-      toast.success(`Added ${bonusAmount} bonus to user`);
+      toast.success(`Додано ${bonusAmount} бонусів користувачеві`);
       setShowBonusModal(false);
       setBonusAmount(100);
       setBonusReason('');
       fetchUsers();
     } catch (error) {
-      toast.error('Failed to add bonus');
+      toast.error('Не вдалося додати бонус');
     }
   };
 
@@ -581,12 +588,12 @@ function UsersManagement() {
     if (!selectedUser) return;
     try {
       await api.giveSubscription(selectedUser.id, subscriptionDays);
-      toast.success(`Gave ${subscriptionDays} days subscription to user`);
+      toast.success(`Надано підписку на ${subscriptionDays} днів користувачеві`);
       setShowSubscriptionModal(false);
       setSubscriptionDays(30);
       fetchUsers();
     } catch (error) {
-      toast.error('Failed to give subscription');
+      toast.error('Не вдалося надати підписку');
     }
   };
 
@@ -594,14 +601,14 @@ function UsersManagement() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6">Users Management</h2>
+      <h2 className="text-xl font-bold mb-6">Керування користувачами</h2>
 
       <div className="mb-6">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           <input
             type="text"
-            placeholder="Search users..."
+            placeholder="Пошук користувачів..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
@@ -610,18 +617,18 @@ function UsersManagement() {
       </div>
 
       {users.length === 0 ? (
-        <EmptyState message="No users found" icon={Users} />
+        <EmptyState message="Користувачів не знайдено" icon={Users} />
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">User</th>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Email</th>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Bonuses</th>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Status</th>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Користувач</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Електронна пошта</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Бонуси</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Статус</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Дії</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -652,16 +659,16 @@ function UsersManagement() {
                       <div className="flex gap-2">
                         {user.is_admin && (
                           <span className="px-2 py-1 text-xs bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400 rounded">
-                            Admin
+                            Адмін
                           </span>
                         )}
                         {user.is_active ? (
                           <span className="px-2 py-1 text-xs bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400 rounded">
-                            Active
+                            Активний
                           </span>
                         ) : (
                           <span className="px-2 py-1 text-xs bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400 rounded">
-                            Blocked
+                            Заблокований
                           </span>
                         )}
                       </div>
@@ -671,14 +678,14 @@ function UsersManagement() {
                         <button
                           onClick={() => toggleAdmin(user.id)}
                           className="p-1 text-purple-500 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded"
-                          title="Toggle Admin"
+                          title="Змінити статус адміна"
                         >
                           <UserCheck size={16} />
                         </button>
                         <button
                           onClick={() => toggleActive(user.id)}
                           className="p-1 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded"
-                          title="Toggle Active"
+                          title="Змінити статус активності"
                         >
                           {user.is_active ? <X size={16} /> : <CheckCircle size={16} />}
                         </button>
@@ -688,7 +695,7 @@ function UsersManagement() {
                             setShowSubscriptionModal(true);
                           }}
                           className="p-1 text-green-500 hover:bg-green-100 dark:hover:bg-green-900/50 rounded"
-                          title="Give Subscription"
+                          title="Надати підписку"
                         >
                           <CreditCard size={16} />
                         </button>
@@ -706,17 +713,17 @@ function UsersManagement() {
       {showBonusModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96">
-            <h3 className="text-lg font-semibold mb-4">Add Bonus to {selectedUser?.first_name}</h3>
+            <h3 className="text-lg font-semibold mb-4">Додати бонус для {selectedUser?.first_name}</h3>
             <input
               type="number"
-              placeholder="Bonus amount"
+              placeholder="Сума бонусу"
               value={bonusAmount}
               onChange={(e) => setBonusAmount(Number(e.target.value))}
               className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 mb-3"
             />
             <input
               type="text"
-              placeholder="Reason (optional)"
+              placeholder="Причина (необов'язково)"
               value={bonusReason}
               onChange={(e) => setBonusReason(e.target.value)}
               className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 mb-4"
@@ -726,13 +733,13 @@ function UsersManagement() {
                 onClick={handleAddBonus}
                 className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
               >
-                Add Bonus
+                Додати бонус
               </button>
               <button
                 onClick={() => setShowBonusModal(false)}
                 className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
               >
-                Cancel
+                Скасувати
               </button>
             </div>
           </div>
@@ -743,30 +750,30 @@ function UsersManagement() {
       {showSubscriptionModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96">
-            <h3 className="text-lg font-semibold mb-4">Give Subscription to {selectedUser?.first_name}</h3>
+            <h3 className="text-lg font-semibold mb-4">Надати підписку для {selectedUser?.first_name}</h3>
             <select
               value={subscriptionDays}
               onChange={(e) => setSubscriptionDays(Number(e.target.value))}
               className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 mb-4"
             >
-              <option value={7}>7 days</option>
-              <option value={30}>30 days</option>
-              <option value={90}>90 days</option>
-              <option value={180}>180 days</option>
-              <option value={365}>365 days</option>
+              <option value={7}>7 днів</option>
+              <option value={30}>30 днів</option>
+              <option value={90}>90 днів</option>
+              <option value={180}>180 днів</option>
+              <option value={365}>365 днів</option>
             </select>
             <div className="flex gap-2">
               <button
                 onClick={handleGiveSubscription}
                 className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
               >
-                Give Subscription
+                Надати підписку
               </button>
               <button
                 onClick={() => setShowSubscriptionModal(false)}
                 className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
               >
-                Cancel
+                Скасувати
               </button>
             </div>
           </div>
@@ -795,7 +802,7 @@ function PromoCodesManagement() {
       const response = await api.getPromoCodes();
       setPromoCodes(response || []);
     } catch (error) {
-      toast.error('Failed to load promo codes');
+      toast.error('Не вдалося завантажити промокоди');
     } finally {
       setLoading(false);
     }
@@ -808,34 +815,34 @@ function PromoCodesManagement() {
   const createPromoCode = async () => {
     try {
       await api.createPromoCode(newPromo);
-      toast.success('Promo code created successfully');
+      toast.success('Промокод успішно створено');
       setShowCreateForm(false);
       setNewPromo({ code: '', discount_type: 'percentage', value: 10, max_uses: null, expires_at: null });
       fetchPromoCodes();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create promo code');
+      toast.error(error.message || 'Не вдалося створити промокод');
     }
   };
 
   const togglePromoCode = async (promoId: number) => {
     try {
       await api.togglePromoCode(promoId);
-      toast.success('Promo code status updated');
+      toast.success('Статус промокоду оновлено');
       fetchPromoCodes();
     } catch (error) {
-      toast.error('Failed to update status');
+      toast.error('Не вдалося оновити статус');
     }
   };
 
   const deletePromoCode = async (promoId: number) => {
-    if (!confirm('Are you sure you want to delete this promo code?')) return;
+    if (!confirm('Ви впевнені, що хочете видалити цей промокод?')) return;
 
     try {
       await api.deletePromoCode(promoId);
-      toast.success('Promo code deleted');
+      toast.success('Промокод видалено');
       fetchPromoCodes();
     } catch (error) {
-      toast.error('Failed to delete promo code');
+      toast.error('Не вдалося видалити промокод');
     }
   };
 
@@ -844,23 +851,23 @@ function PromoCodesManagement() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h2 className="text-xl font-bold">Promo Codes Management</h2>
+        <h2 className="text-xl font-bold">Керування промокодами</h2>
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
           className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
         >
           <PlusCircle size={18} />
-          {showCreateForm ? 'Hide Form' : 'Create Promo Code'}
+          {showCreateForm ? 'Сховати форму' : 'Створити промокод'}
         </button>
       </div>
 
       {showCreateForm && (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 shadow">
-          <h3 className="font-semibold mb-4">New Promo Code</h3>
+          <h3 className="font-semibold mb-4">Новий промокод</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input
               type="text"
-              placeholder="Code (e.g., WINTER25)"
+              placeholder="Код (напр., WINTER25)"
               value={newPromo.code}
               onChange={(e) => setNewPromo({...newPromo, code: e.target.value})}
               className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
@@ -870,26 +877,26 @@ function PromoCodesManagement() {
               onChange={(e) => setNewPromo({...newPromo, discount_type: e.target.value})}
               className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
             >
-              <option value="percentage">Percentage</option>
-              <option value="fixed">Fixed Amount</option>
+              <option value="percentage">Відсоток</option>
+              <option value="fixed">Фіксована сума</option>
             </select>
             <input
               type="number"
-              placeholder="Value"
+              placeholder="Значення"
               value={newPromo.value}
               onChange={(e) => setNewPromo({...newPromo, value: Number(e.target.value)})}
               className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
             />
             <input
               type="number"
-              placeholder="Max uses (optional)"
+              placeholder="Макс. використань (необов'язково)"
               value={newPromo.max_uses || ''}
               onChange={(e) => setNewPromo({...newPromo, max_uses: e.target.value ? Number(e.target.value) : null})}
               className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
             />
             <input
               type="datetime-local"
-              placeholder="Expires at"
+              placeholder="Дійсний до"
               value={newPromo.expires_at || ''}
               onChange={(e) => setNewPromo({...newPromo, expires_at: e.target.value || null})}
               className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 md:col-span-2"
@@ -900,31 +907,31 @@ function PromoCodesManagement() {
               onClick={createPromoCode}
               className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
             >
-              Create
+              Створити
             </button>
             <button
               onClick={() => setShowCreateForm(false)}
               className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200"
             >
-              Cancel
+              Скасувати
             </button>
           </div>
         </div>
       )}
 
       {promoCodes.length === 0 ? (
-        <EmptyState message="No promo codes yet" icon={Tag} />
+        <EmptyState message="Промокодів ще немає" icon={Tag} />
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Code</th>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Type/Value</th>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Usage</th>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Status</th>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Код</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Тип/Значення</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Використання</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Статус</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Дії</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -941,7 +948,7 @@ function PromoCodesManagement() {
                           ? 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400'
                           : 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400'
                       }`}>
-                        {promo.is_active ? 'Active' : 'Inactive'}
+                        {promo.is_active ? 'Активний' : 'Неактивний'}
                       </span>
                     </td>
                     <td className="p-3">
@@ -950,13 +957,13 @@ function PromoCodesManagement() {
                           onClick={() => togglePromoCode(promo.id)}
                           className="text-xs px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
                         >
-                          {promo.is_active ? 'Deactivate' : 'Activate'}
+                          {promo.is_active ? 'Деактивувати' : 'Активувати'}
                         </button>
                         <button
                           onClick={() => deletePromoCode(promo.id)}
                           className="text-xs px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
                         >
-                          Delete
+                          Видалити
                         </button>
                       </div>
                     </td>
@@ -984,7 +991,7 @@ function OrdersManagement() {
       const response = await api.getOrders(params);
       setOrders(response.orders || []);
     } catch (error) {
-      toast.error('Failed to load orders');
+      toast.error('Не вдалося завантажити замовлення');
     } finally {
       setLoading(false);
     }
@@ -997,10 +1004,10 @@ function OrdersManagement() {
   const updateOrderStatus = async (orderId: number, newStatus: string) => {
     try {
       await api.updateOrderStatus(orderId, newStatus);
-      toast.success('Order status updated');
+      toast.success('Статус замовлення оновлено');
       fetchOrders();
     } catch (error) {
-      toast.error('Failed to update order status');
+      toast.error('Не вдалося оновити статус замовлення');
     }
   };
 
@@ -1008,7 +1015,7 @@ function OrdersManagement() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6">Orders Management</h2>
+      <h2 className="text-xl font-bold mb-6">Керування замовленнями</h2>
 
       <div className="mb-6 flex gap-4">
         <select
@@ -1016,15 +1023,15 @@ function OrdersManagement() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
         >
-          <option value="">All Orders</option>
-          <option value="pending">Pending</option>
-          <option value="paid">Paid</option>
-          <option value="failed">Failed</option>
+          <option value="">Всі замовлення</option>
+          <option value="pending">Очікує</option>
+          <option value="paid">Оплачено</option>
+          <option value="failed">Невдале</option>
         </select>
       </div>
 
       {orders.length === 0 ? (
-        <EmptyState message="No orders found" icon={ShoppingCart} />
+        <EmptyState message="Замовлень не знайдено" icon={ShoppingCart} />
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
@@ -1032,11 +1039,11 @@ function OrdersManagement() {
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">ID</th>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">User</th>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Amount</th>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Status</th>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Date</th>
-                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Користувач</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Сума</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Статус</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Дата</th>
+                  <th className="p-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Дії</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -1058,7 +1065,7 @@ function OrdersManagement() {
                           ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/50 dark:text-yellow-400'
                           : 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400'
                       }`}>
-                        {order.status}
+                        {order.status === 'paid' ? 'Оплачено' : order.status === 'pending' ? 'Очікує' : 'Невдале'}
                       </span>
                     </td>
                     <td className="p-3 text-sm">
@@ -1070,9 +1077,9 @@ function OrdersManagement() {
                         onChange={(e) => updateOrderStatus(order.id, e.target.value)}
                         className="text-xs px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600"
                       >
-                        <option value="pending">Pending</option>
-                        <option value="paid">Paid</option>
-                        <option value="failed">Failed</option>
+                        <option value="pending">Очікує</option>
+                        <option value="paid">Оплачено</option>
+                        <option value="failed">Невдале</option>
                       </select>
                     </td>
                   </tr>
@@ -1090,15 +1097,15 @@ function OrdersManagement() {
 function DashboardView({ stats }: { stats: any }) {
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6">Dashboard Overview</h2>
+      <h2 className="text-xl font-bold mb-6">Огляд панелі</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Users</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Всього користувачів</p>
               <p className="text-2xl font-bold">{stats.users.total}</p>
-              <p className="text-xs text-green-500">+{stats.users.new_this_week} this week</p>
+              <p className="text-xs text-green-500">+{stats.users.new_this_week} цього тижня</p>
             </div>
             <Users className="text-blue-500" size={32} />
           </div>
@@ -1107,7 +1114,7 @@ function DashboardView({ stats }: { stats: any }) {
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Products</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Товари</p>
               <p className="text-2xl font-bold">{stats.products.total}</p>
             </div>
             <Package className="text-purple-500" size={32} />
@@ -1117,7 +1124,7 @@ function DashboardView({ stats }: { stats: any }) {
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Active Subscriptions</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Активні підписки</p>
               <p className="text-2xl font-bold">{stats.subscriptions.active}</p>
             </div>
             <CreditCard className="text-green-500" size={32} />
@@ -1127,9 +1134,9 @@ function DashboardView({ stats }: { stats: any }) {
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Revenue</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Дохід</p>
               <p className="text-2xl font-bold">${stats.revenue.total}</p>
-              <p className="text-xs text-green-500">${stats.revenue.monthly} this month</p>
+              <p className="text-xs text-green-500">${stats.revenue.monthly} цього місяця</p>
             </div>
             <DollarSign className="text-yellow-500" size={32} />
           </div>
@@ -1138,37 +1145,37 @@ function DashboardView({ stats }: { stats: any }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
-          <h3 className="font-semibold mb-4">Orders Overview</h3>
+          <h3 className="font-semibold mb-4">Огляд замовлень</h3>
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Total Orders</span>
+              <span className="text-gray-600 dark:text-gray-400">Всього замовлень</span>
               <span className="font-semibold">{stats.orders.total}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Paid Orders</span>
+              <span className="text-gray-600 dark:text-gray-400">Оплачені замовлення</span>
               <span className="font-semibold text-green-500">{stats.orders.paid}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Conversion Rate</span>
+              <span className="text-gray-600 dark:text-gray-400">Коефіцієнт конверсії</span>
               <span className="font-semibold">{stats.orders.conversion_rate}%</span>
             </div>
           </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
-          <h3 className="font-semibold mb-4">Quick Actions</h3>
+          <h3 className="font-semibold mb-4">Швидкі дії</h3>
           <div className="space-y-2">
             <button className="w-full px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 text-left">
               <PlusCircle size={18} className="inline mr-2" />
-              Add New Product
+              Додати новий товар
             </button>
             <button className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-left">
               <Tag size={18} className="inline mr-2" />
-              Create Promo Code
+              Створити промокод
             </button>
             <button className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-left">
               <UserPlus size={18} className="inline mr-2" />
-              Add Admin User
+              Додати адміністратора
             </button>
           </div>
         </div>
@@ -1192,11 +1199,11 @@ export default function AdminDashboard() {
   }, []);
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: TrendingUp },
-    { id: 'users', label: 'Users', icon: Users },
-    { id: 'products', label: 'Products', icon: Package },
-    { id: 'orders', label: 'Orders', icon: ShoppingCart },
-    { id: 'promo', label: 'Promo Codes', icon: Tag },
+    { id: 'dashboard', label: 'Панель', icon: TrendingUp },
+    { id: 'users', label: 'Користувачі', icon: Users },
+    { id: 'products', label: 'Товари', icon: Package },
+    { id: 'orders', label: 'Замовлення', icon: ShoppingCart },
+    { id: 'promo', label: 'Промокоди', icon: Tag },
   ];
 
   const renderContent = () => {
@@ -1232,7 +1239,7 @@ export default function AdminDashboard() {
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2">
             <Menu size={24} />
           </button>
-          <h1 className="text-lg font-bold">Admin Panel</h1>
+          <h1 className="text-lg font-bold">Адмін-панель</h1>
           <button onClick={() => window.history.back()} className="p-2">
             <ArrowLeft size={20} />
           </button>
@@ -1245,7 +1252,7 @@ export default function AdminDashboard() {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
           <div className="p-4 border-b dark:border-gray-700 hidden lg:flex items-center justify-between">
-            <h1 className="text-xl font-bold">Admin Panel</h1>
+            <h1 className="text-xl font-bold">Адмін-панель</h1>
             <button onClick={() => window.history.back()} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
               <ArrowLeft size={20} />
             </button>

@@ -62,7 +62,6 @@ app.add_middleware(
 
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_PATH), name="uploads")
 
-# Базовий ендпоінт для перевірки
 @app.get("/")
 async def root():
     return {

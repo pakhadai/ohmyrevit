@@ -97,7 +97,8 @@ def generate_unique_filename(original_filename: str, extension: str) -> str:
     """Генерує унікальне ім'я файлу"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     unique_id = str(uuid.uuid4())[:8]
-    safe_name = "".join(c for c in original_filename if c.isalnum() or c in "._-")[:50]
+    base_name, _ = os.path.splitext(original_filename)
+    safe_name = "".join(c for c in base_name if c.isalnum() or c in "._-")[:50]
     return f"{timestamp}_{unique_id}_{safe_name}{extension}"
 
 # ========== ЗАВАНТАЖЕННЯ ФАЙЛІВ ==========
