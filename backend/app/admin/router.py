@@ -99,7 +99,9 @@ def generate_unique_filename(original_filename: str, extension: str) -> str:
     unique_id = str(uuid.uuid4())[:8]
     base_name, _ = os.path.splitext(original_filename)
     safe_name = "".join(c for c in base_name if c.isalnum() or c in "._-")[:50]
-    return f"{timestamp}_{unique_id}_{safe_name}{extension}"
+    if not safe_name.endswith(extension):
+        return f"{timestamp}_{unique_id}_{safe_name}{extension}"
+    return f"{timestamp}_{unique_id}_{safe_name}"
 
 # ========== ЗАВАНТАЖЕННЯ ФАЙЛІВ ==========
 
@@ -143,28 +145,12 @@ async def upload_archive(
 ):
     """Завантаження архіву з видаленням старого"""
 
-    # Визначаємо розширення
-    content_type = file.content_type or "application/octet-stream"
-
-    # Спробуємо визначити розширення з імені файлу
-    if content_type == "application/octet-stream" and file.filename:
-        if file.filename.endswith('.zip'):
-            extension = '.zip'
-        elif file.filename.endswith('.rar'):
-            extension = '.rar'
-        elif file.filename.endswith('.7z'):
-            extension = '.7z'
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Не вдалося визначити тип архіву. Дозволено: .zip, .rar, .7z"
-            )
-    elif content_type in ALLOWED_ARCHIVE_TYPES:
-        extension = ALLOWED_ARCHIVE_TYPES[content_type]
-    else:
+    # Визначаємо розширення з імені файлу
+    _, extension = os.path.splitext(file.filename)
+    if extension not in [".zip", ".rar", ".7z"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Недопустимий тип файлу. Дозволено архіви: .zip, .rar, .7z"
+            detail="Недопустимий тип архіву. Дозволено: .zip, .rar, .7z"
         )
 
     # Генеруємо унікальне ім'я

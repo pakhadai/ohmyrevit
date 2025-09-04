@@ -165,14 +165,16 @@ class ProductService:
             "product_type": product.product_type.value,
             "main_image_url": product.main_image_url,
             "gallery_image_urls": product.gallery_image_urls,
-            "zip_file_path": product.zip_file_path, # Додано відсутнє поле
+            "zip_file_path": product.zip_file_path,  # <-- ПЕРЕКОНАЙТЕСЬ, ЩО ЦЕЙ РЯДОК Є
             "file_size_mb": float(product.file_size_mb),
             "compatibility": product.compatibility,
             "is_on_sale": product.is_on_sale,
             "sale_price": float(product.sale_price) if product.sale_price else None,
             "actual_price": float(product.get_actual_price()),
             "categories": [
-                {"id": cat.id, "name": cat.get_translation(language_code).name if cat.get_translation(language_code) else cat.slug, "slug": cat.slug}
+                {"id": cat.id,
+                 "name": cat.get_translation(language_code).name if cat.get_translation(language_code) else cat.slug,
+                 "slug": cat.slug}
                 for cat in product.categories
             ],
             "views_count": product.views_count,

@@ -1,19 +1,21 @@
+// frontend/next.config.js
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // === ВИРІШЕННЯ ПРОБЛЕМИ: Використовуємо новий формат remotePatterns ===
   images: {
+    unoptimized: true, // <-- ДОДАЙТЕ ЦЕЙ РЯДОК
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'dev.ohmyrevit.pp.ua',
         port: '',
-        pathname: '/uploads/**', // Дозволяємо всі шляхи в папці uploads
+        pathname: '/uploads/**',
       },
        {
         protocol: 'http',
         hostname: 'localhost',
-        port: '8000', // Вказуємо порт бекенду для локальної розробки
+        port: '8000',
         pathname: '/uploads/**',
       },
     ],
