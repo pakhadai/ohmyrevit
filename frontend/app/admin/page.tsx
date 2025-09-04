@@ -33,6 +33,7 @@ class AdminAPI {
       'Authorization': this.token ? `Bearer ${this.token}` : '',
     };
 
+    // ВАЖЛИВО: Визначаємо тип контенту на основі body
     if (!(options.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
     }
@@ -40,7 +41,12 @@ class AdminAPI {
     const response = await fetch(`${API_URL}${url}`, {
       ...options,
       headers,
-      body: options.body instanceof FormData ? options.body : options.body ? JSON.stringify(options.body) : undefined,
+      // ВИПРАВЛЕНО: Правильна серіалізація body
+      body: options.body instanceof FormData
+        ? options.body
+        : options.body
+          ? JSON.stringify(options.body)
+          : undefined,
     });
 
     if (!response.ok) {
@@ -97,7 +103,29 @@ class AdminAPI {
   }
 
   async updateProduct(id: number, data: any) {
-    return this.request(`/admin/products/${id}`, { method: 'PUT', body: data });
+    // Правильно передаємо дані як JSON
+    return this.request(`/admin/products/${id}`, {
+      method: 'PUT',
+      body: data // request() автоматично серіалізує в JSON
+    });
+  }
+
+  // Альтернативний варіант з явною серіалізацією
+  async updateProductAlternative(id: number, data: any) {
+    const response = await fetch(`${API_URL}/admin/products/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': this.token ? `Bearer ${this.token}` : '',
+        'Content-Type': 'application/json', // Явно вказуємо JSON
+      },
+      body: JSON.stringify(data) // Явно серіалізуємо в JSON
+    });
+
+    if (!response.ok) {
+      throw new Error(`Помилка оновлення товару: ${response.status}`);
+    }
+
+    return response.json();
   }
 
   async deleteProduct(id: number) {

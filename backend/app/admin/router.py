@@ -15,7 +15,7 @@ import uuid
 
 from app.core.database import get_db
 from app.core.config import settings
-from app.users.dependencies import get_current_admin_user
+from app.users.dependencies import get_current_admin_user, get_current_user
 from app.users.models import User
 from app.products.models import Product, Category, CategoryTranslation
 from app.orders.models import Order, PromoCode
@@ -168,6 +168,49 @@ async def upload_archive(
         file_size_mb=file_size_mb,
         filename=unique_filename
     )
+
+@router.get("/download/{product_id}")
+async def download_product(
+        product_id: int,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Генерує тимчасове посилання для завантаження товару"""
+
+    # Перевірка доступу
+    has_access = await db.execute(
+        select(UserProductAccess).where(
+            UserProductAccess.user_id == current_user.id,
+            UserProductAccess.product_id == product_id
+        )
+    )
+
+    if not has_access.scalar_one_or_none():
+        # Перевірити підписку
+        subscription = await check_active_subscription(current_user.id, db)
+        if not subscription:
+            raise HTTPException(403, "Немає доступу до цього товару")
+
+    product = await db.get(Product, product_id)
+    if not product:
+        raise HTTPException(404, "Товар не знайдено")
+
+    # Генеруємо підписане посилання
+    import jwt
+    from datetime import datetime, timedelta
+
+    token_data = {
+        "user_id": current_user.id,
+        "product_id": product_id,
+        "exp": datetime.utcnow() + timedelta(hours=1)
+    }
+
+    download_token = jwt.encode(token_data, settings.SECRET_KEY, algorithm="HS256")
+
+    return {
+        "download_url": f"/api/v1/download/file/{download_token}",
+        "expires_in": 3600
+    }
 
 # ========== DASHBOARD ==========
 

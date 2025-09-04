@@ -69,3 +69,12 @@ class OrderItem(Base):
     # Зв'язки
     order = relationship("Order", back_populates="items")
     product = relationship("Product")
+
+
+class WebhookProcessed(Base):
+    __tablename__ = "webhook_processed"
+
+    payment_id = Column(String(200), primary_key=True)
+    processed_at = Column(DateTime(timezone=True), default=func.now())
+    status = Column(String(50))
+    success = Column(Boolean, default=True)
