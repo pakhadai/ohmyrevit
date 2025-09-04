@@ -58,9 +58,11 @@ class AdminAPI {
 
   // Users
   async getUsers(params?: { search?: string, skip?: number, limit?: number }) {
-    const queryString = new URLSearchParams(params as any).toString();
+    const defaultParams = { skip: 0, limit: 100 };
+    const queryParams = { ...defaultParams, ...params };
+    const queryString = new URLSearchParams(queryParams as any).toString();
     return this.request(`/admin/users?${queryString}`);
-  }
+}
 
   async toggleUserAdmin(userId: number) {
     return this.request(`/admin/users/${userId}/toggle-admin`, { method: 'PATCH' });
@@ -534,12 +536,13 @@ function UsersManagement() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.getUsers({ search });
-      setUsers(response.users || []);
+        // Встановлюємо початкові значення для пагінації
+        const response = await api.getUsers({ search, skip: 0, limit: 50 });
+        setUsers(response.users || []);
     } catch (error) {
-      toast.error('Не вдалося завантажити користувачів');
+        toast.error('Не вдалося завантажити користувачів');
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   }, [search]);
 
