@@ -564,21 +564,18 @@ function UsersManagement() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-        // Встановлюємо початкові значення для пагінації
-        const response = await api.getUsers({ search, skip: 0, limit: 50 });
-        setUsers(response.users || []);
+      const response = await adminAPI.getUsers({ search: '', skip: 0, limit: 50 });
+      setUsers(response.users || []);
     } catch (error) {
-        toast.error('Не вдалося завантажити користувачів');
+      toast.error('Не вдалося завантажити користувачів');
+      console.error(error);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-  }, [search]);
+  }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchUsers();
-    }, 300);
-    return () => clearTimeout(timer);
+    fetchUsers();
   }, [fetchUsers]);
 
   const toggleAdmin = async (userId: number) => {

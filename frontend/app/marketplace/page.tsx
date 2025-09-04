@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { productsAPI } from '@/lib/api';
 import { Product } from '@/types';
 import ProductCard from '@/components/product/ProductCard';
-import { Filter, Grid3x3, List, ChevronDown } from 'lucide-react';
+import { Filter, Grid3x3, List } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAccessStore } from '@/store/accessStore';
+import { useAuthStore } from '@/store/authStore';
 
 export default function MarketplacePage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -14,22 +16,32 @@ export default function MarketplacePage() {
   const [sortBy, setSortBy] = useState('newest');
   const [filterOpen, setFilterOpen] = useState(false);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [sortBy]);
+  const { fetchAccessStatus } = useAccessStore();
+  const { isAuthenticated } = useAuthStore();
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const data = await productsAPI.getProducts({ sort: sortBy });
-      // ВИПРАВЛЕНО: Змінено data.items на data.products
-      setProducts(data.products);
+      const data = await productsAPI.getProducts({ sort: sortBy, limit: 50 });
+      setProducts(data.products || []);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchProducts();
+  }, [sortBy]);
+
+  // Запитуємо статус доступу для завантажених товарів, якщо користувач авторизований
+  useEffect(() => {
+    if (isAuthenticated && products.length > 0) {
+      const productIds = products.map(p => p.id);
+      fetchAccessStatus(productIds);
+    }
+  }, [products, isAuthenticated, fetchAccessStatus]);
 
   const sortOptions = [
     { value: 'newest', label: 'Найновіші' },
@@ -39,27 +51,25 @@ export default function MarketplacePage() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto px-4 py-6 pt-20">
       {/* Заголовок та фільтри */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-4">Маркетплейс</h1>
+        <h1 className="text-3xl font-bold mb-4">Маркетплейс</h1>
 
-        {/* Панель фільтрів */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col md:flex-row items-center justify-between mb-4 gap-4">
           <button
             onClick={() => setFilterOpen(!filterOpen)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700"
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700"
           >
             <Filter className="w-4 h-4" />
             <span>Фільтри</span>
           </button>
 
-          <div className="flex items-center gap-3">
-            {/* Сортування */}
+          <div className="w-full md:w-auto flex items-center gap-3">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg focus:outline-none"
+              className="flex-grow px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg focus:outline-none"
             >
               {sortOptions.map(option => (
                 <option key={option.value} value={option.value}>
@@ -68,75 +78,39 @@ export default function MarketplacePage() {
               ))}
             </select>
 
-            {/* Перемикач виду */}
             <div className="flex gap-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700' : ''}`}
+                className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow' : ''}`}
               >
-                <Grid3x3 className="w-4 h-4" />
+                <Grid3x3 className="w-5 h-5" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white dark:bg-slate-700' : ''}`}
+                className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow' : ''}`}
               >
-                <List className="w-4 h-4" />
+                <List className="w-5 h-5" />
               </button>
             </div>
           </div>
         </div>
 
-        {/* Панель фільтрів (розгортається) */}
         {filterOpen && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="mb-4 p-4 bg-gray-50 dark:bg-slate-800 rounded-lg"
+            initial={{ height: 0, opacity: 0, marginTop: 0 }}
+            animate={{ height: 'auto', opacity: 1, marginTop: '1rem' }}
+            exit={{ height: 0, opacity: 0, marginTop: 0 }}
+            className="p-4 bg-gray-50 dark:bg-slate-800 rounded-lg"
           >
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Категорія</label>
-                <select className="w-full px-3 py-2 bg-white dark:bg-slate-700 rounded-lg">
-                  <option>Всі категорії</option>
-                  <option>Меблі</option>
-                  <option>Освітлення</option>
-                  <option>Декор</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Тип</label>
-                <select className="w-full px-3 py-2 bg-white dark:bg-slate-700 rounded-lg">
-                  <option>Всі типи</option>
-                  <option>Безкоштовні</option>
-                  <option>Преміум</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Ціна до</label>
-                <input
-                  type="number"
-                  placeholder="100"
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Сумісність</label>
-                <select className="w-full px-3 py-2 bg-white dark:bg-slate-700 rounded-lg">
-                  <option>Всі версії</option>
-                  <option>Revit 2024</option>
-                  <option>Revit 2023</option>
-                  <option>Revit 2022</option>
-                </select>
-              </div>
-            </div>
+            {/* Тут буде вміст фільтрів */}
+            <p className="text-center text-sm text-gray-500">Фільтри в розробці...</p>
           </motion.div>
         )}
       </div>
 
       {/* Сітка товарів */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {[...Array(10)].map((_, i) => (
             <div key={i} className="bg-gray-200 dark:bg-slate-800 rounded-2xl animate-pulse h-80" />
           ))}
@@ -144,7 +118,7 @@ export default function MarketplacePage() {
       ) : (
         <div className={`grid gap-4 ${
           viewMode === 'grid'
-            ? 'grid-cols-1 md:grid-cols-3 lg:grid-cols-5'
+            ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-5'
             : 'grid-cols-1'
         }`}>
           {products.map((product) => (
