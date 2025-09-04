@@ -1,7 +1,7 @@
 """
 Головний роутер адмін-панелі з повною функціональністю
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, String, and_, or_
 from sqlalchemy.orm import selectinload, joinedload
@@ -378,6 +378,52 @@ async def add_user_bonus(
         "reason": reason
     }
 
+
+@router.post("/users/{user_id}/subscription")
+async def give_user_subscription(
+        user_id: int,
+        days: int = Body(...),
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Видача підписки користувачу"""
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Користувача не знайдено")
+
+    # Створюємо або оновлюємо підписку
+    from datetime import datetime, timedelta
+    from app.subscriptions.models import Subscription
+
+    existing = await db.execute(
+        select(Subscription).where(
+            Subscription.user_id == user_id,
+            Subscription.status == "active"
+        )
+    )
+    subscription = existing.scalar_one_or_none()
+
+    if subscription:
+        # Продовжуємо існуючу
+        subscription.end_date += timedelta(days=days)
+    else:
+        # Створюємо нову
+        subscription = Subscription(
+            user_id=user_id,
+            start_date=datetime.utcnow(),
+            end_date=datetime.utcnow() + timedelta(days=days),
+            status="active"
+        )
+        db.add(subscription)
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Підписка на {days} днів видана користувачу {user.first_name}",
+        "end_date": subscription.end_date.isoformat()
+    }
+
 # ========== КАТЕГОРІЇ ==========
 
 @router.get("/categories", response_model=List[CategoryResponse])
@@ -685,48 +731,54 @@ async def update_order_status(
         "new_status": status
     }
 
+# ========== ЕКСПОРТ ДАНИХ (ДОДАТКОВИЙ ФУНКЦІОНАЛ) ==========
 
-@router.post("/users/{user_id}/subscription")
-async def give_user_subscription(
-        user_id: int,
-        days: int = Body(...),
-        admin: User = Depends(get_current_admin_user),
-        db: AsyncSession = Depends(get_db)
+@router.get("/export/users")
+async def export_users_csv(
+    admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    """Видача підписки користувачу"""
-    user = await db.get(User, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="Користувача не знайдено")
+    """Експорт користувачів в CSV"""
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
 
-    # Створюємо або оновлюємо підписку
-    from datetime import datetime, timedelta
-    from app.subscriptions.models import Subscription
-
-    existing = await db.execute(
-        select(Subscription).where(
-            Subscription.user_id == user_id,
-            Subscription.status == "active"
-        )
+    # Отримуємо всіх користувачів
+    result = await db.execute(
+        select(User).order_by(User.created_at.desc())
     )
-    subscription = existing.scalar_one_or_none()
+    users = result.scalars().all()
 
-    if subscription:
-        # Продовжуємо існуючу
-        subscription.end_date += timedelta(days=days)
-    else:
-        # Створюємо нову
-        subscription = Subscription(
-            user_id=user_id,
-            start_date=datetime.utcnow(),
-            end_date=datetime.utcnow() + timedelta(days=days),
-            status="active"
-        )
-        db.add(subscription)
+    # Створюємо CSV в пам'яті
+    output = io.StringIO()
+    writer = csv.writer(output)
 
-    await db.commit()
+    # Заголовки
+    writer.writerow([
+        'ID', 'Telegram ID', 'Username', 'First Name', 'Last Name',
+        'Email', 'Is Admin', 'Bonus Balance', 'Created At'
+    ])
 
-    return {
-        "success": True,
-        "message": f"Підписка на {days} днів видана користувачу {user.first_name}",
-        "end_date": subscription.end_date.isoformat()
-    }
+    # Дані
+    for user in users:
+        writer.writerow([
+            user.id,
+            user.telegram_id,
+            user.username or '',
+            user.first_name,
+            user.last_name or '',
+            user.email or '',
+            'Yes' if user.is_admin else 'No',
+            user.bonus_balance,
+            user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else ''
+        ])
+
+    # Повертаємо як файл
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
+        media_type='text/csv',
+        headers={
+            "Content-Disposition": f"attachment; filename=users_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        }
+    )
