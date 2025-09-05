@@ -2,37 +2,41 @@
 """
 Dependencies для авторизації
 """
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from typing import Optional
 
 from app.core.database import get_db
 from app.users.models import User
 from app.users.auth_service import AuthService
 
 # Security схема для Swagger UI
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-        credentials: HTTPAuthorizationCredentials = Depends(security),
+        credentials: Optional[HTTPAuthorizationCredentials] = Depends(security), # Зробіть необов'язковим
+        token_from_query: Optional[str] = Query(None, alias="token"), # Додайте отримання токена з query
         db: AsyncSession = Depends(get_db)
 ) -> User:
     """
-    Отримання поточного користувача з токену
-
-    Args:
-        credentials: Bearer токен
-        db: Сесія БД
-
-    Returns:
-        User: Об'єкт користувача
-
-    Raises:
-        HTTPException: Якщо токен невалідний
+    Отримання поточного користувача з токену (з заголовка або query-параметра)
     """
-    token = credentials.credentials
+    token = None
+    if credentials:
+        token = credentials.credentials
+    elif token_from_query:
+        token = token_from_query
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     user_id = AuthService.verify_token(token)
 
     if not user_id:

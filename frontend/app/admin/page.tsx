@@ -1,6 +1,9 @@
+// frontend/app/admin/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback, Fragment } from 'react';
+// OLD: import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation'; // Додаємо useRouter
 import {
   Users, Package, ShoppingCart, CreditCard, TrendingUp, Tag, Settings,
   Menu, X, ArrowLeft, Trash2, Edit, PlusCircle, AlertTriangle,
@@ -33,7 +36,6 @@ class AdminAPI {
       'Authorization': this.token ? `Bearer ${this.token}` : '',
     };
 
-    // ВАЖЛИВО: Визначаємо тип контенту на основі body
     if (!(options.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
     }
@@ -41,7 +43,6 @@ class AdminAPI {
     const response = await fetch(`${API_URL}${url}`, {
       ...options,
       headers,
-      // ВИПРАВЛЕНО: Правильна серіалізація body
       body: options.body instanceof FormData
         ? options.body
         : options.body
@@ -103,22 +104,20 @@ class AdminAPI {
   }
 
   async updateProduct(id: number, data: any) {
-    // Правильно передаємо дані як JSON
     return this.request(`/admin/products/${id}`, {
       method: 'PUT',
-      body: data // request() автоматично серіалізує в JSON
+      body: data
     });
   }
 
-  // Альтернативний варіант з явною серіалізацією
   async updateProductAlternative(id: number, data: any) {
     const response = await fetch(`${API_URL}/admin/products/${id}`, {
       method: 'PUT',
       headers: {
         'Authorization': this.token ? `Bearer ${this.token}` : '',
-        'Content-Type': 'application/json', // Явно вказуємо JSON
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data) // Явно серіалізуємо в JSON
+      body: JSON.stringify(data)
     });
 
     if (!response.ok) {
@@ -222,40 +221,17 @@ const EmptyState = ({ message, icon: Icon }: { message: string; icon: any }) => 
 
 // ========== PRODUCTS MANAGEMENT ==========
 function ProductsManagement() {
+  const router = useRouter(); // Додаємо роутер
   const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadingArchive, setUploadingArchive] = useState(false);
-
-  const [formData, setFormData] = useState({
-    title_uk: '',
-    description_uk: '',
-    price: 0,
-    product_type: 'premium',
-    main_image_url: '',
-    gallery_image_urls: [] as string[],
-    zip_file_path: '',
-    file_size_mb: 0,
-    compatibility: 'Revit 2021-2024',
-    is_on_sale: false,
-    sale_price: null as number | null,
-    category_ids: [] as number[]
-  });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [productsRes, categoriesRes] = await Promise.all([
-        api.getProducts({ limit: 100 }),
-        api.getCategories()
-      ]);
+      const productsRes = await api.getProducts({ limit: 100 });
       setProducts(productsRes.products || []);
-      setCategories(categoriesRes || []);
     } catch (error) {
-      toast.error('Не вдалося завантажити дані');
+      toast.error('Не вдалося завантажити товари');
     } finally {
       setLoading(false);
     }
@@ -265,69 +241,8 @@ function ProductsManagement() {
     fetchData();
   }, [fetchData]);
 
-  const handleImageUpload = async (file: File) => {
-    setUploadingImage(true);
-    try {
-      const response = await api.uploadImage(file, formData.main_image_url);
-      setFormData({ ...formData, main_image_url: response.file_path });
-      toast.success('Зображення успішно завантажено');
-    } catch (error) {
-      toast.error('Не вдалося завантажити зображення');
-    } finally {
-      setUploadingImage(false);
-    }
-  };
-
-  const handleArchiveUpload = async (file: File) => {
-    setUploadingArchive(true);
-    try {
-      const response = await api.uploadArchive(file, formData.zip_file_path);
-      setFormData({
-        ...formData,
-        zip_file_path: response.file_path,
-        file_size_mb: response.file_size_mb
-      });
-      toast.success('Архів успішно завантажено');
-    } catch (error) {
-      toast.error('Не вдалося завантажити архів');
-    } finally {
-      setUploadingArchive(false);
-    }
-  };
-
-  const handleSubmit = async () => {
-    try {
-      if (editingProduct) {
-        await api.updateProduct(editingProduct.id, formData);
-        toast.success('Товар успішно оновлено');
-      } else {
-        await api.createProduct(formData);
-        toast.success('Товар успішно створено');
-      }
-      resetForm();
-      fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Не вдалося зберегти товар');
-    }
-  };
-
   const handleEdit = (product: any) => {
-    setEditingProduct(product);
-    setFormData({
-      title_uk: product.title,
-      description_uk: product.description,
-      price: product.price,
-      product_type: product.product_type,
-      main_image_url: product.main_image_url,
-      gallery_image_urls: product.gallery_image_urls || [],
-      zip_file_path: product.zip_file_path || '',
-      file_size_mb: product.file_size_mb,
-      compatibility: product.compatibility || 'Revit 2021-2024',
-      is_on_sale: product.is_on_sale,
-      sale_price: product.sale_price,
-      category_ids: product.categories?.map((c: any) => c.id) || []
-    });
-    setShowForm(true);
+    router.push(`/admin/products/${product.id}/edit`);
   };
 
   const handleDelete = async (id: number) => {
@@ -341,25 +256,6 @@ function ProductsManagement() {
     }
   };
 
-  const resetForm = () => {
-    setEditingProduct(null);
-    setShowForm(false);
-    setFormData({
-      title_uk: '',
-      description_uk: '',
-      price: 0,
-      product_type: 'premium',
-      main_image_url: '',
-      gallery_image_urls: [],
-      zip_file_path: '',
-      file_size_mb: 0,
-      compatibility: 'Revit 2021-2024',
-      is_on_sale: false,
-      sale_price: null,
-      category_ids: []
-    });
-  };
-
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -367,138 +263,13 @@ function ProductsManagement() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold">Керування товарами</h2>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => router.push('/admin/products/new')}
           className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
         >
           <PlusCircle size={18} />
-          {showForm ? 'Сховати форму' : 'Новий товар'}
+          Новий товар
         </button>
       </div>
-
-      {showForm && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 shadow">
-          <h3 className="font-semibold mb-4">
-            {editingProduct ? 'Редагувати товар' : 'Новий товар'}
-          </h3>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input
-                type="text"
-                placeholder="Назва (українською)"
-                value={formData.title_uk}
-                onChange={(e) => setFormData({...formData, title_uk: e.target.value})}
-                className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-              />
-              <input
-                type="number"
-                placeholder="Ціна"
-                value={formData.price}
-                onChange={(e) => setFormData({...formData, price: Number(e.target.value)})}
-                className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-              />
-            </div>
-
-            <textarea
-              placeholder="Опис (українською)"
-              value={formData.description_uk}
-              onChange={(e) => setFormData({...formData, description_uk: e.target.value})}
-              className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-              rows={4}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Головне зображення</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])}
-                  disabled={uploadingImage}
-                  className="w-full"
-                />
-                {formData.main_image_url && (
-                  <img src={formData.main_image_url} alt="Preview" className="mt-2 h-20 object-cover rounded" />
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Файл архіву</label>
-                <input
-                  type="file"
-                  accept=".zip,.rar,.7z"
-                  onChange={(e) => e.target.files && handleArchiveUpload(e.target.files[0])}
-                  disabled={uploadingArchive}
-                  className="w-full"
-                />
-                {formData.zip_file_path && (
-                  <p className="mt-2 text-sm text-gray-600">
-                    Файл: {formData.zip_file_path.split('/').pop()} ({formData.file_size_mb} МБ)
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Категорії</label>
-              <div className="flex flex-wrap gap-2">
-                {categories.map((cat) => (
-                  <label key={cat.id} className="flex items-center gap-1">
-                    <input
-                      type="checkbox"
-                      checked={formData.category_ids.includes(cat.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setFormData({...formData, category_ids: [...formData.category_ids, cat.id]});
-                        } else {
-                          setFormData({...formData, category_ids: formData.category_ids.filter(id => id !== cat.id)});
-                        }
-                      }}
-                    />
-                    <span className="text-sm">{cat.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.is_on_sale}
-                  onChange={(e) => setFormData({...formData, is_on_sale: e.target.checked})}
-                />
-                <span>Знижка</span>
-              </label>
-
-              {formData.is_on_sale && (
-                <input
-                  type="number"
-                  placeholder="Ціна зі знижкою"
-                  value={formData.sale_price || ''}
-                  onChange={(e) => setFormData({...formData, sale_price: e.target.value ? Number(e.target.value) : null})}
-                  className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                />
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleSubmit}
-                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-              >
-                {editingProduct ? 'Оновити' : 'Створити'}
-              </button>
-              <button
-                onClick={resetForm}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200"
-              >
-                Скасувати
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {products.length === 0 ? (
         <EmptyState message="Товарів ще немає" icon={Package} />
@@ -564,7 +335,7 @@ function UsersManagement() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await adminAPI.getUsers({ search: '', skip: 0, limit: 50 });
+      const response = await api.getUsers({ search: '', skip: 0, limit: 50 });
       setUsers(response.users || []);
     } catch (error) {
       toast.error('Не вдалося завантажити користувачів');
