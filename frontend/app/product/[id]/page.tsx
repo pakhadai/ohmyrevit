@@ -1,14 +1,18 @@
+// frontend/app/product/[id]/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { productsAPI } from '@/lib/api';
 import { Product } from '@/types';
-import { ArrowLeft, ShoppingCart, CheckCircle, Info, Loader } from 'lucide-react';
+// OLD: import { ArrowLeft, ShoppingCart, CheckCircle, Info, Loader } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, CheckCircle, Info, Loader, Download } from 'lucide-react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { useCartStore } from '@/store/cartStore';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
+import { useAccessStore } from '@/store/accessStore';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -22,15 +26,21 @@ export default function ProductDetailPage() {
   const [selectedImage, setSelectedImage] = useState<string>('');
 
   const addItemToCart = useCartStore((state) => state.addItem);
+  const { isAuthenticated } = useAuthStore();
+  const { checkAccess, fetchAccessStatus } = useAccessStore();
 
   useEffect(() => {
     if (productId) {
-      const fetchProduct = async () => {
+      const fetchProductAndAccess = async () => {
         try {
           setLoading(true);
           const productData = await productsAPI.getProductById(productId);
           setProduct(productData);
           setSelectedImage(productData.main_image_url); // Встановлюємо головне зображення як активне
+
+          if (isAuthenticated) {
+            await fetchAccessStatus([Number(productId)]);
+          }
         } catch (err) {
           setError('Не вдалося завантажити товар. Можливо, його не існує.');
           toast.error('Помилка завантаження товару.');
@@ -38,9 +48,9 @@ export default function ProductDetailPage() {
           setLoading(false);
         }
       };
-      fetchProduct();
+      fetchProductAndAccess();
     }
-  }, [productId]);
+  }, [productId, isAuthenticated, fetchAccessStatus]);
 
   const handleAddToCart = () => {
     if (product) {
@@ -49,10 +59,30 @@ export default function ProductDetailPage() {
     }
   };
 
+  const handleDownload = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const token = useAuthStore.getState().token;
+    if (product && token) {
+      const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL}/profile/download/${product.id}?token=${token}`;
+      window.location.href = downloadUrl;
+      toast.success('Завантаження почалось...');
+    } else {
+      toast.error("Для завантаження потрібно авторизуватися.");
+    }
+  };
+
   const fullImageUrl = (path: string) => {
     if (!path) return '/placeholder.jpg';
-    return path.startsWith('http') ? path : `${process.env.NEXT_PUBLIC_BACKEND_URL}${path}`;
+    // OLD: return path.startsWith('http') ? path : `${process.env.NEXT_PUBLIC_BACKEND_URL}${path}`;
+    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+    if (path.startsWith('http')) {
+      return path;
+    }
+    // Переконуємось, що не додаємо подвійний слеш
+    return `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}/${path.startsWith('/') ? path.slice(1) : path}`;
   };
+
+  const hasAccess = product ? checkAccess(product.id) || product.product_type === 'free' : false;
 
   if (loading) {
     return (
@@ -160,15 +190,27 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
-              <button
-                onClick={handleAddToCart}
-                className="w-full py-4 bg-blue-500 text-white rounded-xl font-bold text-lg hover:bg-blue-600 transition-transform hover:scale-[1.02]"
-              >
-                <div className="flex items-center justify-center gap-3">
-                  <ShoppingCart size={24} />
-                  <span>Додати в кошик</span>
-                </div>
-              </button>
+              {hasAccess ? (
+                <button
+                  onClick={handleDownload}
+                  className="w-full py-4 bg-green-500 text-white rounded-xl font-bold text-lg hover:bg-green-600 transition-transform hover:scale-[1.02]"
+                >
+                  <div className="flex items-center justify-center gap-3">
+                    <Download size={24} />
+                    <span>Завантажити</span>
+                  </div>
+                </button>
+              ) : (
+                <button
+                  onClick={handleAddToCart}
+                  className="w-full py-4 bg-blue-500 text-white rounded-xl font-bold text-lg hover:bg-blue-600 transition-transform hover:scale-[1.02]"
+                >
+                  <div className="flex items-center justify-center gap-3">
+                    <ShoppingCart size={24} />
+                    <span>Додати в кошик</span>
+                  </div>
+                </button>
+              )}
             </div>
           </div>
         </div>

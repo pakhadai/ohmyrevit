@@ -127,6 +127,7 @@ class ProductResponse(BaseModel):
     product_type: str
     main_image_url: str
     gallery_image_urls: List[str]
+    zip_file_path: str # ДОДАНО
     file_size_mb: float
     compatibility: Optional[str]
     is_on_sale: bool

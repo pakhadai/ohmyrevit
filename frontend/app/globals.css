@@ -23,6 +23,11 @@
     --destructive: 239 68 68;
     --border: 30 41 59;
   }
+  
+  /* ВИРІШЕННЯ ПРОБЛЕМИ OVERSCROLL: Забороняємо "відтягування" сторінки */
+  html, body {
+    @apply overscroll-y-none;
+  }
 }
 
 @layer components {

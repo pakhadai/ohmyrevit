@@ -1,3 +1,4 @@
+// frontend/types/index.ts
 // Базові типи для проєкту
 export interface User {
   id: number;
@@ -22,6 +23,7 @@ export interface Product {
   product_type: 'free' | 'premium';
   main_image_url: string;
   gallery_image_urls: string[];
+  zip_file_path: string;
   is_on_sale: boolean;
   sale_price?: number;
   file_size_mb: number;
