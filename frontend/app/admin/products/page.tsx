@@ -1,4 +1,4 @@
-// frontend/app/admin/products/page.tsx
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -50,14 +50,15 @@ export default function ProductsManagementPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold">Керування товарами</h2>
+      {/* OLD: <div className="flex justify-between items-center mb-6"> */}
+      <div className="hidden lg:flex justify-between items-center mb-6">
+        <h2 className="text-xl font-bold">Товари</h2>
         <button
           onClick={() => router.push('/admin/products/new')}
           className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
         >
           <PlusCircle size={18} />
-          Новий товар
+          Новий
         </button>
       </div>
 

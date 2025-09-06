@@ -35,6 +35,8 @@ class PromoCode(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    orders_used_in = relationship("Order", back_populates="promo_code")
+
 
 class Order(Base):
     __tablename__ = "orders"
@@ -55,7 +57,7 @@ class Order(Base):
     # Зв'язки
     user = relationship("User", backref="orders")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
-    promo_code = relationship("PromoCode")
+    promo_code = relationship("PromoCode", back_populates="orders_used_in")
 
 
 class OrderItem(Base):

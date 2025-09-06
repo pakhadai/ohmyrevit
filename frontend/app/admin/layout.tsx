@@ -1,11 +1,10 @@
 // ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
-// frontend/app/admin/layout.tsx
 'use client';
 
 import React, { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
-  Users, Package, ShoppingCart, TrendingUp, Tag, Menu, ArrowLeft
+  Users, Package, ShoppingCart, TrendingUp, Tag, Menu, ArrowLeft, Plus
 } from 'lucide-react';
 
 const menuItems = [
@@ -26,10 +25,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return pathname.startsWith(href);
   };
 
+  // ДОДАНО: Логіка для відображення кнопки "Додати"
+  const getActionButtton = () => {
+    if (pathname === '/admin/products') {
+      return (
+        <button onClick={() => router.push('/admin/products/new')} className="p-2 bg-green-500 text-white rounded-lg">
+          <Plus size={20} />
+        </button>
+      )
+    }
+    if (pathname === '/admin/promo-codes') {
+      return (
+        <button onClick={() => router.push('/admin/promo-codes/new')} className="p-2 bg-green-500 text-white rounded-lg">
+          <Plus size={20} />
+        </button>
+      )
+    }
+    return <div className="w-8 h-8"></div>; // Пустий спейсер
+  };
+
   return (
-// OLD: <div className="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 pt-16">
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-        {/* OLD: <aside className={`fixed lg:relative inset-y-0 left-0 h-full w-64 bg-white dark:bg-gray-800 shadow-lg z-40 transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}> */}
         <aside className={`fixed lg:sticky lg:top-16 inset-y-0 left-0 h-screen lg:h-auto w-64 bg-white dark:bg-gray-800 shadow-lg z-40 transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} pt-16 lg:pt-0`}>
             <div className="p-4 border-b dark:border-gray-700 flex items-center justify-between">
                 <h1 className="text-xl font-bold">Адмін-панель</h1>
@@ -61,9 +77,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
         )}
 
-        {/* OLD: <div className="flex-1 flex flex-col w-full overflow-hidden"> */}
         <div className="flex-1 flex flex-col w-full">
-             {/* OLD: <header className="lg:hidden sticky top-0 bg-white dark:bg-gray-800 shadow-sm z-10"> */}
              <header className="lg:hidden sticky top-16 bg-white dark:bg-gray-800 shadow-sm z-10">
                 <div className="flex items-center justify-between p-4">
                     <button onClick={() => setSidebarOpen(true)} className="p-2">
@@ -72,10 +86,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                      <h1 className="text-lg font-bold">
                         {menuItems.find(item => isActive(item.href))?.label || 'Адмін-панель'}
                     </h1>
-                    <div className="w-8"></div>
+                    {/* OLD: <div className="w-8"></div> */}
+                    {getActionButtton()}
                 </div>
             </header>
-            {/* OLD: <main className="flex-1 p-4 lg:p-6 overflow-y-auto"> */}
             <main className="flex-1 p-4 lg:p-6">
                 {children}
             </main>

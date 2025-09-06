@@ -117,6 +117,14 @@ class AdminAPI {
     return this.request('/admin/promo-codes');
   }
 
+  async getPromoCodeDetails(id: number) {
+    return this.request(`/admin/promo-codes/${id}`);
+  }
+
+  async updatePromoCode(id: number, data: any) {
+    return this.request(`/admin/promo-codes/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
   async createPromoCode(data: any) {
     return this.request('/admin/promo-codes', { method: 'POST', body: data });
   }
@@ -133,6 +141,10 @@ class AdminAPI {
   async getOrders(params?: any) {
     const queryString = new URLSearchParams(params).toString();
     return this.request(`/admin/orders?${queryString}`);
+  }
+
+  async getOrderDetail(id: number) {
+    return this.request(`/admin/orders/${id}`);
   }
 
   async updateOrderStatus(id: number, status: string) {

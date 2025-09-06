@@ -68,6 +68,15 @@ class PromoCodeCreate(BaseModel):
     expires_at: Optional[datetime] = None
 
 
+class PromoCodeUpdate(BaseModel):
+    """Схема оновлення промокоду"""
+    code: Optional[str] = Field(None, min_length=3, max_length=50)
+    discount_type: Optional[str] = Field(None, pattern="^(percentage|fixed)$")
+    value: Optional[float] = Field(None, gt=0)
+    max_uses: Optional[int] = Field(None, gt=0)
+    expires_at: Optional[datetime] = None
+    is_active: Optional[bool] = None
+
 class PromoCodeResponse(BaseModel):
     """Відповідь для промокоду"""
     id: int
@@ -81,6 +90,17 @@ class PromoCodeResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class OrderForPromoCode(BaseModel):
+    id: int
+    final_total: float
+    created_at: datetime
+    user: UserBrief
+
+class PromoCodeDetailResponse(PromoCodeResponse):
+    """Детальна відповідь для промокоду з історією замовлень"""
+    orders_used_in: List[OrderForPromoCode] = []
 
 
 class OrderBrief(BaseModel):
@@ -129,10 +149,34 @@ class UserDetailResponse(UserBrief):
     language_code: Optional[str]
     last_login_at: Optional[datetime]
     last_bonus_claim_date: Optional[date]
-    
+
     # Пов'язані дані
     subscriptions: List[SubscriptionForUser] = []
     orders: List[OrderForUser] = []
     referrals: List[ReferralForUser] = []
-    
+
+    model_config = ConfigDict(from_attributes=True)
+
+# ДОДАНО: Схеми для детального замовлення
+class ProductInOrder(BaseModel):
+    id: int
+    title: str
+    price_at_purchase: float
+    main_image_url: str
+
+class OrderDetailResponse(BaseModel):
+    id: int
+    user: UserBrief
+    subtotal: float
+    discount_amount: float
+    bonus_used: int
+    final_total: float
+    status: str
+    promo_code: Optional[PromoCodeResponse] = None
+    payment_url: Optional[str] = None
+    payment_id: Optional[str] = None
+    created_at: datetime
+    paid_at: Optional[datetime] = None
+    items: List[ProductInOrder] = []
+
     model_config = ConfigDict(from_attributes=True)

@@ -1,4 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 """
 Головний роутер адмін-панелі з повною функціональністю
 """
@@ -19,14 +18,14 @@ from app.core.config import settings
 from app.users.dependencies import get_current_admin_user, get_current_user
 from app.users.models import User
 from app.products.models import Product, Category, CategoryTranslation
-# OLD: from app.orders.models import Order, PromoCode
 from app.orders.models import Order, OrderItem, PromoCode
 from app.subscriptions.models import Subscription
 from app.admin.schemas import (
     DashboardStats, UserListResponse, CategoryResponse,
     PromoCodeCreate, PromoCodeResponse, OrderListResponse,
     FileUploadResponse, UserDetailResponse, SubscriptionForUser,
-    OrderForUser, ReferralForUser
+    OrderForUser, ReferralForUser, OrderDetailResponse, ProductInOrder, UserBrief,
+    PromoCodeDetailResponse, PromoCodeUpdate, OrderForPromoCode
 )
 
 router = APIRouter(tags=["Admin"])
@@ -675,6 +674,39 @@ async def get_promo_codes(
     ]
 
 
+# ДОДАНО: Новий ендпоінт для отримання деталей промокоду
+@router.get("/promo-codes/{promo_id}", response_model=PromoCodeDetailResponse)
+async def get_promo_code_details(
+        promo_id: int,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Отримання повної інформації про промокод та історію його використання"""
+    query = (
+        select(PromoCode)
+        .options(selectinload(PromoCode.orders_used_in).selectinload(Order.user))
+        .where(PromoCode.id == promo_id)
+    )
+    result = await db.execute(query)
+    promo = result.unique().scalar_one_or_none()
+
+    if not promo:
+        raise HTTPException(status_code=404, detail="Промокод не знайдено")
+
+    response_data = PromoCodeDetailResponse.model_validate(promo)
+    response_data.orders_used_in = [
+        OrderForPromoCode(
+            id=order.id,
+            final_total=float(order.final_total),
+            created_at=order.created_at,
+            user=UserBrief.model_validate(order.user)
+        )
+        for order in promo.orders_used_in
+    ]
+
+    return response_data
+
+
 @router.post("/promo-codes", response_model=PromoCodeResponse)
 async def create_promo_code(
         data: PromoCodeCreate,
@@ -704,6 +736,32 @@ async def create_promo_code(
     )
 
     db.add(promo)
+    await db.commit()
+    await db.refresh(promo)
+
+    return PromoCodeResponse.model_validate(promo)
+
+
+# ДОДАНО: Новий ендпоінт для оновлення промокоду
+@router.put("/promo-codes/{promo_id}", response_model=PromoCodeResponse)
+async def update_promo_code(
+        promo_id: int,
+        data: PromoCodeUpdate,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Оновлення існуючого промокоду"""
+    promo = await db.get(PromoCode, promo_id)
+    if not promo:
+        raise HTTPException(status_code=404, detail="Промокод не знайдено")
+
+    update_data = data.model_dump(exclude_unset=True)
+    if 'code' in update_data:
+        update_data['code'] = update_data['code'].upper()
+
+    for key, value in update_data.items():
+        setattr(promo, key, value)
+
     await db.commit()
     await db.refresh(promo)
 
@@ -805,6 +863,60 @@ async def get_orders(
     )
 
 
+@router.get("/orders/{order_id}", response_model=OrderDetailResponse)
+async def get_order_details(
+        order_id: int,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Отримання повної інформації про замовлення"""
+    query = (
+        select(Order)
+        .options(
+            selectinload(Order.user),
+            selectinload(Order.promo_code),
+            selectinload(Order.items).selectinload(OrderItem.product).selectinload(Product.translations)
+        )
+        .where(Order.id == order_id)
+    )
+    result = await db.execute(query)
+    order = result.unique().scalar_one_or_none()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Замовлення не знайдено")
+
+    # Формуємо список товарів
+    items_data = []
+    for item in order.items:
+        translation = item.product.get_translation('uk')  # Адмінка завжди українською
+        items_data.append(
+            ProductInOrder(
+                id=item.product.id,
+                title=translation.title if translation else "Назва не знайдена",
+                price_at_purchase=float(item.price_at_purchase),
+                main_image_url=item.product.main_image_url
+            )
+        )
+
+    order_details = OrderDetailResponse(
+        id=order.id,
+        user=UserBrief.model_validate(order.user),
+        subtotal=float(order.subtotal),
+        discount_amount=float(order.discount_amount),
+        bonus_used=order.bonus_used,
+        final_total=float(order.final_total),
+        status=order.status.value,
+        promo_code=PromoCodeResponse.model_validate(order.promo_code) if order.promo_code else None,
+        payment_url=order.payment_url,
+        payment_id=order.payment_id,
+        created_at=order.created_at,
+        paid_at=order.paid_at,
+        items=items_data
+    )
+
+    return order_details
+
+
 @router.patch("/orders/{order_id}/status")
 async def update_order_status(
         order_id: int,
@@ -827,7 +939,7 @@ async def update_order_status(
 
     order.status = status
 
-    if status == "paid":
+    if status == "paid" and not order.paid_at:
         order.paid_at = datetime.utcnow()
 
     await db.commit()
