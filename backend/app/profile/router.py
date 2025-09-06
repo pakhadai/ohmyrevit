@@ -1,7 +1,12 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+# backend/app/profile/router.py
+# OLD: from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+# OLD: from sqlalchemy import select
+from sqlalchemy import select, func
+# OLD: from typing import Optional, List
+from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import date, datetime
 from pathlib import Path
@@ -16,6 +21,9 @@ from app.users.schemas import UserResponse, UserUpdate, BonusClaimResponse, Tele
 from app.users.auth_service import AuthService
 from app.core.config import settings
 from app.bonuses.service import BonusService
+# ДОДАНО: Імпорти для реферальної системи
+from app.referrals.models import ReferralLog
+from app.referrals.schemas import ReferralInfoResponse, ReferralLogItem
 
 router = APIRouter(tags=["Profile"])
 
@@ -46,17 +54,16 @@ async def get_bonus_info(
     return info
 
 
-# OLD: @router.get("/favorites")
-# OLD: async def get_favorites(
-# OLD:         current_user: User = Depends(get_current_user),
-# OLD:         db: AsyncSession = Depends(get_db)
-# OLD: ):
-# OLD:     """
-# OLD:     Отримання списку обраних товарів
-# OLD:     """
-# OLD:     # TODO: Реалізувати після додавання таблиці favorites
-# OLD:     return {"message": "Coming soon"}
-# Цей ендпоінт замінено на /profile/collections, який обробляється в collections.router
+@router.get("/favorites")
+async def get_favorites(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Отримання списку обраних товарів
+    """
+    # TODO: Реалізувати після додавання таблиці favorites
+    return {"message": "Coming soon"}
 
 
 @router.get("/downloads")
@@ -74,24 +81,18 @@ async def get_my_downloads(
 
     # --- 1. Отримати всі безкоштовні товари ---
     free_products_query = await db.execute(
-        select(Product).where(Product.product_type == ProductType.FREE)
+        select(Product).where(Product.product_type == ProductType.FREE).options(selectinload(Product.translations))
     )
     free_products_list = []
-    for product in free_products_query.scalars().all():
+    for product in free_products_query.scalars().unique().all():
         translation = product.get_translation(language_code)
         if translation:
-            # OLD: free_products_list.append(DownloadableProduct(
-            # OLD:     id=product.id,
-            # OLD:     title=translation.title,
-            # OLD:     main_image_url=product.main_image_url,
-            # OLD:     zip_file_path=product.zip_file_path
-            # OLD: ))
             free_products_list.append(DownloadableProduct(
                 id=product.id,
                 title=translation.title,
                 description=translation.description,
                 main_image_url=product.main_image_url,
-                zip_file_path=product.zip_file_path
+                zip_file_path=product.zip_file_path or ""
             ))
 
     # --- 2. Отримати преміум товари, до яких надано доступ (куплені або за підпискою) ---
@@ -103,23 +104,18 @@ async def get_my_downloads(
     premium_products_list = []
     if all_premium_accessible_ids:
         products_result = await db.execute(
-            select(Product).where(Product.id.in_(all_premium_accessible_ids))
+            select(Product).where(Product.id.in_(all_premium_accessible_ids)).options(
+                selectinload(Product.translations))
         )
-        for product in products_result.scalars().all():
+        for product in products_result.scalars().unique().all():
             translation = product.get_translation(language_code)
             if translation:
-                # OLD: premium_products_list.append(DownloadableProduct(
-                # OLD:     id=product.id,
-                # OLD:     title=translation.title,
-                # OLD:     main_image_url=product.main_image_url,
-                # OLD:     zip_file_path=product.zip_file_path
-                # OLD: ))
                 premium_products_list.append(DownloadableProduct(
                     id=product.id,
                     title=translation.title,
                     description=translation.description,
                     main_image_url=product.main_image_url,
-                    zip_file_path=product.zip_file_path
+                    zip_file_path=product.zip_file_path or ""
                 ))
 
     return {
@@ -135,7 +131,7 @@ async def get_current_user_profile(
     """
     Отримання профілю поточного користувача
     """
-    return UserResponse.model_validate(current_user)
+    return UserResponse.from_orm(current_user)
 
 
 @router.post("/me/telegram-sync", response_model=UserResponse)
@@ -173,10 +169,7 @@ async def sync_profile_with_telegram(
 
     current_user.updated_at = datetime.utcnow()
 
-    await db.commit()
-    await db.refresh(current_user)
-
-    return UserResponse.model_validate(current_user)
+    return UserResponse.from_orm(current_user)
 
 
 @router.patch("/me", response_model=UserResponse)
@@ -193,34 +186,33 @@ async def update_current_user_profile(
 
     is_updated = False
     for field, value in update_data.items():
-        if field in allowed_fields:
+        if field in allowed_fields and hasattr(current_user, field):
             setattr(current_user, field, value)
             is_updated = True
 
     if is_updated:
         current_user.updated_at = datetime.utcnow()
 
-    await db.commit()
-    await db.refresh(current_user)
-
-    return UserResponse.model_validate(current_user)
+    return UserResponse.from_orm(current_user)
 
 
-@router.post("/check-access")
+@router.post("/check-access", response_model=dict)
 async def check_product_access(
-        product_ids: List[int],
+        product_ids: List[int] = Body(..., embed=True),
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
     """Перевіряє доступ поточного користувача до списку товарів."""
     accessible_ids = set()
 
+    if not product_ids:
+        return {"accessible_product_ids": []}
+
     # 1. Додаємо всі безкоштовні товари
     free_products = await db.execute(
         select(Product.id).where(Product.id.in_(product_ids), Product.product_type == ProductType.FREE)
     )
-    for pid in free_products.scalars().all():
-        accessible_ids.add(pid)
+    accessible_ids.update(free_products.scalars().all())
 
     # 2. Перевіряємо куплені товари або надані по підписці
     granted_access = await db.execute(
@@ -229,9 +221,7 @@ async def check_product_access(
             UserProductAccess.product_id.in_(product_ids)
         )
     )
-    for pid in granted_access.scalars().all():
-        accessible_ids.add(pid)
-
+    accessible_ids.update(granted_access.scalars().all())
 
     return {"accessible_product_ids": list(accessible_ids)}
 
@@ -243,26 +233,57 @@ async def download_product_file(
         db: AsyncSession = Depends(get_db)
 ):
     """Віддає файл товару, якщо користувач має до нього доступ."""
-    # Перевірка доступу
-    access_response = await check_product_access([product_id], current_user, db)
+    access_response = await check_product_access(product_ids=[product_id], current_user=current_user, db=db)
     if product_id not in access_response["accessible_product_ids"]:
         raise HTTPException(status_code=403, detail="Доступ заборонено")
 
-    # Отримуємо товар та шлях до файлу
     product = await db.get(Product, product_id)
     if not product or not product.zip_file_path:
         raise HTTPException(status_code=404, detail="Файл товару не знайдено")
 
-    # Формуємо повний шлях до файлу
-    # Видаляємо можливий префікс /uploads/ з шляху
-    relative_path = product.zip_file_path.replace("/uploads/", "")
+    relative_path = product.zip_file_path.lstrip('/uploads/')
     file_path = Path(settings.UPLOAD_PATH) / relative_path
 
     if not file_path.is_file():
         raise HTTPException(status_code=404, detail="Файл не знайдено на сервері")
 
-    # Збільшуємо лічильник завантажень
     product.downloads_count += 1
-    await db.commit()
-
     return FileResponse(str(file_path), filename=file_path.name, media_type='application/octet-stream')
+
+
+# ДОДАНО: Новий ендпоінт для реферальної системи
+@router.get("/referrals", response_model=ReferralInfoResponse)
+async def get_referral_info(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Отримання інформації для реферальної сторінки."""
+
+    logs_query = await db.execute(
+        select(ReferralLog)
+        .options(selectinload(ReferralLog.referred_user))
+        .where(ReferralLog.referrer_id == current_user.id)
+        .order_by(ReferralLog.created_at.desc())
+    )
+    logs = logs_query.scalars().unique().all()
+
+    total_referrals = len(set(log.referred_user_id for log in logs))
+    total_bonuses_earned = sum(log.bonus_amount for log in logs)
+
+    formatted_logs = [
+        ReferralLogItem(
+            referred_user_name=log.referred_user.first_name if log.referred_user else "Користувач",
+            bonus_type=log.bonus_type.value,
+            bonus_amount=log.bonus_amount,
+            purchase_amount=float(log.purchase_amount) if log.purchase_amount else None,
+            created_at=log.created_at
+        )
+        for log in logs
+    ]
+
+    return ReferralInfoResponse(
+        referral_code=current_user.referral_code,
+        total_referrals=total_referrals,
+        total_bonuses_earned=total_bonuses_earned,
+        logs=formatted_logs
+    )

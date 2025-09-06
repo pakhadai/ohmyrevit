@@ -4,9 +4,8 @@ SQLAlchemy модель для користувачів
 """
 from sqlalchemy import (
     Column, Integer, BigInteger, String, Boolean,
-    Date, DateTime, func
+    Date, DateTime, func, ForeignKey
 )
-# OLD: from app.core.database import Base
 from sqlalchemy.orm import relationship, Mapped
 from typing import List
 from app.core.database import Base
@@ -25,7 +24,6 @@ class User(Base):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=True)
     language_code = Column(String(10), default="uk")
-    # ДОДАНО: Поле для зберігання URL фотографії
     photo_url = Column(String(500), nullable=True)
 
     # Контактні дані
@@ -41,14 +39,21 @@ class User(Base):
     bonus_streak = Column(Integer, default=0)
     last_bonus_claim_date = Column(Date, nullable=True)
 
+    # Реферальна система
+    referral_code = Column(String(20), unique=True, nullable=True, index=True)
+    referrer_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+
+    referrer = relationship("User", remote_side=[id], back_populates="referrals")
+    referrals = relationship("User", back_populates="referrer", foreign_keys=[referrer_id])
+
+    # Зв'язок з колекціями
+    collections: Mapped[List["Collection"]] = relationship("Collection", back_populates="user",
+                                                           cascade="all, delete-orphan")
+
     # Часові мітки
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_login_at = Column(DateTime(timezone=True), nullable=True)
-
-    # Зв'язок з колекціями
-    collections: Mapped[List["Collection"]] = relationship("Collection", back_populates="user", cascade="all, delete-orphan")
-
 
     def __repr__(self):
         return f"<User(id={self.id}, telegram_id={self.telegram_id}, username={self.username})>"

@@ -221,12 +221,13 @@ export const profileAPI = {
     return getData(await api.post('/profile/bonus/claim'));
   },
 
-  claimBonus: async () => {
-    return getData(await api.post('/profile/bonus/claim'));
+  checkAccess: async (productIds: number[]) => {
+    return getData(await api.post('/profile/check-access', { product_ids: productIds }));
   },
 
-  checkAccess: async (productIds: number[]) => {
-    return getData(await api.post('/profile/check-access', productIds));
+  // ДОДАНО: Новий метод для реферальної системи
+  getReferralInfo: async () => {
+    return getData(await api.get('/profile/referrals'));
   },
 };
 
@@ -380,7 +381,7 @@ export const adminAPI = {
     const response = await api.get('/admin/export/users', {
       responseType: 'blob'
     });
-    return response.data;
+    return getData(response);
   },
 };
 

@@ -1,4 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 """
 Alembic environment script для асинхронних міграцій
 """
@@ -21,10 +20,13 @@ from app.core.config import settings
 
 # ВАЖЛИВО: Імпортуємо всі моделі щоб Alembic їх бачив
 from app.users.models import User
-from app.products.models import Product, ProductTranslation, Category
+from app.products.models import Product, ProductTranslation, Category, CategoryTranslation
 from app.orders.models import Order, OrderItem, PromoCode
 from app.subscriptions.models import Subscription, UserProductAccess
-from app.collections.models import Collection # ДОДАНО: Імпорт нової моделі
+from app.collections.models import Collection
+# ДОДАНО: Імпорт нової моделі для реферальної системи
+from app.referrals.models import ReferralLog
+
 
 # this is the Alembic Config object
 config = context.config

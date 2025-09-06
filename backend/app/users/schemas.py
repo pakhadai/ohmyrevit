@@ -58,19 +58,18 @@ class UserResponse(BaseModel):
     last_name: Optional[str] = None
     language_code: str
     email: Optional[EmailStr] = None
-    # ДОДАНО: Поле для повернення URL фотографії на фронтенд
     photo_url: Optional[str] = None
     is_admin: bool
     bonus_balance: int
     bonus_streak: int
     created_at: datetime
+    referral_code: Optional[str] = None # Додано поле
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class TelegramAuthData(BaseModel):
     """Схема для даних авторизації з Telegram"""
-    # ВИПРАВЛЕНО: Зроблено поля більш гнучкими, додано user та query_id
     id: int = Field(..., description="Telegram user ID")
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -78,15 +77,14 @@ class TelegramAuthData(BaseModel):
     photo_url: Optional[str] = None
     auth_date: int
     hash: str
-    user: Optional[dict] = None # Додано поле user, яке надсилає Telegram
-    query_id: Optional[str] = None # Додано поле query_id
+    user: Optional[dict] = None
+    query_id: Optional[str] = None
+    start_param: Optional[str] = None # Додано поле для реферального коду
 
-    # Додаткові поля для Mini App
     language_code: Optional[str] = "uk"
     is_premium: Optional[bool] = False
 
     class Config:
-        # Дозволяємо додаткові поля, щоб уникнути помилок валідації
         extra = "allow"
 
 
