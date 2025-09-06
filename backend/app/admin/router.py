@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 """
 Головний роутер адмін-панелі з повною функціональністю
 """
@@ -18,12 +19,14 @@ from app.core.config import settings
 from app.users.dependencies import get_current_admin_user, get_current_user
 from app.users.models import User
 from app.products.models import Product, Category, CategoryTranslation
-from app.orders.models import Order, PromoCode
+# OLD: from app.orders.models import Order, PromoCode
+from app.orders.models import Order, OrderItem, PromoCode
 from app.subscriptions.models import Subscription
 from app.admin.schemas import (
     DashboardStats, UserListResponse, CategoryResponse,
     PromoCodeCreate, PromoCodeResponse, OrderListResponse,
-    FileUploadResponse
+    FileUploadResponse, UserDetailResponse, SubscriptionForUser,
+    OrderForUser, ReferralForUser
 )
 
 router = APIRouter(tags=["Admin"])
@@ -48,12 +51,13 @@ ALLOWED_ARCHIVE_TYPES = {
     "application/octet-stream": ".zip"  # Для випадків коли MIME не визначений
 }
 
+
 # ========== УТИЛІТИ ==========
 
 async def save_upload_file(
-    upload_file: UploadFile,
-    destination: Path,
-    old_file_path: Optional[str] = None
+        upload_file: UploadFile,
+        destination: Path,
+        old_file_path: Optional[str] = None
 ) -> tuple[str, float]:
     """
     Зберігає файл та видаляє старий якщо він існує
@@ -93,6 +97,7 @@ async def save_upload_file(
             detail=f"Не вдалося зберегти файл: {str(e)}"
         )
 
+
 def generate_unique_filename(original_filename: str, extension: str) -> str:
     """Генерує унікальне ім'я файлу"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -103,13 +108,14 @@ def generate_unique_filename(original_filename: str, extension: str) -> str:
         return f"{timestamp}_{unique_id}_{safe_name}{extension}"
     return f"{timestamp}_{unique_id}_{safe_name}"
 
+
 # ========== ЗАВАНТАЖЕННЯ ФАЙЛІВ ==========
 
 @router.post("/upload/image", response_model=FileUploadResponse)
 async def upload_image(
-    file: UploadFile = File(...),
-    old_path: Optional[str] = Form(None),
-    admin: User = Depends(get_current_admin_user)
+        file: UploadFile = File(...),
+        old_path: Optional[str] = Form(None),
+        admin: User = Depends(get_current_admin_user)
 ):
     """Завантаження зображення з видаленням старого"""
 
@@ -137,11 +143,12 @@ async def upload_image(
         filename=unique_filename
     )
 
+
 @router.post("/upload/archive", response_model=FileUploadResponse)
 async def upload_archive(
-    file: UploadFile = File(...),
-    old_path: Optional[str] = Form(None),
-    admin: User = Depends(get_current_admin_user)
+        file: UploadFile = File(...),
+        old_path: Optional[str] = Form(None),
+        admin: User = Depends(get_current_admin_user)
 ):
     """Завантаження архіву з видаленням старого"""
 
@@ -169,55 +176,56 @@ async def upload_archive(
         filename=unique_filename
     )
 
-@router.get("/download/{product_id}")
-async def download_product(
-        product_id: int,
-        current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """Генерує тимчасове посилання для завантаження товару"""
 
-    # Перевірка доступу
-    has_access = await db.execute(
-        select(UserProductAccess).where(
-            UserProductAccess.user_id == current_user.id,
-            UserProductAccess.product_id == product_id
-        )
-    )
-
-    if not has_access.scalar_one_or_none():
-        # Перевірити підписку
-        subscription = await check_active_subscription(current_user.id, db)
-        if not subscription:
-            raise HTTPException(403, "Немає доступу до цього товару")
-
-    product = await db.get(Product, product_id)
-    if not product:
-        raise HTTPException(404, "Товар не знайдено")
-
-    # Генеруємо підписане посилання
-    import jwt
-    from datetime import datetime, timedelta
-
-    token_data = {
-        "user_id": current_user.id,
-        "product_id": product_id,
-        "exp": datetime.utcnow() + timedelta(hours=1)
-    }
-
-    download_token = jwt.encode(token_data, settings.SECRET_KEY, algorithm="HS256")
-
-    return {
-        "download_url": f"/api/v1/download/file/{download_token}",
-        "expires_in": 3600
-    }
+# OLD: @router.get("/download/{product_id}")
+# OLD: async def download_product(
+# OLD:         product_id: int,
+# OLD:         current_user: User = Depends(get_current_user),
+# OLD:         db: AsyncSession = Depends(get_db)
+# OLD: ):
+# OLD:     """Генерує тимчасове посилання для завантаження товару"""
+# OLD:
+# OLD:     # Перевірка доступу
+# OLD:     has_access = await db.execute(
+# OLD:         select(UserProductAccess).where(
+# OLD:             UserProductAccess.user_id == current_user.id,
+# OLD:             UserProductAccess.product_id == product_id
+# OLD:         )
+# OLD:     )
+# OLD:
+# OLD:     if not has_access.scalar_one_or_none():
+# OLD:         # Перевірити підписку
+# OLD:         subscription = await check_active_subscription(current_user.id, db)
+# OLD:         if not subscription:
+# OLD:             raise HTTPException(403, "Немає доступу до цього товару")
+# OLD:
+# OLD:     product = await db.get(Product, product_id)
+# OLD:     if not product:
+# OLD:         raise HTTPException(404, "Товар не знайдено")
+# OLD:
+# OLD:     # Генеруємо підписане посилання
+# OLD:     import jwt
+# OLD:     from datetime import datetime, timedelta
+# OLD:
+# OLD:     token_data = {
+# OLD:         "user_id": current_user.id,
+# OLD:         "product_id": product_id,
+# OLD:         "exp": datetime.utcnow() + timedelta(hours=1)
+# OLD:     }
+# OLD:
+# OLD:     download_token = jwt.encode(token_data, settings.SECRET_KEY, algorithm="HS256")
+# OLD:
+# OLD:     return {
+# OLD:         "download_url": f"/api/v1/download/file/{download_token}",
+# OLD:         "expires_in": 3600
+# OLD:     }
 
 # ========== DASHBOARD ==========
 
 @router.get("/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats(
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Отримання статистики для дашборду"""
 
@@ -282,15 +290,16 @@ async def get_dashboard_stats(
         }
     )
 
+
 # ========== КОРИСТУВАЧІ ==========
 
 @router.get("/users", response_model=UserListResponse)
 async def get_users(
-    skip: int = 0,
-    limit: int = 50,
-    search: Optional[str] = None,
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        skip: int = 0,
+        limit: int = 50,
+        search: Optional[str] = None,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Отримання списку користувачів"""
 
@@ -302,6 +311,8 @@ async def get_users(
             or_(
                 User.username.ilike(search_term),
                 User.first_name.ilike(search_term),
+                User.last_name.ilike(search_term),
+                User.email.ilike(search_term),
                 User.telegram_id.cast(String).ilike(search_term)
             )
         )
@@ -322,11 +333,62 @@ async def get_users(
         limit=limit
     )
 
+
+# ДОДАНО: Новий ендпоінт для отримання деталей профілю користувача
+@router.get("/users/{user_id}", response_model=UserDetailResponse)
+async def get_user_details(
+        user_id: int,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Отримання повної інформації про користувача для адмін-панелі"""
+
+    # Використовуємо joinedload для ефективного завантаження пов'язаних даних
+    query = (
+        select(User)
+        .options(
+            joinedload(User.referrals),
+            selectinload(User.subscriptions),
+            selectinload(User.orders).selectinload(Order.items)
+        )
+        .where(User.id == user_id)
+    )
+
+    result = await db.execute(query)
+    # OLD: user = result.scalar_one_or_none()
+    user = result.unique().scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Користувача не знайдено")
+
+    # Формуємо відповідь
+    user_data = UserDetailResponse.model_validate(user)
+
+    # Додаємо пов'язані дані
+    user_data.subscriptions = [
+        SubscriptionForUser.model_validate(sub) for sub in user.subscriptions
+    ]
+    user_data.orders = [
+        OrderForUser(
+            id=order.id,
+            final_total=float(order.final_total),
+            status=order.status.value,
+            created_at=order.created_at,
+            items_count=len(order.items)
+        ) for order in user.orders
+    ]
+    user_data.referrals = [
+        ReferralForUser.model_validate(ref) for ref in user.referrals
+    ]
+
+    return user_data
+
+
 @router.patch("/users/{user_id}/toggle-admin")
 async def toggle_user_admin(
-    user_id: int,
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        user_id: int,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Зміна статусу адміністратора"""
 
@@ -349,11 +411,12 @@ async def toggle_user_admin(
         "is_admin": user.is_admin
     }
 
+
 @router.patch("/users/{user_id}/toggle-active")
 async def toggle_user_active(
-    user_id: int,
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        user_id: int,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Блокування/розблокування користувача"""
 
@@ -380,13 +443,14 @@ async def toggle_user_active(
         "is_active": user.is_active
     }
 
+
 @router.post("/users/{user_id}/add-bonus")
 async def add_user_bonus(
-    user_id: int,
-    amount: int = Form(...),
-    reason: Optional[str] = Form(None),
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        user_id: int,
+        amount: int = Form(...),
+        reason: Optional[str] = Form(None),
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Нарахування бонусів користувачу"""
 
@@ -435,7 +499,10 @@ async def give_user_subscription(
 
     if subscription:
         # Продовжуємо існуючу
-        subscription.end_date += timedelta(days=days)
+        if subscription.end_date < datetime.utcnow():
+            subscription.end_date = datetime.utcnow() + timedelta(days=days)
+        else:
+            subscription.end_date += timedelta(days=days)
     else:
         # Створюємо нову
         subscription = Subscription(
@@ -454,12 +521,13 @@ async def give_user_subscription(
         "end_date": subscription.end_date.isoformat()
     }
 
+
 # ========== КАТЕГОРІЇ ==========
 
 @router.get("/categories", response_model=List[CategoryResponse])
 async def get_categories(
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Отримання всіх категорій"""
 
@@ -477,12 +545,13 @@ async def get_categories(
         for cat in categories
     ]
 
+
 @router.post("/categories", response_model=CategoryResponse)
 async def create_category(
-    name: str = Form(...),
-    slug: str = Form(...),
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        name: str = Form(...),
+        slug: str = Form(...),
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Створення нової категорії"""
 
@@ -518,13 +587,14 @@ async def create_category(
         name=name
     )
 
+
 @router.put("/categories/{category_id}", response_model=CategoryResponse)
 async def update_category(
-    category_id: int,
-    name: Optional[str] = Form(None),
-    slug: Optional[str] = Form(None),
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        category_id: int,
+        name: Optional[str] = Form(None),
+        slug: Optional[str] = Form(None),
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Оновлення категорії"""
 
@@ -566,11 +636,12 @@ async def update_category(
         name=name or category.slug
     )
 
+
 @router.delete("/categories/{category_id}")
 async def delete_category(
-    category_id: int,
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        category_id: int,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Видалення категорії"""
 
@@ -583,12 +654,13 @@ async def delete_category(
 
     return {"success": True, "message": "Категорію видалено"}
 
+
 # ========== ПРОМОКОДИ ==========
 
 @router.get("/promo-codes", response_model=List[PromoCodeResponse])
 async def get_promo_codes(
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Отримання списку промокодів"""
 
@@ -602,11 +674,12 @@ async def get_promo_codes(
         for promo in promo_codes
     ]
 
+
 @router.post("/promo-codes", response_model=PromoCodeResponse)
 async def create_promo_code(
-    data: PromoCodeCreate,
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        data: PromoCodeCreate,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Створення нового промокоду"""
 
@@ -636,11 +709,12 @@ async def create_promo_code(
 
     return PromoCodeResponse.model_validate(promo)
 
+
 @router.patch("/promo-codes/{promo_id}/toggle")
 async def toggle_promo_code(
-    promo_id: int,
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        promo_id: int,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Активація/деактивація промокоду"""
 
@@ -657,11 +731,12 @@ async def toggle_promo_code(
         "is_active": promo.is_active
     }
 
+
 @router.delete("/promo-codes/{promo_id}")
 async def delete_promo_code(
-    promo_id: int,
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        promo_id: int,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Видалення промокоду"""
 
@@ -674,15 +749,16 @@ async def delete_promo_code(
 
     return {"success": True, "message": "Промокод видалено"}
 
+
 # ========== ЗАМОВЛЕННЯ ==========
 
 @router.get("/orders", response_model=OrderListResponse)
 async def get_orders(
-    skip: int = 0,
-    limit: int = 50,
-    status: Optional[str] = None,
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        skip: int = 0,
+        limit: int = 50,
+        status: Optional[str] = None,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Отримання списку замовлень"""
 
@@ -728,12 +804,13 @@ async def get_orders(
         limit=limit
     )
 
+
 @router.patch("/orders/{order_id}/status")
 async def update_order_status(
-    order_id: int,
-    status: str = Form(...),
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        order_id: int,
+        status: str = Form(...),
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Зміна статусу замовлення"""
 
@@ -761,12 +838,13 @@ async def update_order_status(
         "new_status": status
     }
 
+
 # ========== ЕКСПОРТ ДАНИХ (ДОДАТКОВИЙ ФУНКЦІОНАЛ) ==========
 
 @router.get("/export/users")
 async def export_users_csv(
-    admin: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Експорт користувачів в CSV"""
     import csv

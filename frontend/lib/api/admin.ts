@@ -1,5 +1,4 @@
 // frontend/lib/api/admin.ts
-// Цей код винесено з page.tsx для перевикористання
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dev.ohmyrevit.pp.ua/api/v1';
 
@@ -19,6 +18,17 @@ class AdminAPI {
   }
 
   private async request(url: string, options: RequestInit = {}) {
+    // Оновлюємо токен перед кожним запитом
+    if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('auth-storage');
+        if (stored) {
+            try {
+                const parsed = JSON.parse(stored);
+                this.token = parsed.state?.token || null;
+            } catch {}
+        }
+    }
+
     const headers: Record<string, string> = {
       ...options.headers,
       'Authorization': this.token ? `Bearer ${this.token}` : '',
@@ -58,6 +68,11 @@ class AdminAPI {
     const queryParams = { ...defaultParams, ...params };
     const queryString = new URLSearchParams(queryParams as any).toString();
     return this.request(`/admin/users?${queryString}`);
+  }
+
+  // ДОДАНО: Новий метод для отримання деталей
+  async getUserDetails(userId: number) {
+    return this.request(`/admin/users/${userId}`);
   }
 
   async toggleUserAdmin(userId: number) {

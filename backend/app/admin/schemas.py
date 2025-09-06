@@ -1,9 +1,10 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 """
 Pydantic схеми для адмін-панелі
 """
 from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 
 
@@ -36,6 +37,7 @@ class UserBrief(BaseModel):
     bonus_balance: int
     bonus_streak: int
     created_at: datetime
+    photo_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -99,3 +101,38 @@ class OrderListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+
+# ДОДАНО: Схеми для детального профілю користувача
+class SubscriptionForUser(BaseModel):
+    id: int
+    start_date: datetime
+    end_date: datetime
+    status: str
+
+class OrderForUser(BaseModel):
+    id: int
+    final_total: float
+    status: str
+    created_at: datetime
+    items_count: int
+
+class ReferralForUser(BaseModel):
+    id: int
+    first_name: str
+    last_name: Optional[str]
+    username: Optional[str]
+    created_at: datetime
+
+class UserDetailResponse(UserBrief):
+    """Повна інформація про користувача для адмін-панелі"""
+    phone: Optional[str]
+    language_code: Optional[str]
+    last_login_at: Optional[datetime]
+    last_bonus_claim_date: Optional[date]
+    
+    # Пов'язані дані
+    subscriptions: List[SubscriptionForUser] = []
+    orders: List[OrderForUser] = []
+    referrals: List[ReferralForUser] = []
+    
+    model_config = ConfigDict(from_attributes=True)
