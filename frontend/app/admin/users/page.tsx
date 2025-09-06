@@ -1,3 +1,4 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 // frontend/app/admin/users/page.tsx
 'use client';
 
@@ -6,7 +7,8 @@ import { useRouter } from 'next/navigation';
 import {
   Users, Search, Gift, X, CheckCircle, CreditCard
 } from 'lucide-react';
-import { adminApi } from '@/lib/api/admin';
+// OLD: import { adminApi } from '@/lib/api/admin';
+import { adminAPI } from '@/lib/api';
 import { LoadingSpinner, EmptyState } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
 
@@ -24,7 +26,8 @@ export default function UsersManagementPage() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await adminApi.getUsers({ search: search, skip: 0, limit: 50 });
+// OLD:       const response = await adminApi.getUsers({ search: search, skip: 0, limit: 50 });
+      const response = await adminAPI.getUsers({ search: search, skip: 0, limit: 50 });
       setUsers(response.users || []);
     } catch (error) {
       toast.error('Не вдалося завантажити користувачів');
@@ -40,7 +43,8 @@ export default function UsersManagementPage() {
 
   const toggleAdmin = async (userId: number) => {
     try {
-      await adminApi.toggleUserAdmin(userId);
+// OLD:       await adminApi.toggleUserAdmin(userId);
+      await adminAPI.toggleUserAdmin(userId);
       toast.success('Статус адміна оновлено');
       fetchUsers();
     } catch (error) {
@@ -50,7 +54,8 @@ export default function UsersManagementPage() {
 
   const toggleActive = async (userId: number) => {
     try {
-      await adminApi.toggleUserActive(userId);
+// OLD:       await adminApi.toggleUserActive(userId);
+      await adminAPI.toggleUserActive(userId);
       toast.success('Статус користувача оновлено');
       fetchUsers();
     } catch (error) {
@@ -61,7 +66,8 @@ export default function UsersManagementPage() {
     const handleAddBonus = async () => {
     if (!selectedUser) return;
     try {
-      await adminApi.addUserBonus(selectedUser.id, bonusAmount, bonusReason);
+// OLD:       await adminApi.addUserBonus(selectedUser.id, bonusAmount, bonusReason);
+      await adminAPI.addUserBonus(selectedUser.id, bonusAmount, bonusReason);
       toast.success(`Додано ${bonusAmount} бонусів користувачеві`);
       setShowBonusModal(false);
       setBonusAmount(100);
@@ -75,7 +81,8 @@ export default function UsersManagementPage() {
   const handleGiveSubscription = async () => {
     if (!selectedUser) return;
     try {
-      await adminApi.giveSubscription(selectedUser.id, subscriptionDays);
+// OLD:       await adminApi.giveSubscription(selectedUser.id, subscriptionDays);
+      await adminAPI.giveSubscription(selectedUser.id, subscriptionDays);
       toast.success(`Надано підписку на ${subscriptionDays} днів користувачеві`);
       setShowSubscriptionModal(false);
       setSubscriptionDays(30);
