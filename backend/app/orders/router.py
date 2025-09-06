@@ -10,7 +10,9 @@ from datetime import datetime
 
 from app.core.database import get_db
 from app.orders.models import Order, PromoCode, WebhookProcessed
-from app.subscriptions.models import UserProductAccess
+from app.subscriptions.models import UserProductAccess, Subscription, SubscriptionStatus, AccessType
+from app.products.models import Product, ProductType
+from app.users.models import User
 from app.payments.cryptomus import CryptomusClient
 from app.core.email import email_service
 from app.core.config import settings
@@ -124,12 +126,10 @@ async def cryptomus_webhook(
         # 5. Обробка різних статусів платежу
         if is_subscription:
             # Обробка підписки
-            from app.subscriptions.models import Subscription
-
-            subscription = await db.execute(
+            result = await db.execute(
                 select(Subscription).where(Subscription.id == order_id)
             )
-            subscription = subscription.scalar_one_or_none()
+            subscription = result.scalar_one_or_none()
 
             if not subscription:
                 logger.error(f"Subscription {order_id} not found")
@@ -138,31 +138,57 @@ async def cryptomus_webhook(
                     detail=f"Subscription {order_id} not found"
                 )
 
-            if status == "paid" and subscription.status != "active":
-                subscription.status = "active"
+            if status == "paid" and subscription.status != SubscriptionStatus.ACTIVE:
+                subscription.status = SubscriptionStatus.ACTIVE
                 subscription.payment_id = payment_id
 
-                # Надаємо доступ до всіх преміум товарів
-                from app.products.models import Product
-                products = await db.execute(
-                    select(Product).where(Product.product_type == "premium")
+                # OLD: # Надаємо доступ до всіх преміум товарів
+                # OLD: from app.products.models import Product
+                # OLD: products = await db.execute(
+                # OLD:     select(Product).where(Product.product_type == "premium")
+                # OLD: )
+                # OLD:
+                # OLD: for product in products.scalars().all():
+                # OLD:     # Перевіряємо чи вже є доступ
+                # OLD:     existing = await db.execute(
+                # OLD:         select(UserProductAccess).where(
+                # OLD:             UserProductAccess.user_id == subscription.user_id,
+                # OLD:             UserProductAccess.product_id == product.id
+                # OLD:         )
+                # OLD:     )
+                # OLD:     if not existing.scalar_one_or_none():
+                # OLD:         access = UserProductAccess(
+                # OLD:             user_id=subscription.user_id,
+                # OLD:             product_id=product.id,
+                # OLD:             access_type="subscription"
+                # OLD:         )
+                # OLD:         db.add(access)
+
+                # Надаємо постійний доступ до преміум товарів, що вийшли під час дії підписки
+                products_to_grant_access = await db.execute(
+                    select(Product).where(
+                        Product.product_type == ProductType.PREMIUM,
+                        Product.created_at >= subscription.start_date,
+                        Product.created_at <= subscription.end_date
+                    )
                 )
 
-                for product in products.scalars().all():
-                    # Перевіряємо чи вже є доступ
-                    existing = await db.execute(
+                for product in products_to_grant_access.scalars().all():
+                    # Перевіряємо, чи вже є доступ, щоб уникнути дублікатів
+                    existing_access = await db.execute(
                         select(UserProductAccess).where(
                             UserProductAccess.user_id == subscription.user_id,
                             UserProductAccess.product_id == product.id
                         )
                     )
-                    if not existing.scalar_one_or_none():
-                        access = UserProductAccess(
+                    if not existing_access.scalar_one_or_none():
+                        access_record = UserProductAccess(
                             user_id=subscription.user_id,
                             product_id=product.id,
-                            access_type="subscription"
+                            access_type=AccessType.SUBSCRIPTION
                         )
-                        db.add(access)
+                        db.add(access_record)
+                        logger.info(f"Надано доступ до товару {product.id} по підписці {subscription.id}")
 
                 # Відправляємо email підтвердження
                 user = await db.get(User, subscription.user_id)
@@ -175,7 +201,7 @@ async def cryptomus_webhook(
                 logger.info(f"Subscription {order_id} activated successfully")
 
             elif status in ["cancel", "wrong_amount", "fail", "system_fail", "refund"]:
-                subscription.status = "cancelled"
+                subscription.status = SubscriptionStatus.CANCELLED
                 logger.warning(f"Subscription {order_id} payment failed with status: {status}")
 
         else:
@@ -213,7 +239,7 @@ async def cryptomus_webhook(
                         access = UserProductAccess(
                             user_id=order.user_id,
                             product_id=item.product_id,
-                            access_type="purchase"
+                            access_type=AccessType.PURCHASE
                         )
                         db.add(access)
 

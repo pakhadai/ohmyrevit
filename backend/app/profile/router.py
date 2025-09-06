@@ -1,15 +1,15 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from fastapi.responses import FileResponse  # <-- ОСЬ ВИПРАВЛЕННЯ
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import Optional, List  # <-- ДОДАНО
+from typing import Optional, List
 from datetime import date, datetime
-from pathlib import Path  # <-- ДОДАНО
+from pathlib import Path
 
 from app.core.database import get_db
 from app.users.dependencies import get_current_user
 from app.users.models import User
-from app.products.models import Product, ProductTranslation, ProductType  # <-- ДОДАНО ProductType
+from app.products.models import Product, ProductTranslation, ProductType
 from app.subscriptions.models import UserProductAccess, Subscription, SubscriptionStatus
 from app.profile.schemas import DownloadsResponse, DownloadableProduct
 from app.users.schemas import UserResponse, UserUpdate, BonusClaimResponse, TelegramAuthData
@@ -58,7 +58,7 @@ async def get_favorites(
     return {"message": "Coming soon"}
 
 
-@router.get("/downloads")  # No response_model for more flexible response
+@router.get("/downloads")
 async def get_my_downloads(
         current_user: User = Depends(get_current_user),
         accept_language: Optional[str] = Header(default="uk"),
@@ -73,48 +73,31 @@ async def get_my_downloads(
 
     # --- 1. Отримати всі безкоштовні товари ---
     free_products_query = await db.execute(
-        select(Product).where(Product.product_type == 'free')
+        select(Product).where(Product.product_type == ProductType.FREE)
     )
     free_products_list = []
     for product in free_products_query.scalars().all():
         translation = product.get_translation(language_code)
         if translation:
+            # OLD: free_products_list.append(DownloadableProduct(
+            # OLD:     id=product.id,
+            # OLD:     title=translation.title,
+            # OLD:     main_image_url=product.main_image_url,
+            # OLD:     zip_file_path=product.zip_file_path
+            # OLD: ))
             free_products_list.append(DownloadableProduct(
                 id=product.id,
                 title=translation.title,
+                description=translation.description,
                 main_image_url=product.main_image_url,
                 zip_file_path=product.zip_file_path
             ))
 
-    # --- 2. Отримати преміум товари (куплені та по підписці) ---
-    purchased_access = await db.execute(
-        select(UserProductAccess.product_id).where(
-            UserProductAccess.user_id == current_user.id,
-            UserProductAccess.access_type == 'purchase'
-        )
+    # --- 2. Отримати преміум товари, до яких надано доступ (куплені або за підпискою) ---
+    accessible_premium_query = await db.execute(
+        select(UserProductAccess.product_id).where(UserProductAccess.user_id == current_user.id)
     )
-    purchased_product_ids = purchased_access.scalars().all()
-
-    active_subscription = await db.execute(
-        select(Subscription).where(
-            Subscription.user_id == current_user.id,
-            Subscription.status == SubscriptionStatus.ACTIVE,
-            Subscription.end_date > datetime.utcnow()
-        ).order_by(Subscription.start_date.desc()).limit(1)
-    )
-    subscription = active_subscription.scalar_one_or_none()
-
-    subscription_product_ids = []
-    if subscription:
-        subscribed_products = await db.execute(
-            select(Product.id).where(
-                Product.product_type == 'premium',
-                Product.created_at >= subscription.start_date
-            )
-        )
-        subscription_product_ids = subscribed_products.scalars().all()
-
-    all_premium_accessible_ids = list(set(purchased_product_ids + subscription_product_ids))
+    all_premium_accessible_ids = accessible_premium_query.scalars().all()
 
     premium_products_list = []
     if all_premium_accessible_ids:
@@ -124,9 +107,16 @@ async def get_my_downloads(
         for product in products_result.scalars().all():
             translation = product.get_translation(language_code)
             if translation:
+                # OLD: premium_products_list.append(DownloadableProduct(
+                # OLD:     id=product.id,
+                # OLD:     title=translation.title,
+                # OLD:     main_image_url=product.main_image_url,
+                # OLD:     zip_file_path=product.zip_file_path
+                # OLD: ))
                 premium_products_list.append(DownloadableProduct(
                     id=product.id,
                     title=translation.title,
+                    description=translation.description,
                     main_image_url=product.main_image_url,
                     zip_file_path=product.zip_file_path
                 ))
@@ -231,35 +221,16 @@ async def check_product_access(
     for pid in free_products.scalars().all():
         accessible_ids.add(pid)
 
-    # 2. Перевіряємо куплені товари
-    purchased = await db.execute(
+    # 2. Перевіряємо куплені товари або надані по підписці
+    granted_access = await db.execute(
         select(UserProductAccess.product_id).where(
             UserProductAccess.user_id == current_user.id,
             UserProductAccess.product_id.in_(product_ids)
         )
     )
-    for pid in purchased.scalars().all():
+    for pid in granted_access.scalars().all():
         accessible_ids.add(pid)
 
-    # 3. Перевіряємо доступ по підписці
-    active_subscription_result = await db.execute(
-        select(Subscription).where(
-            Subscription.user_id == current_user.id,
-            Subscription.status == SubscriptionStatus.ACTIVE,
-            Subscription.end_date > datetime.utcnow()
-        )
-    )
-    active_subscription = active_subscription_result.scalar_one_or_none()
-
-    if active_subscription:
-        subscribed_products = await db.execute(
-            select(Product.id).where(
-                Product.id.in_(product_ids),
-                Product.product_type == ProductType.PREMIUM
-            )
-        )
-        for pid in subscribed_products.scalars().all():
-            accessible_ids.add(pid)
 
     return {"accessible_product_ids": list(accessible_ids)}
 

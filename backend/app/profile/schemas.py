@@ -5,6 +5,7 @@ from typing import List
 class DownloadableProduct(BaseModel):
     id: int
     title: str
+    description: str
     main_image_url: str
     zip_file_path: str
 
