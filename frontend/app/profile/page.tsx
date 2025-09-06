@@ -39,7 +39,8 @@ export default function ProfilePage() {
 
   const menuItems = [
     { href: '/profile/downloads', label: 'Завантаження', icon: Download },
-    { href: '/profile/favorites', label: 'Вибрані', icon: Heart },
+    // OLD: { href: '/profile/favorites', label: 'Вибрані', icon: Heart },
+    { href: '/profile/collections', label: 'Мої колекції', icon: Heart },
     { href: '/profile/bonuses', label: 'Бонуси', icon: Gift },
     { href: '/profile/referrals', label: 'Реферали', icon: Users },
     { href: '/profile/support', label: 'Підтримка', icon: HelpCircle },

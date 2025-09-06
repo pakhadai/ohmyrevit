@@ -84,6 +84,7 @@ from app.users.router import router as users_router
 from app.products.router import router as products_router, admin_router as products_admin_router
 from app.orders.router import router as orders_router
 from app.admin.router import router as admin_main_router
+from app.collections.router import router as collections_router # ДОДАНО
 
 # Основні роутери API v1
 api_v1_router = APIRouter(prefix="/api/v1")
@@ -92,6 +93,7 @@ api_v1_router.include_router(products_router, prefix="/products")
 api_v1_router.include_router(orders_router, prefix="/orders")
 api_v1_router.include_router(profile_router, prefix="/profile")
 api_v1_router.include_router(subscriptions_router, prefix="/subscriptions")
+api_v1_router.include_router(collections_router, prefix="/profile") # ДОДАНО: Колекції є частиною профілю
 
 # Адмін-роутери (без префікса тут)
 admin_router_v1 = APIRouter()

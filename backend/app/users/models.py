@@ -6,6 +6,9 @@ from sqlalchemy import (
     Column, Integer, BigInteger, String, Boolean,
     Date, DateTime, func
 )
+# OLD: from app.core.database import Base
+from sqlalchemy.orm import relationship, Mapped
+from typing import List
 from app.core.database import Base
 
 
@@ -42,6 +45,10 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_login_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Зв'язок з колекціями
+    collections: Mapped[List["Collection"]] = relationship("Collection", back_populates="user", cascade="all, delete-orphan")
+
 
     def __repr__(self):
         return f"<User(id={self.id}, telegram_id={self.telegram_id}, username={self.username})>"

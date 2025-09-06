@@ -1,4 +1,3 @@
-// frontend/types/index.ts
 // Базові типи для проєкту
 export interface User {
   id: number;
@@ -23,7 +22,6 @@ export interface Product {
   product_type: 'free' | 'premium';
   main_image_url: string;
   gallery_image_urls: string[];
-  zip_file_path: string;
   is_on_sale: boolean;
   sale_price?: number;
   file_size_mb: number;
@@ -37,3 +35,25 @@ export interface CartItem {
 
 export type Language = 'uk' | 'en' | 'ru';
 export type Theme = 'light' | 'dark';
+
+// ДОДАНО: Типи для колекцій
+export interface Collection {
+    id: number;
+    name: string;
+    color: string;
+    created_at: string;
+    products_count: number;
+}
+
+export interface ProductInCollection {
+    id: number;
+    title: string;
+    description: string;
+    main_image_url: string;
+    price: number;
+    product_type: string;
+}
+
+export interface CollectionDetail extends Collection {
+    products: ProductInCollection[];
+}

@@ -46,16 +46,17 @@ async def get_bonus_info(
     return info
 
 
-@router.get("/favorites")
-async def get_favorites(
-        current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """
-    Отримання списку обраних товарів
-    """
-    # TODO: Реалізувати після додавання таблиці favorites
-    return {"message": "Coming soon"}
+# OLD: @router.get("/favorites")
+# OLD: async def get_favorites(
+# OLD:         current_user: User = Depends(get_current_user),
+# OLD:         db: AsyncSession = Depends(get_db)
+# OLD: ):
+# OLD:     """
+# OLD:     Отримання списку обраних товарів
+# OLD:     """
+# OLD:     # TODO: Реалізувати після додавання таблиці favorites
+# OLD:     return {"message": "Coming soon"}
+# Цей ендпоінт замінено на /profile/collections, який обробляється в collections.router
 
 
 @router.get("/downloads")

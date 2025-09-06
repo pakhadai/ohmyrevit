@@ -131,6 +131,13 @@ class Product(Base):
         cascade="all, delete-orphan",
         lazy="selectin"  # Завжди завантажувати переклади
     )
+    # Зв'язок з колекціями (many-to-many)
+    collections = relationship(
+        "Collection",
+        secondary="collection_products",
+        back_populates="products"
+    )
+
 
     def get_translation(self, language_code: str = 'uk'):
         """
