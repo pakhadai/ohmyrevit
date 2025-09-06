@@ -1,4 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
@@ -9,12 +8,31 @@ from app.core.database import get_db
 from app.users.dependencies import get_current_user
 from app.users.models import User
 from app.products.models import Product
-from app.collections.models import Collection
+# OLD: from app.collections.models import Collection
+from app.collections.models import Collection, collection_products
 from app.collections.schemas import (
     CollectionCreate, CollectionUpdate, CollectionResponse, CollectionDetailResponse, ProductInCollectionResponse
 )
 
+
 router = APIRouter(prefix="/collections", tags=["Collections"])
+
+
+@router.get("/product-ids", response_model=dict)
+async def get_favorited_product_ids(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Отримати унікальні ID всіх товарів у всіх колекціях користувача."""
+    query = (
+        select(collection_products.c.product_id)
+        .join(Collection)
+        .where(Collection.user_id == current_user.id)
+        .distinct()
+    )
+    result = await db.execute(query)
+    favorited_ids = result.scalars().all()
+    return {"favorited_ids": favorited_ids}
 
 
 @router.get("", response_model=List[CollectionResponse])
@@ -178,4 +196,24 @@ async def remove_product_from_collection(
         collection.products.remove(product_to_remove)
         await db.commit()
 
+    return
+
+
+@router.delete("/{collection_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_collection(
+        collection_id: int,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Видалити колекцію."""
+    result = await db.execute(
+        select(Collection).where(Collection.id == collection_id, Collection.user_id == current_user.id)
+    )
+    collection = result.scalar_one_or_none()
+
+    if not collection:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Колекцію не знайдено.")
+
+    await db.delete(collection)
+    await db.commit()
     return

@@ -181,29 +181,36 @@ export const profileAPI = {
     return getData(await api.get('/profile/downloads'));
   },
 
-  // НОВИЙ МЕТОД для завантаження файлів
   downloadProduct: async (productId: number) => {
     return getData(await api.get(`/profile/download/${productId}`));
   },
 
-  // OLD: getFavorites: async () => {
-  // OLD:   return getData(await api.get('/profile/favorites'));
-  // OLD: },
-  // Методи для колекцій
   getCollections: async () => {
     return getData(await api.get('/profile/collections'));
   },
+
   getCollectionDetails: async (id: number) => {
     return getData(await api.get(`/profile/collections/${id}`));
   },
+
   createCollection: async (data: { name: string; color: string }) => {
     return getData(await api.post('/profile/collections', data));
   },
+
+  deleteCollection: async (id: number) => {
+    return getData(await api.delete(`/profile/collections/${id}`));
+  },
+
   addProductToCollection: async (collectionId: number, productId: number) => {
     return getData(await api.post(`/profile/collections/${collectionId}/products/${productId}`));
   },
+
   removeProductFromCollection: async (collectionId: number, productId: number) => {
     return getData(await api.delete(`/profile/collections/${collectionId}/products/${productId}`));
+  },
+
+  getFavoritedProductIds: async () => {
+    return getData(await api.get('/profile/collections/product-ids'));
   },
 
   getBonusInfo: async () => {

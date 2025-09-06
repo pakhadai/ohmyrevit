@@ -1,16 +1,21 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import { Product } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Heart, ShoppingCart, Download } from 'lucide-react';
-import { motion } from 'framer-motion';
+// OLD: import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useCartStore } from '@/store/cartStore';
 import { useLanguageStore } from '@/store/languageStore';
-import { useAccessStore } from '@/store/accessStore'; // <-- ІМПОРТ
-import { useAuthStore } from '@/store/authStore'; // <-- ІМПОРТ
+import { useAccessStore } from '@/store/accessStore';
+import { useAuthStore } from '@/store/authStore';
+import { useCollectionStore } from '@/store/collectionStore';
 import toast from 'react-hot-toast';
-import { useEffect } from 'react';
+// OLD: import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import AddToCollectionModal from '@/components/collections/AddToCollectionModal';
 
 interface ProductCardProps {
   product: Product;
@@ -21,7 +26,11 @@ export default function ProductCard({ product }: ProductCardProps) {
   const { t } = useLanguageStore();
   const { isAuthenticated } = useAuthStore();
   const { checkAccess, fetchAccessStatus } = useAccessStore();
+  const { favoritedProductIds } = useCollectionStore();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const hasAccess = checkAccess(product.id);
+  const isFavorited = favoritedProductIds.has(product.id);
 
   // Перевіряємо доступ при монтуванні компонента, якщо користувач авторизований
   useEffect(() => {
@@ -35,6 +44,12 @@ export default function ProductCard({ product }: ProductCardProps) {
     e.preventDefault();
     addToCart(product);
     toast.success(`'${product.title}' додано до кошика!`);
+  };
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsModalOpen(true);
   };
 
   const handleDownload = (e: React.MouseEvent) => {
@@ -62,6 +77,11 @@ export default function ProductCard({ product }: ProductCardProps) {
       transition={{ duration: 0.3 }}
       className="group relative bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 flex flex-col"
     >
+      {/* Модальне вікно тепер є частиною компонента, але позиціонується глобально */}
+      <AnimatePresence>
+        {isModalOpen && <AddToCollectionModal product={product} onClose={() => setIsModalOpen(false)} />}
+      </AnimatePresence>
+
       <Link href={`/product/${product.id}`} passHref className="flex flex-col h-full">
         {/* Зображення */}
         <div className="relative aspect-square overflow-hidden">
@@ -89,8 +109,11 @@ export default function ProductCard({ product }: ProductCardProps) {
             )}
           </div>
           <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button className="p-2 bg-white/90 dark:bg-slate-900/90 rounded-full hover:bg-white dark:hover:bg-slate-900 transition-colors">
-              <Heart className="w-4 h-4" />
+            <button
+              onClick={handleFavoriteClick}
+              className="p-2 bg-white/90 dark:bg-slate-900/90 rounded-full hover:bg-white dark:hover:bg-slate-900 transition-colors"
+            >
+              <Heart className={`w-4 h-4 ${isFavorited ? 'text-red-500 fill-current' : 'text-gray-600'}`} />
             </button>
           </div>
         </div>

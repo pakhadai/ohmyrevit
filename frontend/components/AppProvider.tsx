@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
+import { useCollectionStore } from '@/store/collectionStore';
 import Onboarding from './Onboarding';
 import toast from 'react-hot-toast';
 
@@ -15,6 +16,7 @@ let isLoginToastShown = false;
 
 export default function AppProvider({ children }: { children: React.ReactNode }) {
   const { user, login, isLoading, isAuthenticated } = useAuthStore();
+  const { fetchInitialData } = useCollectionStore();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [appReady, setAppReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -69,6 +71,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
             try {
               authAttempted.current = true;
               await login(authData);
+              await fetchInitialData(); // ДОДАНО: Завантажуємо дані колекцій після логіну
 
               // Показуємо привітання
               const userName = authData.first_name || 'Користувач';
@@ -123,9 +126,12 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     if (!authAttempted.current && !isAuthenticated) {
       initializeTelegram();
     } else {
+      if (isAuthenticated) {
+        fetchInitialData(); // ДОДАНО: Завантажуємо дані, якщо користувач вже був залогінений
+      }
       setAppReady(true);
     }
-  }, [login, isAuthenticated]);
+  }, [login, isAuthenticated, fetchInitialData]);
 
   const handleOnboardingComplete = () => {
     if (user) {
