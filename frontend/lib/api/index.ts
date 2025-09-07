@@ -94,4 +94,16 @@ export const profileAPI = {
   },
 };
 
+// SUBSCRIPTIONS API
+export const subscriptionsAPI = {
+  checkout: async () => {
+    const response = await api.post('/api/v1/subscriptions/checkout');
+    return response.data;
+  },
+  getStatus: async () => {
+    const response = await api.get('/api/v1/subscriptions/status');
+    return response.data;
+  }
+};
+
 export default api;

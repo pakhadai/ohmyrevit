@@ -37,6 +37,8 @@ export type Language = 'uk' | 'en' | 'ru';
 export type Theme = 'light' | 'dark';
 
 // ДОДАНО: Типи для колекцій
+
+
 export interface Collection {
     id: number;
     name: string;

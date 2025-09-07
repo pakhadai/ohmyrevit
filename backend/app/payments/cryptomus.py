@@ -8,6 +8,8 @@ from app.core.config import settings
 
 class CryptomusClient:
     def __init__(self):
+        # ДІАГНОСТИКА: Цей код коректно використовує налаштування.
+        # Проблема в тому, що значення в settings.CRYPTOMUS_API_KEY або settings.CRYPTOMUS_MERCHANT_ID - невірні.
         self.api_key = settings.CRYPTOMUS_API_KEY
         self.merchant_id = settings.CRYPTOMUS_MERCHANT_ID
         self.base_url = "https://api.cryptomus.com/v1"
@@ -54,6 +56,8 @@ class CryptomusClient:
                 json=data,
                 headers=headers
             )
+            # ДІАГНОСТИКА: Ось тут виникає помилка, бо response.status_code дорівнює 401.
+            # Це означає, що Cryptomus не може авторизувати запит з наданими merchant_id та sign.
             response.raise_for_status()
             return response.json()
 
