@@ -1,3 +1,4 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 import axios, { AxiosInstance } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
@@ -17,7 +18,7 @@ export interface Product {
   product_type: 'free' | 'premium';
   main_image_url: string;
   gallery_image_urls: string[];
-  zip_file_path?: string; // ДОДАНО - було відсутнє
+  zip_file_path?: string;
   file_size_mb: number;
   compatibility?: string;
   is_on_sale: boolean;
@@ -68,13 +69,26 @@ const createAPIClient = (): AxiosInstance => {
       try {
         const languageStorage = localStorage.getItem('language-storage');
         if (languageStorage) {
-          const langData = JSON.parse(languageStorage);
-          if (langData.state?.language) {
-            config.headers['Accept-Language'] = langData.state.language;
+// OLD:           const langData = JSON.parse(languageStorage);
+// OLD:           if (langData.state?.language) {
+// OLD:             config.headers['Accept-Language'] = langData.state.language;
+// OLD:           }
+          // ВИПРАВЛЕННЯ: Zustand зберігає дані як JSON-рядок.
+          // Спочатку парсимо його, щоб отримати об'єкт стану.
+          const persistedState = JSON.parse(languageStorage);
+          const lang = persistedState?.state?.language;
+          if (lang) {
+            config.headers['Accept-Language'] = lang;
           }
         }
       } catch (e) {
-        console.error("Could not parse language from localStorage", e);
+        // Якщо парсинг не вдався (наприклад, i18next зберіг туди простий рядок),
+        // пробуємо використати значення напряму.
+        const languageStorage = localStorage.getItem('language-storage');
+        if (typeof languageStorage === 'string') {
+           config.headers['Accept-Language'] = languageStorage;
+        }
+        console.error("Could not parse language from localStorage, falling back to raw value.", e);
       }
 
       return config;

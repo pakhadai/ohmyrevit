@@ -6,6 +6,7 @@ import { useCollectionStore } from '@/store/collectionStore';
 import Onboarding from './Onboarding';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import i18n from '@/lib/i18n';
 
 declare global {
   interface Window {
@@ -21,10 +22,26 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   const [authError, setAuthError] = useState<string | null>(null);
   const authAttempted = useRef(false);
   const { t } = useTranslation();
+  const [i18nReady, setI18nReady] = useState(false);
+
+  useEffect(() => {
+    if (i18n.isInitialized) {
+      setI18nReady(true);
+    } else {
+      i18n.on('initialized', () => {
+        setI18nReady(true);
+      });
+    }
+
+    return () => {
+      i18n.off('initialized');
+    };
+  }, []);
+
 
   useEffect(() => {
     const initializeTelegram = async () => {
-      if (authAttempted.current || isAuthenticated) {
+      if (authAttempted.current || isAuthenticated || !i18nReady) {
         setAppReady(true);
         return;
       }
@@ -110,12 +127,10 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         }
       };
 
-      // Починаємо перевірку
       checkTelegram();
     };
 
-    // Запускаємо ініціалізацію
-    if (!authAttempted.current && !isAuthenticated) {
+    if (!authAttempted.current && !isAuthenticated && i18nReady) {
       initializeTelegram();
     } else {
       if (isAuthenticated) {
@@ -123,7 +138,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
       }
       setAppReady(true);
     }
-  }, [login, isAuthenticated, fetchInitialData, t]);
+  }, [login, isAuthenticated, fetchInitialData, t, i18nReady]);
 
   const handleOnboardingComplete = () => {
     if (user) {
@@ -132,20 +147,18 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     setShowOnboarding(false);
   };
 
-  // Показуємо екран завантаження
-  if (!appReady || isLoading) {
+  if (!appReady || isLoading || !i18nReady) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-purple-500 to-blue-600">
         <div className="text-center text-white">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-4"></div>
           <h2 className="text-2xl font-bold mb-2">OhMyRevit</h2>
-          <p className="text-white/80">{t('common.loading')}</p>
+          <p className="text-white/80">{i18n.isInitialized ? t('common.loading') : 'Initializing...'}</p>
         </div>
       </div>
     );
   }
 
-  // Показуємо помилку якщо не вдалося авторизуватися
   if (authError) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-red-500 to-pink-600 p-4">
