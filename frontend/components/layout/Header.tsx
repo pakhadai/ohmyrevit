@@ -1,3 +1,4 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import { Search, Globe, Moon, Sun } from 'lucide-react';
@@ -20,6 +21,9 @@ export default function Header() {
 
   // Мовні опції
   const languages = [
+    // OLD: { code: 'uk', label: '🇺🇦 УКР' },
+    // OLD: { code: 'en', label: '🇬🇧 ENG' },
+    // OLD: { code: 'ru', label: '🇷🇺 РУС' }
     { code: 'uk', label: t('languageSwitcher.uk') },
     { code: 'en', label: t('languageSwitcher.en') },
     { code: 'ru', label: t('languageSwitcher.ru') }

@@ -1,3 +1,4 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Language } from '@/types';

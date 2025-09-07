@@ -1,22 +1,23 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 // frontend/store/authStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User } from '@/types';
 import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
+import i18n from '@/lib/i18n'; // ДОДАНО
 
 interface AuthState {
   user: User | null;
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  lastLoginAt: number | null; // ДОДАНО: Час останнього успішного логіну
+  lastLoginAt: number | null;
 
-  // Методи
   login: (initData: object) => Promise<void>;
   logout: () => void;
   setUser: (user: User) => void;
-  checkTokenValidity: () => void; // ДОДАНО: Метод для перевірки актуальності токена
+  checkTokenValidity: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -26,7 +27,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isLoading: false,
       isAuthenticated: false,
-      lastLoginAt: null, // ДОДАНО
+      lastLoginAt: null,
 
       login: async (initData: object) => {
         set({ isLoading: true });
@@ -69,27 +70,26 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           token: null,
           isAuthenticated: false,
-          lastLoginAt: null, // ДОДАНО: Очищуємо час
+          lastLoginAt: null,
         });
-        toast.success('Ви вийшли з системи');
+        // OLD: toast.success('Ви вийшли з системи');
+        toast.success(i18n.t('toasts.loggedOut'));
       },
 
       setUser: (user: User) => {
         set({ user });
       },
 
-      // ДОДАНО: Новий метод для перевірки
       checkTokenValidity: () => {
         const { lastLoginAt } = get();
         if (!lastLoginAt) return;
 
-        // 24 години в мілісекундах
         const TOKEN_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
         if (Date.now() - lastLoginAt > TOKEN_LIFETIME_MS) {
-          // Якщо токен прострочений - викликаємо logout
           get().logout();
-          toast.error("Сесія застаріла. Будь ласка, увійдіть знову.");
+          // OLD: toast.error("Сесія застаріла. Будь ласка, увійдіть знову.");
+          toast.error(i18n.t('toasts.sessionExpired'));
         }
       },
     }),
@@ -99,7 +99,7 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
-        lastLoginAt: state.lastLoginAt, // ДОДАНО: Зберігаємо в localStorage
+        lastLoginAt: state.lastLoginAt,
       }),
     }
   )

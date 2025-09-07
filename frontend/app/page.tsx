@@ -1,21 +1,24 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 // frontend/app/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Gift, TrendingUp, Users, Sparkles, Clock } from 'lucide-react';
+import { ShoppingBag, Gift, TrendingUp, Users, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import DailyBonus from '@/components/home/DailyBonus';
 import { useAuthStore } from '@/store/authStore';
 import { productsAPI } from '@/lib/api';
 import ProductCard from '@/components/product/ProductCard';
+import { useTranslation } from 'react-i18next'; // ДОДАНО
 
 export default function HomePage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const [newProducts, setNewProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation(); // ДОДАНО
 
   useEffect(() => {
     fetchNewProducts();
@@ -35,6 +38,38 @@ export default function HomePage() {
     }
   };
 
+  // ДОДАНО: Масив для рендерингу функцій
+  const features = [
+    {
+      icon: ShoppingBag,
+      title: t('nav.market'),
+      description: t('home.features.market.description'),
+      color: 'from-blue-500 to-cyan-500',
+      link: '/marketplace'
+    },
+    {
+      icon: Gift,
+      title: t('home.features.bonuses.title'),
+      description: t('home.features.bonuses.description'),
+      color: 'from-yellow-500 to-orange-500',
+      link: '/profile/bonuses'
+    },
+    {
+      icon: TrendingUp,
+      title: t('subscription.premiumTitle'),
+      description: t('home.features.subscription.description'),
+      color: 'from-green-500 to-emerald-500',
+      link: '/subscription'
+    },
+    {
+      icon: Users,
+      title: t('home.features.community.title'),
+      description: t('home.features.community.description'),
+      color: 'from-purple-500 to-pink-500',
+      link: '/profile/referrals'
+    }
+  ];
+
   return (
     <div className="container mx-auto px-4 py-6">
       {/* Hero секція */}
@@ -43,18 +78,17 @@ export default function HomePage() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-3xl p-8 mb-8 text-white"
       >
-        <h1 className="text-4xl font-bold mb-4">
-          Ласкаво просимо до OhMyRevit
-        </h1>
-        <p className="text-xl mb-6 opacity-90">
-          Найкращий маркетплейс Revit контенту
-        </p>
+        {/* OLD: <h1 className="text-4xl font-bold mb-4">Ласкаво просимо до OhMyRevit</h1> */}
+        <h1 className="text-4xl font-bold mb-4">{t('home.welcome')}</h1>
+        {/* OLD: <p className="text-xl mb-6 opacity-90">Найкращий маркетплейс Revit контенту</p> */}
+        <p className="text-xl mb-6 opacity-90">{t('home.heroSubtitle')}</p>
         <Link
           href="/marketplace"
           className="inline-flex items-center gap-2 bg-white text-purple-600 px-6 py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors"
         >
           <ShoppingBag size={20} />
-          Перейти до маркету
+          {/* OLD: Перейти до маркету */}
+          {t('home.goToMarket')}
         </Link>
       </motion.div>
 
@@ -75,14 +109,17 @@ export default function HomePage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-lg mb-1">Premium Підписка</h3>
-                <p className="text-sm opacity-90">Необмежений доступ</p>
+                {/* OLD: <h3 className="font-bold text-lg mb-1">Premium Підписка</h3> */}
+                <h3 className="font-bold text-lg mb-1">{t('subscription.premiumTitle')}</h3>
+                {/* OLD: <p className="text-sm opacity-90">Необмежений доступ</p> */}
+                <p className="text-sm opacity-90">{t('home.subscription.subtitle')}</p>
               </div>
               <TrendingUp size={32} className="opacity-80" />
             </div>
             <div className="mt-4">
               <span className="text-2xl font-bold">$5</span>
-              <span className="text-sm">/місяць</span>
+              {/* OLD: <span className="text-sm">/місяць</span> */}
+              <span className="text-sm">{t('subscription.perMonth')}</span>
             </div>
           </motion.div>
 
@@ -91,17 +128,20 @@ export default function HomePage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
             className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 text-white cursor-pointer hover:shadow-xl transition-shadow"
-            onClick={() => router.push('/referrals')}
+            onClick={() => router.push('/profile/referrals')}
           >
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-lg mb-1">Реферальна програма</h3>
-                <p className="text-sm opacity-90">Запрошуй друзів</p>
+                {/* OLD: <h3 className="font-bold text-lg mb-1">Реферальна програма</h3> */}
+                <h3 className="font-bold text-lg mb-1">{t('home.referral.title')}</h3>
+                {/* OLD: <p className="text-sm opacity-90">Запрошуй друзів</p> */}
+                <p className="text-sm opacity-90">{t('home.referral.subtitle')}</p>
               </div>
               <Users size={32} className="opacity-80" />
             </div>
             <div className="mt-4">
-              <p className="text-sm">+100 бонусів за друга</p>
+              {/* OLD: <p className="text-sm">+100 бонусів за друга</p> */}
+              <p className="text-sm">{t('home.referral.bonusInfo')}</p>
             </div>
           </motion.div>
         </div>
@@ -109,36 +149,7 @@ export default function HomePage() {
 
       {/* Функції */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {[
-          {
-            icon: ShoppingBag,
-            title: 'Маркетплейс',
-            description: 'Тисячі моделей',
-            color: 'from-blue-500 to-cyan-500',
-            link: '/marketplace'
-          },
-          {
-            icon: Gift,
-            title: 'Бонуси',
-            description: 'Щоденні подарунки',
-            color: 'from-yellow-500 to-orange-500',
-            link: '/profile'
-          },
-          {
-            icon: TrendingUp,
-            title: 'Підписка',
-            description: '$5/місяць',
-            color: 'from-green-500 to-emerald-500',
-            link: '/subscription'
-          },
-          {
-            icon: Users,
-            title: 'Спільнота',
-            description: 'Тисячі користувачів',
-            color: 'from-purple-500 to-pink-500',
-            link: '/community'
-          }
-        ].map((item, index) => {
+        {features.map((item, index) => {
           const Icon = item.icon;
           return (
             <motion.div
@@ -165,11 +176,11 @@ export default function HomePage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Sparkles className="text-yellow-500" />
-            Останні новинки
+            {/* OLD: Останні новинки */}
+            {t('home.newArrivals')}
           </h2>
-          <Link href="/marketplace" className="text-blue-500 hover:underline">
-            Всі товари →
-          </Link>
+          {/* OLD: <Link href="/marketplace" className="text-blue-500 hover:underline">Всі товари →</Link> */}
+          <Link href="/marketplace" className="text-blue-500 hover:underline">{t('home.allProducts')}</Link>
         </div>
 
         {loading ? (
@@ -186,7 +197,8 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="text-center text-gray-500 py-8">
-            Товари завантажуються...
+            {/* OLD: Товари завантажуються... */}
+            {t('home.loadingProducts')}
           </div>
         )}
       </div>

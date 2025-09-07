@@ -1,9 +1,11 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Award, Gift, Gem, CheckCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -77,6 +79,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           onClick={handleNext}
           className="w-full py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors"
         >
+          {/* OLD: {step < steps.length - 1 ? 'Далі' : 'Почати'} */}
           {step < steps.length - 1 ? t('common.next') : t('common.start')}
         </button>
       </motion.div>

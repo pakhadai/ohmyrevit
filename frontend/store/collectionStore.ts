@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { profileAPI } from '@/lib/api';
 import { Collection } from '@/types';
 import toast from 'react-hot-toast';
+import i18n from '@/lib/i18n'; // ДОДАНО
 
 interface CollectionState {
   collections: Collection[];
@@ -39,10 +40,12 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
     try {
       const newCollection = await profileAPI.createCollection({ name, color });
       set(state => ({ collections: [...state.collections, newCollection] }));
-      toast.success(`Колекцію "${name}" створено`);
+      // OLD: toast.success(`Колекцію "${name}" створено`);
+      toast.success(i18n.t('toasts.collectionCreated', { name }));
       return newCollection;
     } catch (error: any) {
-      toast.error(error.message || "Не вдалося створити колекцію");
+      // OLD: toast.error(error.message || "Не вдалося створити колекцію");
+      toast.error(error.message || i18n.t('toasts.collectionCreateError'));
       return null;
     }
   },
@@ -53,9 +56,11 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
       set(state => ({
         collections: state.collections.filter(c => c.id !== id)
       }));
-      toast.success("Колекцію видалено");
+      // OLD: toast.success("Колекцію видалено");
+      toast.success(i18n.t('toasts.collectionDeleted'));
     } catch (error) {
-      toast.error("Не вдалося видалити колекцію");
+      // OLD: toast.error("Не вдалося видалити колекцію");
+      toast.error(i18n.t('toasts.collectionDeleteError'));
     }
   },
 
@@ -63,7 +68,6 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
     await profileAPI.addProductToCollection(collectionId, productId);
     set(state => ({
       favoritedProductIds: new Set(state.favoritedProductIds).add(productId),
-      // Оновлюємо лічильник
       collections: state.collections.map(c =>
         c.id === collectionId ? { ...c, products_count: c.products_count + 1 } : c
       ),
@@ -72,13 +76,11 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
 
   removeProductFromCollection: async (collectionId, productId) => {
     await profileAPI.removeProductFromCollection(collectionId, productId);
-    // Оновлюємо лічильник
     set(state => ({
         collections: state.collections.map(c =>
           c.id === collectionId ? { ...c, products_count: Math.max(0, c.products_count - 1) } : c
         ),
     }));
-    // Перезапитуємо ID, щоб коректно оновити статус сердечка
     const favoritedIdsData = await profileAPI.getFavoritedProductIds();
     set({ favoritedProductIds: new Set(favoritedIdsData.favorited_ids) });
   },

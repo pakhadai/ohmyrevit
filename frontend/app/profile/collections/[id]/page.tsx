@@ -1,3 +1,4 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,11 +8,13 @@ import { CollectionDetail, ProductInCollection } from '@/types';
 import { ArrowLeft, Loader, Download, Trash2, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import { useTranslation } from 'react-i18next'; // ДОДАНО
 
 export default function CollectionDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const { t } = useTranslation(); // ДОДАНО
 
   const [collection, setCollection] = useState<CollectionDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,7 +31,8 @@ export default function CollectionDetailPage() {
       const data = await profileAPI.getCollectionDetails(Number(id));
       setCollection(data);
     } catch (error) {
-      toast.error('Не вдалося завантажити деталі колекції.');
+      // OLD: toast.error('Не вдалося завантажити деталі колекції.');
+      toast.error(t('profilePages.collections.toasts.detailsError'));
       router.push('/profile/collections');
     } finally {
       setLoading(false);
@@ -39,7 +43,8 @@ export default function CollectionDetailPage() {
     if (!collection) return;
     try {
         await profileAPI.removeProductFromCollection(collection.id, productId);
-        toast.success('Товар видалено з колекції');
+        // OLD: toast.success('Товар видалено з колекції');
+        toast.success(t('profilePages.collections.toasts.productRemoved'));
         // Оновлюємо список товарів локально
         setCollection(prev => prev ? ({
             ...prev,
@@ -47,14 +52,15 @@ export default function CollectionDetailPage() {
             products_count: prev.products_count - 1
         }) : null);
     } catch (error) {
-        toast.error('Помилка видалення товару з колекції.');
+        // OLD: toast.error('Помилка видалення товару з колекції.');
+        toast.error(t('profilePages.collections.toasts.productRemoveError'));
     }
   };
 
   const handleDownload = (product: ProductInCollection) => {
-    // Логіка завантаження...
     console.log("Download:", product.title);
-    toast.success(`Завантаження ${product.title} почнеться...`);
+    // OLD: toast.success(`Завантаження ${product.title} почнеться...`);
+    toast.success(t('toasts.downloadStarting', { title: product.title }));
   };
 
   if (loading) {
@@ -66,7 +72,8 @@ export default function CollectionDetailPage() {
   }
 
   if (!collection) {
-    return <div>Колекцію не знайдено.</div>;
+    // OLD: return <div>Колекцію не знайдено.</div>;
+    return <div>{t('profilePages.collections.detail.notFound')}</div>;
   }
 
   return (
@@ -81,9 +88,11 @@ export default function CollectionDetailPage() {
       {collection.products.length === 0 ? (
          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
           <Package size={48} className="mx-auto mb-4 opacity-50" />
-          <h2 className="text-xl font-semibold mb-2">Ця колекція порожня</h2>
+          {/* OLD: <h2 className="text-xl font-semibold mb-2">Ця колекція порожня</h2> */}
+          <h2 className="text-xl font-semibold mb-2">{t('profilePages.collections.detail.empty.title')}</h2>
           <Link href="/marketplace" className="mt-2 inline-block px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-              Додати товари
+              {/* OLD: Додати товари */}
+              {t('profilePages.collections.detail.empty.cta')}
           </Link>
         </div>
       ) : (

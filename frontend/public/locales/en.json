@@ -23,7 +23,10 @@
   },
   "toasts": {
     "welcome": "Welcome, {{userName}}! 😊",
-    "authError": "Authorization error. Please try again."
+    "authError": "Authorization error. Please try again.",
+    "productLoadError": "Error loading product.",
+    "downloadStarted": "Download has started...",
+    "loginToDownload": "You must be logged in to download."
   },
   "appProvider": {
     "loginError": "Failed to log in. Please try reloading the app.",
@@ -75,5 +78,76 @@
     "uk": "🇺🇦 UKR",
     "en": "🇬🇧 ENG",
     "ru": "🇷🇺 RUS"
+  },
+  "home": {
+    "welcome": "Welcome to OhMyRevit",
+    "heroSubtitle": "The best marketplace for Revit content",
+    "goToMarket": "Go to Marketplace",
+    "subscription": {
+      "subtitle": "Unlimited access"
+    },
+    "referral": {
+      "title": "Referral Program",
+      "subtitle": "Invite friends",
+      "bonusInfo": "+100 bonuses per friend"
+    },
+    "features": {
+      "market": {
+        "description": "Thousands of models"
+      },
+      "bonuses": {
+        "title": "Bonuses",
+        "description": "Daily gifts"
+      },
+      "subscription": {
+        "description": "$5/month"
+      },
+      "community": {
+        "title": "Community",
+        "description": "Thousands of users"
+      }
+    },
+    "newArrivals": "Latest Arrivals",
+    "allProducts": "All products →",
+    "loadingProducts": "Loading products..."
+  },
+  "marketplace": {
+    "filters": "Filters",
+    "sort": {
+      "newest": "Newest",
+      "priceAsc": "Price: Low to High",
+      "priceDesc": "Price: High to Low",
+      "popular": "Popular"
+    },
+    "filtersComingSoon": "Filters are under development..."
+  },
+  "productPage": {
+    "loadError": "Failed to load the product. It may not exist.",
+    "backToProducts": "Back to products",
+    "free": "Free",
+    "compatibility": "Compatibility:",
+    "size": "Size:",
+    "download": "Download"
+  },
+  "cart": {
+    "empty": {
+      "title": "Your cart is empty",
+      "subtitle": "Looks like you haven't added anything yet. Time to fix that!",
+      "goToMarket": "Go to Marketplace"
+    },
+    "title": "My Cart",
+    "summary": {
+      "title": "Your Order",
+      "promo": "Promo code",
+      "promoPlaceholder": "Enter code",
+      "apply": "OK",
+      "or": "OR",
+      "useBonuses": "Use bonuses (available: {{count}})",
+      "subtotal": "Subtotal:",
+      "discount": "Discount:",
+      "total": "Total:",
+      "checkout": "Checkout",
+      "cancelDiscount": "Cancel discount"
+    }
   }
 }

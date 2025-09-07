@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # Core
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
@@ -29,6 +30,7 @@ pytz==2024.1
 
 # Monitoring
 sentry-sdk[fastapi]==1.39.2
+colorlog==6.8.2 # ДОДАНО
 
 # Testing (опціонально)
 pytest==7.4.4

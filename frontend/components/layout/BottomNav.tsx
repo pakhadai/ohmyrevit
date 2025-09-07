@@ -1,3 +1,4 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import { Home, ShoppingBag, ShoppingCart, User } from 'lucide-react';
@@ -6,15 +7,16 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useCartStore } from '@/store/cartStore';
 import { motion } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next'; // ДОДАНО
 
 export default function BottomNav() {
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const cartItemsCount = useCartStore((state) => state.items.length);
-  const { t } = useTranslation();
+  const { t } = useTranslation(); // ДОДАНО
 
+  // Логіка приховування при скролі
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -31,6 +33,10 @@ export default function BottomNav() {
   }, [lastScrollY]);
 
   const navItems = [
+    // OLD: { href: '/', icon: Home, label: 'Головна' },
+    // OLD: { href: '/marketplace', icon: ShoppingBag, label: 'Маркет' },
+    // OLD: { href: '/cart', icon: ShoppingCart, label: 'Кошик', badge: cartItemsCount },
+    // OLD: { href: '/profile', icon: User, label: 'Профіль' },
     { href: '/', icon: Home, label: t('nav.home'), badge: 0 },
     { href: '/marketplace', icon: ShoppingBag, label: t('nav.market'), badge: 0 },
     { href: '/cart', icon: ShoppingCart, label: t('nav.cart'), badge: cartItemsCount },

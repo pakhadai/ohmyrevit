@@ -1,32 +1,31 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/profile/router.py
+# OLD: from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi import APIRouter, Depends, Header, HTTPException, status, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+# OLD: from sqlalchemy import select
 from sqlalchemy import select, func
+# OLD: from typing import Optional, List
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from app.core.database import get_db
 from app.users.dependencies import get_current_user
 from app.users.models import User
-from app.products.models import Product, ProductType
-from app.subscriptions.models import UserProductAccess
-from app.profile.schemas import DownloadableProduct
-from app.users.schemas import UserResponse, UserUpdate
+from app.products.models import Product, ProductTranslation, ProductType
+from app.subscriptions.models import UserProductAccess, Subscription, SubscriptionStatus
+from app.profile.schemas import DownloadsResponse, DownloadableProduct
+from app.users.schemas import UserResponse, UserUpdate, BonusClaimResponse, TelegramAuthData
 from app.users.auth_service import AuthService
 from app.core.config import settings
 from app.bonuses.service import BonusService
+# ДОДАНО: Імпорти для реферальної системи
 from app.referrals.models import ReferralLog
 from app.referrals.schemas import ReferralInfoResponse, ReferralLogItem
-from app.collections.router import router as collections_router
 
-router = APIRouter()
-
-# Включаємо роутер колекцій сюди, щоб шляхи були /profile/collections
-router.include_router(collections_router)
+router = APIRouter(tags=["Profile"])
 
 
 @router.post("/bonus/claim")
@@ -53,6 +52,18 @@ async def get_bonus_info(
     bonus_service = BonusService(db)
     info = await bonus_service.get_bonus_info(current_user.id)
     return info
+
+
+@router.get("/favorites")
+async def get_favorites(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Отримання списку обраних товарів
+    """
+    # TODO: Реалізувати після додавання таблиці favorites
+    return {"message": "Coming soon"}
 
 
 @router.get("/downloads")
@@ -123,6 +134,44 @@ async def get_current_user_profile(
     return UserResponse.from_orm(current_user)
 
 
+@router.post("/me/telegram-sync", response_model=UserResponse)
+async def sync_profile_with_telegram(
+        auth_data: TelegramAuthData,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Оновлює дані профілю (ім'я, юзернейм, фото) з даних Telegram
+    """
+    auth_data_dict = auth_data.model_dump(exclude_unset=True)
+    if not AuthService.verify_telegram_auth(auth_data_dict):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Telegram authentication data"
+        )
+
+    if auth_data.id != current_user.telegram_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Telegram data does not match the current user"
+        )
+
+    update_fields = {
+        'first_name': auth_data.first_name,
+        'last_name': auth_data.last_name,
+        'username': auth_data.username,
+        'photo_url': auth_data.photo_url,
+    }
+
+    for field, value in update_fields.items():
+        if value is not None:
+            setattr(current_user, field, value)
+
+    current_user.updated_at = datetime.utcnow()
+
+    return UserResponse.from_orm(current_user)
+
+
 @router.patch("/me", response_model=UserResponse)
 async def update_current_user_profile(
         user_update: UserUpdate,
@@ -143,9 +192,6 @@ async def update_current_user_profile(
 
     if is_updated:
         current_user.updated_at = datetime.utcnow()
-
-    await db.commit()
-    await db.refresh(current_user)
 
     return UserResponse.from_orm(current_user)
 
@@ -202,11 +248,10 @@ async def download_product_file(
         raise HTTPException(status_code=404, detail="Файл не знайдено на сервері")
 
     product.downloads_count += 1
-    await db.commit()
-
     return FileResponse(str(file_path), filename=file_path.name, media_type='application/octet-stream')
 
 
+# ДОДАНО: Новий ендпоінт для реферальної системи
 @router.get("/referrals", response_model=ReferralInfoResponse)
 async def get_referral_info(
         current_user: User = Depends(get_current_user),

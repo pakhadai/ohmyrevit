@@ -1,3 +1,4 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 // frontend/app/profile/page.tsx
 'use client';
 
@@ -13,12 +14,14 @@ import { profileAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from 'react-i18next'; // ДОДАНО
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, setUser } = useAuthStore();
   const [email, setEmail] = useState(user?.email || '');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { t } = useTranslation(); // ДОДАНО
 
   useEffect(() => {
     if (user) {
@@ -30,21 +33,28 @@ export default function ProfilePage() {
     try {
       const updatedUser = await profileAPI.updateProfile({ email });
       setUser(updatedUser);
-      toast.success('Email успішно збережено!');
+      // OLD: toast.success('Email успішно збережено!');
+      toast.success(t('profilePages.main.toasts.emailSaved'));
     } catch (error) {
-      toast.error('Помилка при збереженні email.');
+      // OLD: toast.error('Помилка при збереженні email.');
+      toast.error(t('profilePages.main.toasts.emailError'));
       console.error('Update email error:', error);
     }
   };
 
   const menuItems = [
-    { href: '/profile/downloads', label: 'Завантаження', icon: Download },
-    // OLD: { href: '/profile/favorites', label: 'Вибрані', icon: Heart },
-    { href: '/profile/collections', label: 'Мої колекції', icon: Heart },
-    { href: '/profile/bonuses', label: 'Бонуси', icon: Gift },
-    { href: '/profile/referrals', label: 'Реферали', icon: Users },
-    { href: '/profile/support', label: 'Підтримка', icon: HelpCircle },
-    { href: '/profile/faq', label: 'FAQ', icon: FileText }
+    // OLD: { href: '/profile/downloads', label: 'Завантаження', icon: Download },
+    // OLD: { href: '/profile/collections', label: 'Мої колекції', icon: Heart },
+    // OLD: { href: '/profile/bonuses', label: 'Бонуси', icon: Gift },
+    // OLD: { href: '/profile/referrals', label: 'Реферали', icon: Users },
+    // OLD: { href: '/profile/support', label: 'Підтримка', icon: HelpCircle },
+    // OLD: { href: '/profile/faq', label: 'FAQ', icon: FileText }
+    { href: '/profile/downloads', label: t('profilePages.main.menu.downloads'), icon: Download },
+    { href: '/profile/collections', label: t('profilePages.main.menu.collections'), icon: Heart },
+    { href: '/profile/bonuses', label: t('profilePages.main.menu.bonuses'), icon: Gift },
+    { href: '/profile/referrals', label: t('profilePages.main.menu.referrals'), icon: Users },
+    { href: '/profile/support', label: t('profilePages.main.menu.support'), icon: HelpCircle },
+    { href: '/profile/faq', label: t('profilePages.main.menu.faq'), icon: FileText }
   ];
 
   return (
@@ -64,7 +74,8 @@ export default function ProfilePage() {
               {user?.is_admin && (
                 <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 bg-white/20 rounded-full text-xs">
                   <Shield size={12} />
-                  Адміністратор
+                  {/* OLD: Адміністратор */}
+                  {t('profilePages.main.adminBadge')}
                 </span>
               )}
             </div>
@@ -77,7 +88,8 @@ export default function ProfilePage() {
               className="px-4 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg hover:bg-white/30 transition-all flex items-center gap-2"
             >
               <Shield size={18} />
-              <span className="hidden sm:inline">Адмін-панель</span>
+              {/* OLD: <span className="hidden sm:inline">Адмін-панель</span> */}
+              <span className="hidden sm:inline">{t('profilePages.main.adminPanel')}</span>
             </button>
           )}
         </div>
@@ -91,7 +103,8 @@ export default function ProfilePage() {
         >
           <div className="flex items-center gap-3">
             <Settings size={20} className="text-gray-600 dark:text-gray-400" />
-            <span className="font-semibold">Налаштування</span>
+            {/* OLD: <span className="font-semibold">Налаштування</span> */}
+            <span className="font-semibold">{t('profilePages.main.settings.title')}</span>
           </div>
           {settingsOpen ? (
             <ChevronUp size={20} className="text-gray-400" />
@@ -111,10 +124,12 @@ export default function ProfilePage() {
             >
               <div className="p-6">
                 <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">
-                  Контактна інформація
+                  {/* OLD: Контактна інформація */}
+                  {t('profilePages.main.settings.contactInfo')}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  Ваш email використовуватиметься для важливих сповіщень та відновлення доступу.
+                  {/* OLD: Ваш email використовуватиметься для важливих сповіщень та відновлення доступу. */}
+                  {t('profilePages.main.settings.emailDescription')}
                 </p>
                 <div className="flex items-center gap-2">
                   <div className="relative flex-grow">
@@ -124,7 +139,8 @@ export default function ProfilePage() {
                       name="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Ваш Email"
+                      // OLD: placeholder="Ваш Email"
+                      placeholder={t('profilePages.main.settings.emailPlaceholder')}
                       className="w-full pl-10 pr-4 py-2 border dark:border-slate-600 rounded-lg bg-transparent text-sm"
                     />
                   </div>
@@ -133,7 +149,8 @@ export default function ProfilePage() {
                     className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0 flex items-center gap-2 text-sm"
                   >
                     <Save size={16}/>
-                    <span>Зберегти</span>
+                    {/* OLD: <span>Зберегти</span> */}
+                    <span>{t('common.save')}</span>
                   </button>
                 </div>
               </div>
@@ -158,7 +175,8 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <h3 className="font-semibold">{item.label}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Перейти до розділу</p>
+                  {/* OLD: <p className="text-sm text-gray-500 dark:text-gray-400">Перейти до розділу</p> */}
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('profilePages.main.menu.goToSection')}</p>
                 </div>
               </motion.div>
             </Link>
@@ -170,19 +188,23 @@ export default function ProfilePage() {
       <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-800 rounded-lg p-4 text-center shadow-sm">
           <p className="text-2xl font-bold text-purple-500">{user?.bonus_balance || 0}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Бонусів</p>
+          {/* OLD: <p className="text-sm text-gray-500 dark:text-gray-400">Бонусів</p> */}
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('profilePages.main.stats.bonuses')}</p>
         </div>
         <div className="bg-white dark:bg-slate-800 rounded-lg p-4 text-center shadow-sm">
           <p className="text-2xl font-bold text-blue-500">{user?.bonus_streak || 0}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Днів стріку</p>
+          {/* OLD: <p className="text-sm text-gray-500 dark:text-gray-400">Днів стріку</p> */}
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('profilePages.main.stats.streakDays')}</p>
         </div>
         <div className="bg-white dark:bg-slate-800 rounded-lg p-4 text-center shadow-sm">
           <p className="text-2xl font-bold text-green-500">0</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Завантажень</p>
+          {/* OLD: <p className="text-sm text-gray-500 dark:text-gray-400">Завантажень</p> */}
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('profilePages.main.stats.downloads')}</p>
         </div>
         <div className="bg-white dark:bg-slate-800 rounded-lg p-4 text-center shadow-sm">
           <p className="text-2xl font-bold text-pink-500">0</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Рефералів</p>
+          {/* OLD: <p className="text-sm text-gray-500 dark:text-gray-400">Рефералів</p> */}
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('profilePages.main.stats.referrals')}</p>
         </div>
       </div>
     </div>

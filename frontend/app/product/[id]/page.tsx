@@ -1,3 +1,4 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 // frontend/app/product/[id]/page.tsx
 'use client';
 
@@ -5,7 +6,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { productsAPI } from '@/lib/api';
 import { Product } from '@/types';
-// OLD: import { ArrowLeft, ShoppingCart, CheckCircle, Info, Loader } from 'lucide-react';
 import { ArrowLeft, ShoppingCart, CheckCircle, Info, Loader, Download } from 'lucide-react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
@@ -13,6 +13,7 @@ import { useCartStore } from '@/store/cartStore';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useAccessStore } from '@/store/accessStore';
+import { useTranslation } from 'react-i18next'; // ДОДАНО
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -28,6 +29,7 @@ export default function ProductDetailPage() {
   const addItemToCart = useCartStore((state) => state.addItem);
   const { isAuthenticated } = useAuthStore();
   const { checkAccess, fetchAccessStatus } = useAccessStore();
+  const { t } = useTranslation(); // ДОДАНО
 
   useEffect(() => {
     if (productId) {
@@ -36,21 +38,23 @@ export default function ProductDetailPage() {
           setLoading(true);
           const productData = await productsAPI.getProductById(productId);
           setProduct(productData);
-          setSelectedImage(productData.main_image_url); // Встановлюємо головне зображення як активне
+          setSelectedImage(productData.main_image_url);
 
           if (isAuthenticated) {
             await fetchAccessStatus([Number(productId)]);
           }
         } catch (err) {
-          setError('Не вдалося завантажити товар. Можливо, його не існує.');
-          toast.error('Помилка завантаження товару.');
+          // OLD: setError('Не вдалося завантажити товар. Можливо, його не існує.');
+          setError(t('productPage.loadError'));
+          // OLD: toast.error('Помилка завантаження товару.');
+          toast.error(t('toasts.productLoadError'));
         } finally {
           setLoading(false);
         }
       };
       fetchProductAndAccess();
     }
-  }, [productId, isAuthenticated, fetchAccessStatus]);
+  }, [productId, isAuthenticated, fetchAccessStatus, t]);
 
   const handleAddToCart = () => {
     if (product) {
@@ -65,20 +69,20 @@ export default function ProductDetailPage() {
     if (product && token) {
       const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL}/profile/download/${product.id}?token=${token}`;
       window.location.href = downloadUrl;
-      toast.success('Завантаження почалось...');
+      // OLD: toast.success('Завантаження почалось...');
+      toast.success(t('toasts.downloadStarted'));
     } else {
-      toast.error("Для завантаження потрібно авторизуватися.");
+      // OLD: toast.error("Для завантаження потрібно авторизуватися.");
+      toast.error(t('toasts.loginToDownload'));
     }
   };
 
   const fullImageUrl = (path: string) => {
     if (!path) return '/placeholder.jpg';
-    // OLD: return path.startsWith('http') ? path : `${process.env.NEXT_PUBLIC_BACKEND_URL}${path}`;
     const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
     if (path.startsWith('http')) {
       return path;
     }
-    // Переконуємось, що не додаємо подвійний слеш
     return `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}/${path.startsWith('/') ? path.slice(1) : path}`;
   };
 
@@ -100,14 +104,15 @@ export default function ProductDetailPage() {
           onClick={() => router.push('/marketplace')}
           className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
         >
-          Повернутися до маркетплейсу
+          {/* OLD: Повернутися до маркетплейсу */}
+          {t('cart.empty.goToMarket')}
         </button>
       </div>
     );
   }
 
   if (!product) {
-    return null; // Або інший стан, якщо товар не знайдено
+    return null;
   }
 
   return (
@@ -119,7 +124,8 @@ export default function ProductDetailPage() {
           className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-500 mb-6"
         >
           <ArrowLeft size={20} />
-          <span>Назад до товарів</span>
+          {/* OLD: <span>Назад до товарів</span> */}
+          <span>{t('productPage.backToProducts')}</span>
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -169,7 +175,8 @@ export default function ProductDetailPage() {
                 </>
               ) : (
                 <span className="text-4xl font-bold">
-                  {product.price === 0 ? 'Безкоштовно' : `$${product.price.toFixed(2)}`}
+                  {/* OLD: {product.price === 0 ? 'Безкоштовно' : `$${product.price.toFixed(2)}`} */}
+                  {product.price === 0 ? t('productPage.free') : `$${product.price.toFixed(2)}`}
                 </span>
               )}
             </div>
@@ -182,11 +189,13 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-4 mb-6">
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <CheckCircle size={18} className="text-green-500" />
-                  <span>Сумісність: <strong>{product.compatibility}</strong></span>
+                  {/* OLD: <span>Сумісність: <strong>{product.compatibility}</strong></span> */}
+                  <span>{t('productPage.compatibility')} <strong>{product.compatibility}</strong></span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Info size={18} className="text-blue-500" />
-                  <span>Розмір: <strong>{product.file_size_mb} MB</strong></span>
+                  {/* OLD: <span>Розмір: <strong>{product.file_size_mb} MB</strong></span> */}
+                  <span>{t('productPage.size')} <strong>{product.file_size_mb} MB</strong></span>
                 </div>
               </div>
 
@@ -197,7 +206,8 @@ export default function ProductDetailPage() {
                 >
                   <div className="flex items-center justify-center gap-3">
                     <Download size={24} />
-                    <span>Завантажити</span>
+                    {/* OLD: <span>Завантажити</span> */}
+                    <span>{t('productPage.download')}</span>
                   </div>
                 </button>
               ) : (
@@ -207,7 +217,8 @@ export default function ProductDetailPage() {
                 >
                   <div className="flex items-center justify-center gap-3">
                     <ShoppingCart size={24} />
-                    <span>Додати в кошик</span>
+                    {/* OLD: <span>Додати в кошик</span> */}
+                    <span>{t('product.addToCart')}</span>
                   </div>
                 </button>
               )}

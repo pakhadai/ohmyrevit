@@ -1,3 +1,4 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -5,8 +6,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCollectionStore } from '@/store/collectionStore';
 import Onboarding from './Onboarding';
 import toast from 'react-hot-toast';
-import { useTranslation } from 'react-i18next';
-import i18n from '@/lib/i18n';
+import { useTranslation } from 'react-i18next'; // ДОДАНО
 
 declare global {
   interface Window {
@@ -21,35 +21,21 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   const [appReady, setAppReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const authAttempted = useRef(false);
-  const { t } = useTranslation();
-  const [i18nReady, setI18nReady] = useState(false);
-
-  useEffect(() => {
-    if (i18n.isInitialized) {
-      setI18nReady(true);
-    } else {
-      i18n.on('initialized', () => {
-        setI18nReady(true);
-      });
-    }
-
-    return () => {
-      i18n.off('initialized');
-    };
-  }, []);
-
+  const { t } = useTranslation(); // ДОДАНО
 
   useEffect(() => {
     const initializeTelegram = async () => {
-      if (authAttempted.current || isAuthenticated || !i18nReady) {
+      // Запобігаємо повторним спробам
+      if (authAttempted.current || isAuthenticated) {
         setAppReady(true);
         return;
       }
 
       console.log('🚀 Ініціалізація Telegram Mini App...');
 
+      // Чекаємо на Telegram WebApp
       let attempts = 0;
-      const maxAttempts = 20;
+      const maxAttempts = 20; // 10 секунд максимум
 
       const checkTelegram = async () => {
         attempts++;
@@ -57,16 +43,19 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         if (window.Telegram?.WebApp) {
           const tg = window.Telegram.WebApp;
 
+          // Ініціалізуємо Telegram Mini App
           tg.ready();
           tg.expand();
 
           console.log('📱 Telegram WebApp знайдено');
 
+          // Отримуємо дані користувача
           const initData = tg.initDataUnsafe;
 
           if (initData && initData.user) {
             console.log('👤 Користувач Telegram:', initData.user);
 
+            // Формуємо дані для авторизації
             const authData = {
               id: initData.user.id,
               first_name: initData.user.first_name || 'Користувач',
@@ -85,7 +74,9 @@ export default function AppProvider({ children }: { children: React.ReactNode })
               await login(authData);
               await fetchInitialData();
 
+              // Показуємо привітання
               const userName = authData.first_name || 'Користувач';
+              // OLD: toast.success(`Вітаємо, ${userName}! 😊`, {
               toast.success(t('toasts.welcome', { userName }), {
                 duration: 4000,
                 position: 'top-center',
@@ -101,6 +92,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
               console.log('✅ Авторизація успішна');
               setAppReady(true);
 
+              // Перевіряємо онбординг
               const onboardingKey = `onboarding_${initData.user.id}`;
               const wasShown = localStorage.getItem(onboardingKey);
               if (!wasShown) {
@@ -109,28 +101,35 @@ export default function AppProvider({ children }: { children: React.ReactNode })
 
             } catch (error: any) {
               console.error('❌ Помилка авторизації:', error);
+              // OLD: setAuthError('Не вдалося увійти. Спробуйте перезавантажити додаток.');
               setAuthError(t('appProvider.loginError'));
+              // OLD: toast.error('Помилка авторизації. Спробуйте ще раз.', {
               toast.error(t('toasts.authError'), {
                 duration: 5000
               });
             }
           } else {
             console.warn('⚠️ Немає даних користувача від Telegram');
+            // OLD: setAuthError('Додаток працює тільки в Telegram');
             setAuthError(t('appProvider.telegramOnlyError'));
           }
         } else if (attempts >= maxAttempts) {
           console.error('❌ Telegram WebApp не завантажився');
+          // OLD: setAuthError('Не вдалося підключитися до Telegram. Відкрийте додаток через Telegram.');
           setAuthError(t('appProvider.telegramConnectionError'));
           setAppReady(true);
         } else {
+          // Спробуємо ще раз через 500мс
           setTimeout(checkTelegram, 500);
         }
       };
 
+      // Починаємо перевірку
       checkTelegram();
     };
 
-    if (!authAttempted.current && !isAuthenticated && i18nReady) {
+    // Запускаємо ініціалізацію
+    if (!authAttempted.current && !isAuthenticated) {
       initializeTelegram();
     } else {
       if (isAuthenticated) {
@@ -138,7 +137,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
       }
       setAppReady(true);
     }
-  }, [login, isAuthenticated, fetchInitialData, t, i18nReady]);
+  }, [login, isAuthenticated, fetchInitialData, t]);
 
   const handleOnboardingComplete = () => {
     if (user) {
@@ -147,29 +146,34 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     setShowOnboarding(false);
   };
 
-  if (!appReady || isLoading || !i18nReady) {
+  // Показуємо екран завантаження
+  if (!appReady || isLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-purple-500 to-blue-600">
         <div className="text-center text-white">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-4"></div>
           <h2 className="text-2xl font-bold mb-2">OhMyRevit</h2>
-          <p className="text-white/80">{i18n.isInitialized ? t('common.loading') : 'Initializing...'}</p>
+          {/* OLD: <p className="text-white/80">Завантаження...</p> */}
+          <p className="text-white/80">{t('common.loading')}</p>
         </div>
       </div>
     );
   }
 
+  // Показуємо помилку якщо не вдалося авторизуватися
   if (authError) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-red-500 to-pink-600 p-4">
         <div className="bg-white rounded-2xl p-8 max-w-md text-center shadow-2xl">
           <div className="text-6xl mb-4">😕</div>
+          {/* OLD: <h2 className="text-2xl font-bold mb-4 text-gray-800">Упс! Щось пішло не так</h2> */}
           <h2 className="text-2xl font-bold mb-4 text-gray-800">{t('common.oops')}</h2>
           <p className="text-gray-600 mb-6">{authError}</p>
           <button
             onClick={() => window.location.reload()}
             className="px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition"
           >
+            {/* OLD: Спробувати ще раз */}
             {t('common.tryAgain')}
           </button>
         </div>

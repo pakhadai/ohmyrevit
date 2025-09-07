@@ -1,3 +1,4 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
@@ -6,8 +7,9 @@ import { useAuthStore } from '@/store/authStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trash2, Tag, Coins, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { ordersAPI } from '@/lib/api' // ВИПРАВЛЕНО: імпортуємо ordersAPI
+import { ordersAPI } from '@/lib/api'
 import toast from 'react-hot-toast'
+import { useTranslation } from 'react-i18next'; // ДОДАНО
 
 export default function CartPage() {
   const router = useRouter()
@@ -26,17 +28,16 @@ export default function CartPage() {
   const [promoInput, setPromoInput] = useState(promoCode || '')
   const [bonusInput, setBonusInput] = useState(useBonusPoints || 0)
 
-  // Стан для відображення результатів розрахунку
   const [discountAmount, setDiscountAmount] = useState(0)
   const [finalTotal, setFinalTotal] = useState(getTotalPrice())
   const [discountMessage, setDiscountMessage] = useState<string | null>(null)
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [isCalculating, setIsCalculating] = useState(false)
+  const { t } = useTranslation(); // ДОДАНО
 
   const subtotal = useMemo(() => getTotalPrice(), [items])
 
-  // Функція для розрахунку знижки через API
   const calculateDiscount = async (promo: string | null, bonuses: number) => {
     if (items.length === 0) return;
 
@@ -70,12 +71,10 @@ export default function CartPage() {
     }
   }
 
-  // Перераховуємо знижку при зміні кошика
   useEffect(() => {
     calculateDiscount(promoCode, useBonusPoints);
   }, [items, promoCode, useBonusPoints]);
 
-  // Встановлюємо початкову фінальну суму
   useEffect(() => {
     setFinalTotal(subtotal);
   }, [subtotal]);
@@ -94,13 +93,11 @@ export default function CartPage() {
 
       toast.success(response.message || 'Створюємо замовлення...');
 
-      // Якщо є посилання на оплату - переходимо, інакше замовлення безкоштовне
       if (response.payment_url) {
         window.location.href = response.payment_url;
       } else {
-        // Замовлення було безкоштовним (наприклад, 100% знижка)
         clearCart();
-        router.push('/profile'); // Перенаправляємо в профіль до завантажень
+        router.push('/profile');
       }
 
     } catch (err: any) {
@@ -139,13 +136,16 @@ export default function CartPage() {
   if (items.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
-        <h2 className="text-2xl font-bold mb-4">Ваш кошик порожній</h2>
-        <p className="text-gray-500 dark:text-gray-400 mb-6">Схоже, ви ще нічого не додали. Час це виправити!</p>
+        {/* OLD: <h2 className="text-2xl font-bold mb-4">Ваш кошик порожній</h2> */}
+        <h2 className="text-2xl font-bold mb-4">{t('cart.empty.title')}</h2>
+        {/* OLD: <p className="text-gray-500 dark:text-gray-400 mb-6">Схоже, ви ще нічого не додали. Час це виправити!</p> */}
+        <p className="text-gray-500 dark:text-gray-400 mb-6">{t('cart.empty.subtitle')}</p>
         <button
           onClick={() => router.push('/marketplace')}
           className="px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors"
         >
-          Перейти до маркетплейсу
+          {/* OLD: Перейти до маркетплейсу */}
+          {t('cart.empty.goToMarket')}
         </button>
       </div>
     )
@@ -153,7 +153,8 @@ export default function CartPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Мій кошик</h1>
+      {/* OLD: <h1 className="text-3xl font-bold mb-8">Мій кошик</h1> */}
+      <h1 className="text-3xl font-bold mb-8">{t('cart.title')}</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Список товарів */}
@@ -169,7 +170,6 @@ export default function CartPage() {
                 className="bg-white dark:bg-slate-800 rounded-lg p-4 flex items-center gap-4 shadow"
               >
                 <img
-                  // ВИПРАВЛЕНО: Використовуємо main_image_url з типу Product
                   src={item.main_image_url}
                   alt={item.title}
                   className="w-20 h-20 object-cover rounded-md flex-shrink-0"
@@ -206,20 +206,23 @@ export default function CartPage() {
 
         {/* Оформлення замовлення */}
         <div className="bg-white dark:bg-slate-800 rounded-lg p-6 h-fit shadow">
-          <h2 className="text-xl font-bold mb-4">Ваше замовлення</h2>
+          {/* OLD: <h2 className="text-xl font-bold mb-4">Ваше замовлення</h2> */}
+          <h2 className="text-xl font-bold mb-4">{t('cart.summary.title')}</h2>
 
           {/* Промокод */}
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">
               <Tag size={16} className="inline mr-1" />
-              Промокод
+              {/* OLD: Промокод */}
+              {t('cart.summary.promo')}
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={promoInput}
                 onChange={(e) => setPromoInput(e.target.value)}
-                placeholder="Введіть код"
+                // OLD: placeholder="Введіть код"
+                placeholder={t('cart.summary.promoPlaceholder')}
                 disabled={useBonusPoints > 0 || isCalculating}
                 className="flex-1 px-3 py-2 border rounded-lg disabled:opacity-50 dark:bg-slate-700 dark:border-slate-600"
               />
@@ -228,21 +231,24 @@ export default function CartPage() {
                 disabled={useBonusPoints > 0 || isCalculating}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:opacity-50"
               >
-                OK
+                {/* OLD: OK */}
+                {t('cart.summary.apply')}
               </button>
             </div>
           </div>
 
           <div className="relative text-center my-4">
               <span className="absolute left-0 top-1/2 w-full h-px bg-gray-200 dark:bg-slate-700"></span>
-              <span className="relative bg-white dark:bg-slate-800 px-2 text-xs text-gray-500">АБО</span>
+              {/* OLD: <span className="relative bg-white dark:bg-slate-800 px-2 text-xs text-gray-500">АБО</span> */}
+              <span className="relative bg-white dark:bg-slate-800 px-2 text-xs text-gray-500">{t('cart.summary.or')}</span>
           </div>
 
           {/* Бонуси */}
           <div className="mb-6">
             <label className="block text-sm font-medium mb-2">
               <Coins size={16} className="inline mr-1" />
-              Використати бонуси (доступно: {user?.bonus_balance || 0})
+              {/* OLD: Використати бонуси (доступно: {user?.bonus_balance || 0}) */}
+              {t('cart.summary.useBonuses', { count: user?.bonus_balance || 0 })}
             </label>
             <div className="flex gap-2">
               <input
@@ -258,12 +264,12 @@ export default function CartPage() {
                 disabled={!!promoCode || isCalculating}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:opacity-50"
               >
-                OK
+                {/* OLD: OK */}
+                {t('cart.summary.apply')}
               </button>
             </div>
           </div>
 
-          {/* Повідомлення про знижку/помилку */}
           {discountMessage && (
               <div className="flex items-center gap-2 p-3 mb-4 text-sm text-yellow-800 bg-yellow-100 dark:text-yellow-200 dark:bg-yellow-500/20 rounded-lg">
                   <AlertCircle size={18} />
@@ -274,17 +280,20 @@ export default function CartPage() {
           {/* Підсумок */}
           <div className="border-t dark:border-slate-700 pt-4 space-y-2">
             <div className="flex justify-between text-gray-600 dark:text-gray-300">
-              <span>Разом:</span>
+              {/* OLD: <span>Разом:</span> */}
+              <span>{t('cart.summary.subtotal')}</span>
               <span>${subtotal.toFixed(2)}</span>
             </div>
             {discountAmount > 0 && (
               <div className="flex justify-between text-green-500">
-                <span>Знижка:</span>
+                {/* OLD: <span>Знижка:</span> */}
+                <span>{t('cart.summary.discount')}</span>
                 <span>-${discountAmount.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between text-xl font-bold">
-              <span>До сплати:</span>
+              {/* OLD: <span>До сплати:</span> */}
+              <span>{t('cart.summary.total')}</span>
               <span>${finalTotal.toFixed(2)}</span>
             </div>
           </div>
@@ -295,7 +304,8 @@ export default function CartPage() {
             disabled={isProcessing || isCalculating || items.length === 0}
             className="w-full mt-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-semibold disabled:opacity-50 hover:shadow-lg transition"
           >
-            {isProcessing ? 'Обробка...' : 'Оформити замовлення'}
+            {/* OLD: {isProcessing ? 'Обробка...' : 'Оформити замовлення'} */}
+            {isProcessing ? t('common.processing') : t('cart.summary.checkout')}
           </button>
 
           {(promoCode || useBonusPoints > 0) && (
@@ -303,7 +313,8 @@ export default function CartPage() {
                 onClick={clearDiscounts}
                 className="w-full mt-2 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               >
-                Скасувати знижку
+                {/* OLD: Скасувати знижку */}
+                {t('cart.summary.cancelDiscount')}
               </button>
           )}
         </div>

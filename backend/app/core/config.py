@@ -70,7 +70,6 @@ class Settings(BaseSettings):
 
     # Supported languages
     SUPPORTED_LANGUAGES: list = ["uk", "en", "ru"]
-    # OLD: DEFAULT_LANGUAGE: str = "en"
     DEFAULT_LANGUAGE: str = "uk"
 
     # Subscription
