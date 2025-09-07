@@ -3,29 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Award, Gift, Gem, CheckCircle } from 'lucide-react';
-
-const steps = [
-  {
-    icon: Gem,
-    title: 'Вітаємо в OhMyRevit!',
-    description: 'Ваш новий маркетплейс преміум контенту для Autodesk Revit.',
-  },
-  {
-    icon: Award,
-    title: 'Premium Підписка',
-    description: 'Отримайте доступ до всіх нових преміум-товарів, поки ваша підписка активна.',
-  },
-  {
-    icon: Gift,
-    title: 'Щоденні Бонуси',
-    description: 'Заходьте щодня, щоб отримувати бонуси та оплачувати ними до 50% вартості замовлень.',
-  },
-  {
-    icon: CheckCircle,
-    title: 'Все готово!',
-    description: 'Насолоджуйтесь ексклюзивним контентом та покращуйте свої проєкти.',
-  },
-];
+import { useTranslation } from 'react-i18next';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -33,6 +11,30 @@ interface OnboardingProps {
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState(0);
+  const { t } = useTranslation();
+
+  const steps = [
+    {
+      icon: Gem,
+      title: t('onboarding.step1.title'),
+      description: t('onboarding.step1.description'),
+    },
+    {
+      icon: Award,
+      title: t('onboarding.step2.title'),
+      description: t('onboarding.step2.description'),
+    },
+    {
+      icon: Gift,
+      title: t('onboarding.step3.title'),
+      description: t('onboarding.step3.description'),
+    },
+    {
+      icon: CheckCircle,
+      title: t('onboarding.step4.title'),
+      description: t('onboarding.step4.description'),
+    },
+  ];
 
   const handleNext = () => {
     if (step < steps.length - 1) {
@@ -75,7 +77,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           onClick={handleNext}
           className="w-full py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors"
         >
-          {step < steps.length - 1 ? 'Далі' : 'Почати'}
+          {step < steps.length - 1 ? t('common.next') : t('common.start')}
         </button>
       </motion.div>
     </div>

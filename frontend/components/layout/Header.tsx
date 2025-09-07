@@ -3,11 +3,13 @@
 import { Search, Globe, Moon, Sun } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLanguageStore } from '@/store/languageStore';
+import { useTranslation } from 'react-i18next';
 
 export default function Header() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [searchQuery, setSearchQuery] = useState('');
-  const { language, setLanguage } = useLanguageStore();
+  const { setLanguage } = useLanguageStore();
+  const { t, i18n } = useTranslation();
 
   // Зміна теми
   const toggleTheme = () => {
@@ -18,9 +20,9 @@ export default function Header() {
 
   // Мовні опції
   const languages = [
-    { code: 'uk', label: '🇺🇦 УКР' },
-    { code: 'en', label: '🇬🇧 ENG' },
-    { code: 'ru', label: '🇷🇺 РУС' }
+    { code: 'uk', label: t('languageSwitcher.uk') },
+    { code: 'en', label: t('languageSwitcher.en') },
+    { code: 'ru', label: t('languageSwitcher.ru') }
   ];
 
   return (
@@ -42,7 +44,7 @@ export default function Header() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Пошук товарів..."
+                placeholder={t('search.placeholder')}
                 className="w-full pl-10 pr-4 py-2 rounded-full bg-gray-100 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -52,7 +54,7 @@ export default function Header() {
           <div className="flex items-center space-x-3">
             {/* Перемикач мови */}
             <select
-              value={language}
+              value={i18n.language}
               onChange={(e) => setLanguage(e.target.value as any)}
               className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-slate-800 text-sm focus:outline-none"
             >

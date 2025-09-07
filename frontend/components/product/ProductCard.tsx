@@ -5,15 +5,14 @@ import { Product } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Heart, ShoppingCart, Download } from 'lucide-react';
-// OLD: import { motion } from 'framer-motion';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCartStore } from '@/store/cartStore';
-import { useLanguageStore } from '@/store/languageStore';
+// OLD: import { useLanguageStore } from '@/store/languageStore';
+import { useTranslation } from 'react-i18next'; // ДОДАНО
 import { useAccessStore } from '@/store/accessStore';
 import { useAuthStore } from '@/store/authStore';
 import { useCollectionStore } from '@/store/collectionStore';
 import toast from 'react-hot-toast';
-// OLD: import { useEffect } from 'react';
 import { useEffect, useState } from 'react';
 import AddToCollectionModal from '@/components/collections/AddToCollectionModal';
 
@@ -23,7 +22,8 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const addToCart = useCartStore((state) => state.addItem);
-  const { t } = useLanguageStore();
+  // OLD: const { t } = useLanguageStore();
+  const { t } = useTranslation(); // ДОДАНО
   const { isAuthenticated } = useAuthStore();
   const { checkAccess, fetchAccessStatus } = useAccessStore();
   const { favoritedProductIds } = useCollectionStore();

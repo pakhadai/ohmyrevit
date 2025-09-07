@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { Crown, Check, Clock } from 'lucide-react'
 import api from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { useTranslation } from 'react-i18next';
 
 interface SubscriptionStatus {
   has_active_subscription: boolean
@@ -19,6 +20,7 @@ export default function SubscriptionBanner() {
   const { user } = useAuthStore()
   const [status, setStatus] = useState<SubscriptionStatus | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (user) {
@@ -47,7 +49,6 @@ export default function SubscriptionBanner() {
     }
   }
 
-  // Якщо є активна підписка
   if (status?.has_active_subscription) {
     return (
       <motion.div
@@ -59,16 +60,16 @@ export default function SubscriptionBanner() {
           <div className="flex items-center gap-3">
             <Crown size={32} />
             <div>
-              <h3 className="text-xl font-bold">Premium активний</h3>
+              <h3 className="text-xl font-bold">{t('subscription.premiumActive')}</h3>
               <p className="text-sm opacity-90">
-                Залишилось днів: {status.subscription?.days_remaining}
+                {t('subscription.daysRemaining')} {status.subscription?.days_remaining}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Clock size={20} />
             <span className="text-sm">
-              До {new Date(status.subscription?.end_date || '').toLocaleDateString()}
+              {t('subscription.activeUntil')} {new Date(status.subscription?.end_date || '').toLocaleDateString()}
             </span>
           </div>
         </div>
@@ -76,7 +77,6 @@ export default function SubscriptionBanner() {
     )
   }
 
-  // Промо банер для підписки
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -87,25 +87,25 @@ export default function SubscriptionBanner() {
         <div>
           <div className="flex items-center gap-3 mb-4">
             <Crown size={40} />
-            <h2 className="text-3xl font-bold">Premium Підписка</h2>
+            <h2 className="text-3xl font-bold">{t('subscription.premiumTitle')}</h2>
           </div>
 
           <ul className="space-y-2 mb-6">
             <li className="flex items-center gap-2">
               <Check size={20} />
-              <span>Доступ до всіх преміум товарів</span>
+              <span>{t('subscription.feature1')}</span>
             </li>
             <li className="flex items-center gap-2">
               <Check size={20} />
-              <span>Нові товари щотижня</span>
+              <span>{t('subscription.feature2')}</span>
             </li>
             <li className="flex items-center gap-2">
               <Check size={20} />
-              <span>Товари залишаються назавжди</span>
+              <span>{t('subscription.feature3')}</span>
             </li>
             <li className="flex items-center gap-2">
               <Check size={20} />
-              <span>Пріоритетна підтримка</span>
+              <span>{t('subscription.feature4')}</span>
             </li>
           </ul>
         </div>
@@ -113,7 +113,7 @@ export default function SubscriptionBanner() {
         <div className="text-center">
           <div className="mb-4">
             <span className="text-5xl font-bold">$5</span>
-            <span className="text-xl">/місяць</span>
+            <span className="text-xl">{t('subscription.perMonth')}</span>
           </div>
 
           <button
@@ -121,11 +121,11 @@ export default function SubscriptionBanner() {
             disabled={isLoading}
             className="w-full py-4 bg-white text-purple-600 rounded-xl font-bold text-lg hover:shadow-xl transition disabled:opacity-50"
           >
-            {isLoading ? 'Обробка...' : 'Оформити підписку'}
+            {isLoading ? t('common.processing') : t('subscription.checkoutButton')}
           </button>
 
           <p className="text-sm mt-3 opacity-80">
-            Скасування в будь-який час
+            {t('subscription.cancelAnytime')}
           </p>
         </div>
       </div>

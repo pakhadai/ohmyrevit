@@ -5,15 +5,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useCartStore } from '@/store/cartStore';
-import { motion, AnimateSharedLayout } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 
 export default function BottomNav() {
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const cartItemsCount = useCartStore((state) => state.items.length);
+  const { t } = useTranslation();
 
-  // Логіка приховування при скролі
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -30,10 +31,10 @@ export default function BottomNav() {
   }, [lastScrollY]);
 
   const navItems = [
-    { href: '/', icon: Home, label: 'Головна' },
-    { href: '/marketplace', icon: ShoppingBag, label: 'Маркет' },
-    { href: '/cart', icon: ShoppingCart, label: 'Кошик', badge: cartItemsCount },
-    { href: '/profile', icon: User, label: 'Профіль' },
+    { href: '/', icon: Home, label: t('nav.home'), badge: 0 },
+    { href: '/marketplace', icon: ShoppingBag, label: t('nav.market'), badge: 0 },
+    { href: '/cart', icon: ShoppingCart, label: t('nav.cart'), badge: cartItemsCount },
+    { href: '/profile', icon: User, label: t('nav.profile'), badge: 0 },
   ];
 
   return (

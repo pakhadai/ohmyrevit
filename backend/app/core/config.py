@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 """
 Конфігурація додатку з використанням Pydantic Settings
 """
@@ -29,6 +30,7 @@ class Settings(BaseSettings):
     # DeepL API
     DEEPL_API_KEY: Optional[str] = None
     DEEPL_API_FREE: bool = True
+    DEEPL_TARGET_LANGUAGES: List[str] = ["EN", "RU"] # ДОДАНО
 
     # Cryptomus
     CRYPTOMUS_API_KEY: str = ""
@@ -68,7 +70,7 @@ class Settings(BaseSettings):
 
     # Supported languages
     SUPPORTED_LANGUAGES: list = ["uk", "en", "ru"]
-    DEFAULT_LANGUAGE: str = "uk"
+    DEFAULT_LANGUAGE: str = "en"
 
     # Subscription
     SUBSCRIPTION_PRICE_USD: float = 5.0

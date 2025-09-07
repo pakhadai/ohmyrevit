@@ -1,0 +1,79 @@
+{
+  "nav": {
+    "home": "Home",
+    "market": "Market",
+    "cart": "Cart",
+    "profile": "Profile"
+  },
+  "search": {
+    "placeholder": "Search products..."
+  },
+  "product": {
+    "new": "New",
+    "sale": "Sale",
+    "addToCart": "Add to cart"
+  },
+  "common": {
+    "loading": "Loading...",
+    "oops": "Oops! Something went wrong",
+    "tryAgain": "Try again",
+    "next": "Next",
+    "start": "Start",
+    "processing": "Processing..."
+  },
+  "toasts": {
+    "welcome": "Welcome, {{userName}}! 😊",
+    "authError": "Authorization error. Please try again."
+  },
+  "appProvider": {
+    "loginError": "Failed to log in. Please try reloading the app.",
+    "telegramOnlyError": "The app works only within Telegram",
+    "telegramConnectionError": "Could not connect to Telegram. Please open the app via Telegram."
+  },
+  "onboarding": {
+    "step1": {
+      "title": "Welcome to OhMyRevit!",
+      "description": "Your new marketplace for premium Autodesk Revit content."
+    },
+    "step2": {
+      "title": "Premium Subscription",
+      "description": "Get access to all new premium products while your subscription is active."
+    },
+    "step3": {
+      "title": "Daily Bonuses",
+      "description": "Log in daily to receive bonuses and use them to pay for up to 50% of your order value."
+    },
+    "step4": {
+      "title": "All set!",
+      "description": "Enjoy exclusive content and enhance your projects."
+    }
+  },
+  "subscription": {
+    "premiumActive": "Premium Active",
+    "daysRemaining": "Days remaining:",
+    "activeUntil": "Until",
+    "premiumTitle": "Premium Subscription",
+    "feature1": "Access to all premium products",
+    "feature2": "New products every week",
+    "feature3": "Products are yours forever",
+    "feature4": "Priority support",
+    "perMonth": "/month",
+    "checkoutButton": "Subscribe Now",
+    "cancelAnytime": "Cancel anytime"
+  },
+  "bonus": {
+    "dailyBonus": "Daily Bonus",
+    "daysInARow": "days in a row",
+    "streakProgress": "Streak progress",
+    "superBonusClaimed": "You've received a super-bonus!",
+    "daysToSuperBonus": "{{count}} more days until the weekly bonus",
+    "claimButton": "Claim Bonus! 🎁",
+    "nextBonusIn": "Next bonus in",
+    "yourBalance": "Your balance:"
+  },
+  "languageSwitcher": {
+    "uk": "🇺🇦 UKR",
+    "en": "🇬🇧 ENG",
+    "ru": "🇷🇺 RUS"
+  }
+}

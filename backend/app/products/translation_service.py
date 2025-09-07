@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 """
 Сервіс для автоматичного перекладу товарів через DeepL API
 """
@@ -19,7 +20,8 @@ class TranslationService:
     def __init__(self):
         self.deepl_api_key = settings.DEEPL_API_KEY
         self.deepl_api_url = "https://api-free.deepl.com/v2/translate"  # або api.deepl.com для Pro
-        self.target_languages = ['EN', 'RU']  # Мови для перекладу
+        # OLD: self.target_languages = ['EN', 'RU']  # Мови для перекладу
+        self.target_languages = settings.DEEPL_TARGET_LANGUAGES # Мови для перекладу беруться з конфігурації
 
     async def translate_text(
             self,
