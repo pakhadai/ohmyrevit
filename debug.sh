@@ -43,8 +43,9 @@ docker-compose logs --tail=20 backend | grep -E "ERROR|CRITICAL|Exception" || ec
 
 # Перевірка API
 echo -e "\n🌐 Перевірка API..."
-API_HEALTH=$(curl -s http://localhost:8000/health)
-if [ $? -eq 0 ]; then
+# OLD: API_HEALTH=$(curl -s http://localhost:8000/health)
+API_HEALTH=$(curl -s http://localhost/api/v1/health)
+if echo "$API_HEALTH" | grep -q "healthy"; then
     echo -e "${GREEN}✓ API доступний${NC}"
     echo "Response: $API_HEALTH"
 else
@@ -72,7 +73,7 @@ TEST_DATA='{
   "hash": "test_hash_for_development"
 }'
 
-RESPONSE=$(curl -s -X POST http://localhost:8000/api/v1/auth/telegram \
+RESPONSE=$(curl -s -X POST http://localhost/api/v1/auth/telegram \
   -H "Content-Type: application/json" \
   -d "$TEST_DATA")
 

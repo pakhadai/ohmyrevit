@@ -37,6 +37,11 @@ const nextConfig = {
       },
     ];
   },
+  devIndicators: {
+    allowedDevOrigins: [
+      'https://dev.ohmyrevit.pp.ua',
+    ],
+  },
 }
 
 module.exports = nextConfig

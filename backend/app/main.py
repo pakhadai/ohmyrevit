@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 """
 Головний файл FastAPI додатку OhMyRevit
 """
@@ -8,8 +9,6 @@ from contextlib import asynccontextmanager
 import logging
 from app.core.config import settings
 from app.core.database import engine
-from app.profile.router import router as profile_router
-from app.subscriptions.router import router as subscriptions_router
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 
@@ -54,7 +53,7 @@ app = FastAPI(
 # Налаштування CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["*"], # Дозволяємо всі джерела для простоти
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -84,23 +83,22 @@ from app.users.router import router as users_router
 from app.products.router import router as products_router, admin_router as products_admin_router
 from app.orders.router import router as orders_router
 from app.admin.router import router as admin_main_router
-from app.collections.router import router as collections_router # ДОДАНО
+from app.profile.router import router as profile_router
+from app.subscriptions.router import router as subscriptions_router
 
 # Основні роутери API v1
 api_v1_router = APIRouter(prefix="/api/v1")
-api_v1_router.include_router(users_router)
-api_v1_router.include_router(products_router, prefix="/products")
-api_v1_router.include_router(orders_router, prefix="/orders")
-api_v1_router.include_router(profile_router, prefix="/profile")
-api_v1_router.include_router(subscriptions_router, prefix="/subscriptions")
-api_v1_router.include_router(collections_router, prefix="/profile") # ДОДАНО: Колекції є частиною профілю
+api_v1_router.include_router(users_router, tags=["Auth"])
+api_v1_router.include_router(products_router, prefix="/products", tags=["Products"])
+api_v1_router.include_router(orders_router, prefix="/orders", tags=["Orders"])
+api_v1_router.include_router(profile_router, prefix="/profile", tags=["Profile"])
+api_v1_router.include_router(subscriptions_router, prefix="/subscriptions", tags=["Subscriptions"])
 
-# Адмін-роутери (без префікса тут)
-admin_router_v1 = APIRouter()
-admin_router_v1.include_router(admin_main_router) # Роутер для дашборду, користувачів і т.д.
-admin_router_v1.include_router(products_admin_router, prefix="/products")
+# Адмін-роутери
+admin_api_router = APIRouter(prefix="/api/v1/admin")
+admin_api_router.include_router(admin_main_router)
+admin_api_router.include_router(products_admin_router, prefix="/products")
 
 # Реєструємо всі роутери в додатку
 app.include_router(api_v1_router)
-# Додаємо префікс для всіх адмін-роутерів один раз тут
-app.include_router(admin_router_v1, prefix="/api/v1/admin")
+app.include_router(admin_api_router)

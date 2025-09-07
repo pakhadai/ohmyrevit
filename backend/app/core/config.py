@@ -70,7 +70,8 @@ class Settings(BaseSettings):
 
     # Supported languages
     SUPPORTED_LANGUAGES: list = ["uk", "en", "ru"]
-    DEFAULT_LANGUAGE: str = "en"
+    # OLD: DEFAULT_LANGUAGE: str = "en"
+    DEFAULT_LANGUAGE: str = "uk"
 
     # Subscription
     SUBSCRIPTION_PRICE_USD: float = 5.0
