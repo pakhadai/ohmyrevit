@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 """
 Моделі для замовлень та промокодів
 """
@@ -35,6 +36,7 @@ class PromoCode(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # OLD: orders_used_in = relationship("Order", back_populates="promo_code")
     orders_used_in = relationship("Order", back_populates="promo_code")
 
 

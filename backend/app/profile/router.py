@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/profile/router.py
 # OLD: from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi import APIRouter, Depends, Header, HTTPException, status, Body
@@ -28,7 +29,7 @@ from app.referrals.schemas import ReferralInfoResponse, ReferralLogItem
 router = APIRouter(tags=["Profile"])
 
 
-@router.post("/bonus/claim")
+@router.post("/bonus/claim", response_model=BonusClaimResponse)
 async def claim_daily_bonus(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)

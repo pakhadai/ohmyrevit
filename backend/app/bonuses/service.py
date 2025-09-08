@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 """
 Сервіс для роботи з бонусною системою
 """
@@ -54,7 +55,7 @@ class BonusService:
         bonus_amount = base_bonus * streak_multiplier
 
         # Додатковий бонус за тиждень без пропусків
-        if user.bonus_streak % 7 == 0:
+        if user.bonus_streak > 0 and user.bonus_streak % 7 == 0:
             bonus_amount += 50  # Бонус за тиждень
 
         # Нараховуємо бонуси
@@ -68,7 +69,8 @@ class BonusService:
             "success": True,
             "bonus_amount": bonus_amount,
             "new_balance": user.bonus_balance,
-            "streak": user.bonus_streak,
+            # OLD: "streak": user.bonus_streak,
+            "new_streak": user.bonus_streak,
             "message": f"Отримано {bonus_amount} бонусів!"
         }
 

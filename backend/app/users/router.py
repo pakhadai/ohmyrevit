@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/users/router.py
 """
 API роутер для користувачів та авторизації
@@ -34,7 +35,8 @@ async def telegram_auth(
     створює або оновлює користувача та повертає JWT токен.
     """
     # Автентифікуємо користувача
-    user = await AuthService.authenticate_telegram_user(db, auth_data)
+    # OLD: user = await AuthService.authenticate_telegram_user(db, auth_data)
+    user, is_new_user = await AuthService.authenticate_telegram_user(db, auth_data)
 
     # Створюємо токен
     access_token = AuthService.create_access_token(user.id)
@@ -42,5 +44,6 @@ async def telegram_auth(
     # Формуємо відповідь
     return TokenResponse(
         access_token=access_token,
-        user=UserResponse.model_validate(user)
+        user=UserResponse.model_validate(user),
+        is_new_user=is_new_user
     )

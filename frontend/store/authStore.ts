@@ -1,4 +1,3 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 // frontend/store/authStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -14,7 +13,7 @@ interface AuthState {
   isAuthenticated: boolean;
   lastLoginAt: number | null;
 
-  login: (initData: object) => Promise<void>;
+  login: (initData: object) => Promise<any>; // Змінено тип повернення
   logout: () => void;
   setUser: (user: User) => void;
   checkTokenValidity: () => void;
@@ -49,7 +48,7 @@ export const useAuthStore = create<AuthState>()(
           });
 
           console.log('✅ Користувач авторизований:', response.user.first_name);
-          return response;
+          return response; // Повертаємо всю відповідь
 
         } catch (error: any) {
           console.error('❌ Помилка авторизації:', error);

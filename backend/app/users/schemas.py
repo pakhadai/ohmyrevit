@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/users/schemas.py
 """
 Pydantic схеми для валідації даних користувачів
@@ -93,6 +94,7 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+    is_new_user: bool = False
 
 
 class BonusClaimResponse(BaseModel):

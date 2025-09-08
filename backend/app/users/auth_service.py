@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/users/auth_service.py
 """
 Сервіс для авторизації користувачів через Telegram
@@ -7,7 +8,7 @@ import hmac
 import time
 import json
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -102,7 +103,7 @@ class AuthService:
     async def authenticate_telegram_user(
             db: AsyncSession,
             auth_data: TelegramAuthData
-    ) -> User:
+    ) -> Tuple[User, bool]:
         """
         Автентифікація користувача через Telegram з коректним управлінням транзакціями.
         """
@@ -181,7 +182,7 @@ class AuthService:
                             break
 
             logger.info(f"✅ User {user.id} authenticated successfully. Final commit will be handled by dependency.")
-            return user
+            return user, is_new_user
 
         except Exception as e:
             logger.error(f"❌ Database error during auth: {e}", exc_info=True)

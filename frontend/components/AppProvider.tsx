@@ -1,4 +1,3 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -66,17 +65,18 @@ export default function AppProvider({ children }: { children: React.ReactNode })
               is_premium: initData.user.is_premium || false,
               auth_date: initData.auth_date || Math.floor(Date.now() / 1000),
               hash: initData.hash || '',
-              query_id: initData.query_id || ''
+              query_id: initData.query_id || '',
+              start_param: initData.start_param || null
             };
 
             try {
               authAttempted.current = true;
-              await login(authData);
+              // OLD: await login(authData);
+              const loginResponse = await login(authData);
               await fetchInitialData();
 
               // Показуємо привітання
               const userName = authData.first_name || 'Користувач';
-              // OLD: toast.success(`Вітаємо, ${userName}! 😊`, {
               toast.success(t('toasts.welcome', { userName }), {
                 duration: 4000,
                 position: 'top-center',
@@ -92,30 +92,29 @@ export default function AppProvider({ children }: { children: React.ReactNode })
               console.log('✅ Авторизація успішна');
               setAppReady(true);
 
-              // Перевіряємо онбординг
-              const onboardingKey = `onboarding_${initData.user.id}`;
-              const wasShown = localStorage.getItem(onboardingKey);
-              if (!wasShown) {
+              // OLD: // Перевіряємо онбординг
+              // OLD: const onboardingKey = `onboarding_${initData.user.id}`;
+              // OLD: const wasShown = localStorage.getItem(onboardingKey);
+              // OLD: if (!wasShown) {
+              // OLD:   setShowOnboarding(true);
+              // OLD: }
+              if (loginResponse.is_new_user) {
                 setShowOnboarding(true);
               }
 
             } catch (error: any) {
               console.error('❌ Помилка авторизації:', error);
-              // OLD: setAuthError('Не вдалося увійти. Спробуйте перезавантажити додаток.');
               setAuthError(t('appProvider.loginError'));
-              // OLD: toast.error('Помилка авторизації. Спробуйте ще раз.', {
               toast.error(t('toasts.authError'), {
                 duration: 5000
               });
             }
           } else {
             console.warn('⚠️ Немає даних користувача від Telegram');
-            // OLD: setAuthError('Додаток працює тільки в Telegram');
             setAuthError(t('appProvider.telegramOnlyError'));
           }
         } else if (attempts >= maxAttempts) {
           console.error('❌ Telegram WebApp не завантажився');
-          // OLD: setAuthError('Не вдалося підключитися до Telegram. Відкрийте додаток через Telegram.');
           setAuthError(t('appProvider.telegramConnectionError'));
           setAppReady(true);
         } else {
@@ -153,7 +152,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         <div className="text-center text-white">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-4"></div>
           <h2 className="text-2xl font-bold mb-2">OhMyRevit</h2>
-          {/* OLD: <p className="text-white/80">Завантаження...</p> */}
           <p className="text-white/80">{t('common.loading')}</p>
         </div>
       </div>
@@ -166,14 +164,12 @@ export default function AppProvider({ children }: { children: React.ReactNode })
       <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-red-500 to-pink-600 p-4">
         <div className="bg-white rounded-2xl p-8 max-w-md text-center shadow-2xl">
           <div className="text-6xl mb-4">😕</div>
-          {/* OLD: <h2 className="text-2xl font-bold mb-4 text-gray-800">Упс! Щось пішло не так</h2> */}
           <h2 className="text-2xl font-bold mb-4 text-gray-800">{t('common.oops')}</h2>
           <p className="text-gray-600 mb-6">{authError}</p>
           <button
             onClick={() => window.location.reload()}
             className="px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition"
           >
-            {/* OLD: Спробувати ще раз */}
             {t('common.tryAgain')}
           </button>
         </div>

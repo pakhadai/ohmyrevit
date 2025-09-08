@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/users/models.py
 """
 SQLAlchemy модель для користувачів
@@ -44,7 +45,9 @@ class User(Base):
     referrer_id = Column(Integer, ForeignKey('users.id'), nullable=True)
 
     referrer = relationship("User", remote_side=[id], back_populates="referrals")
+    # OLD: referrals = relationship("User", foreign_keys=[referrer_id])
     referrals = relationship("User", back_populates="referrer", foreign_keys=[referrer_id])
+
 
     # Зв'язок з колекціями
     collections: Mapped[List["Collection"]] = relationship("Collection", back_populates="user",
