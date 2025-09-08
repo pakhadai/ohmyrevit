@@ -1,4 +1,4 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
+// frontend/app/admin/layout.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -6,26 +6,27 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   Users, Package, ShoppingCart, TrendingUp, Tag, Menu, ArrowLeft, Plus
 } from 'lucide-react';
-
-const menuItems = [
-  { id: 'dashboard', label: 'Панель', icon: TrendingUp, href: '/admin' },
-  { id: 'users', label: 'Користувачі', icon: Users, href: '/admin/users' },
-  { id: 'products', label: 'Товари', icon: Package, href: '/admin/products' },
-  { id: 'orders', label: 'Замовлення', icon: ShoppingCart, href: '/admin/orders' },
-  { id: 'promo-codes', label: 'Промокоди', icon: Tag, href: '/admin/promo-codes' },
-];
+import { useTranslation } from 'react-i18next';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { t } = useTranslation();
+
+  const menuItems = [
+    { id: 'dashboard', label: t('admin.sidebar.dashboard'), icon: TrendingUp, href: '/admin' },
+    { id: 'users', label: t('admin.sidebar.users'), icon: Users, href: '/admin/users' },
+    { id: 'products', label: t('admin.sidebar.products'), icon: Package, href: '/admin/products' },
+    { id: 'orders', label: t('admin.sidebar.orders'), icon: ShoppingCart, href: '/admin/orders' },
+    { id: 'promo-codes', label: t('admin.sidebar.promoCodes'), icon: Tag, href: '/admin/promo-codes' },
+  ];
 
   const isActive = (href: string) => {
     if (href === '/admin') return pathname === href;
     return pathname.startsWith(href);
   };
 
-  // ДОДАНО: Логіка для відображення кнопки "Додати"
   const getActionButtton = () => {
     if (pathname === '/admin/products') {
       return (
@@ -48,7 +49,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
         <aside className={`fixed lg:sticky lg:top-16 inset-y-0 left-0 h-screen lg:h-auto w-64 bg-white dark:bg-gray-800 shadow-lg z-40 transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} pt-16 lg:pt-0`}>
             <div className="p-4 border-b dark:border-gray-700 flex items-center justify-between">
-                <h1 className="text-xl font-bold">Адмін-панель</h1>
+                <h1 className="text-xl font-bold">{t('admin.sidebar.title')}</h1>
                 <button onClick={() => router.push('/')} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                     <ArrowLeft size={20} />
                 </button>
@@ -84,9 +85,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <Menu size={24} />
                     </button>
                      <h1 className="text-lg font-bold">
-                        {menuItems.find(item => isActive(item.href))?.label || 'Адмін-панель'}
+                        {menuItems.find(item => isActive(item.href))?.label || t('admin.sidebar.title')}
                     </h1>
-                    {/* OLD: <div className="w-8"></div> */}
                     {getActionButtton()}
                 </div>
             </header>
