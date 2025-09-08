@@ -1,4 +1,3 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -9,11 +8,13 @@ import {
 import { adminApi } from '@/lib/api/admin';
 import { LoadingSpinner, EmptyState } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 export default function ProductsManagementPage() {
   const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -21,11 +22,11 @@ export default function ProductsManagementPage() {
       const productsRes = await adminApi.getProducts({ limit: 100 });
       setProducts(productsRes.products || []);
     } catch (error) {
-      toast.error('Не вдалося завантажити товари');
+      toast.error(t('admin.products.toasts.loadError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchData();
@@ -36,13 +37,13 @@ export default function ProductsManagementPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Ви впевнені, що хочете видалити цей товар?')) return;
+    if (!confirm(t('admin.products.confirmDelete'))) return;
     try {
       await adminApi.deleteProduct(id);
-      toast.success('Товар успішно видалено');
+      toast.success(t('admin.products.toasts.deleted'));
       fetchData();
     } catch (error) {
-      toast.error('Не вдалося видалити товар');
+      toast.error(t('admin.products.toasts.deleteError'));
     }
   };
 
@@ -50,15 +51,14 @@ export default function ProductsManagementPage() {
 
   return (
     <div>
-      {/* OLD: <div className="flex justify-between items-center mb-6"> */}
       <div className="hidden lg:flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold">Товари</h2>
+        <h2 className="text-xl font-bold">{t('admin.products.pageTitle')}</h2>
         <button
           onClick={() => router.push('/admin/products/new')}
           className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
         >
           <PlusCircle size={18} />
-          Новий
+          {t('admin.products.new')}
         </button>
       </div>
 
@@ -74,11 +74,11 @@ export default function ProductsManagementPage() {
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">{product.description}</p>
                 <div className="flex justify-between items-center mb-3">
                   <span className="font-bold text-lg">${product.price}</span>
-                  {product.is_on_sale && (<span className="text-sm bg-red-500 text-white px-2 py-1 rounded">ЗНИЖКА: ${product.sale_price}</span>)}
+                  {product.is_on_sale && (<span className="text-sm bg-red-500 text-white px-2 py-1 rounded">{t('admin.products.saleBadge')}: ${product.sale_price}</span>)}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => handleEdit(product)} className="flex-1 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"><Edit size={16} className="inline mr-1" /> Редагувати</button>
-                  <button onClick={() => handleDelete(product.id)} className="flex-1 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"><Trash2 size={16} className="inline mr-1" /> Видалити</button>
+                  <button onClick={() => handleEdit(product)} className="flex-1 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"><Edit size={16} className="inline mr-1" /> {t('admin.products.edit')}</button>
+                  <button onClick={() => handleDelete(product.id)} className="flex-1 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"><Trash2 size={16} className="inline mr-1" /> {t('admin.products.delete')}</button>
                 </div>
               </div>
             </div>

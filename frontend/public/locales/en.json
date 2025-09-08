@@ -19,14 +19,33 @@
     "tryAgain": "Try again",
     "next": "Next",
     "start": "Start",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "save": "Save",
+    "create": "Create",
+    "copy": "Copy",
+    "share": "Share",
+    "cancel": "Cancel",
+    "back": "Back",
+    "delete": "Delete"
   },
   "toasts": {
     "welcome": "Welcome, {{userName}}! 😊",
     "authError": "Authorization error. Please try again.",
     "productLoadError": "Error loading product.",
-    "downloadStarted": "Download has started...",
-    "loginToDownload": "You must be logged in to download."
+    "downloadStarted": "Download '{{title}}' has started...",
+    "loginToDownload": "You must be logged in to download.",
+    "linkCopied": "Link copied!",
+    "linkCopyError": "Failed to copy the link.",
+    "telegramOnlyFeature": "This feature is available only in the Telegram app.",
+    "sessionExpired": "Session has expired. Please log in again.",
+    "loggedOut": "You have been logged out",
+    "collectionCreated": "Collection \"{{name}}\" created",
+    "collectionCreateError": "Failed to create collection",
+    "collectionDeleted": "Collection deleted",
+    "collectionDeleteError": "Failed to delete collection",
+    "dataLoadError": "Failed to load data.",
+    "statusUpdated": "Status updated!",
+    "statusUpdateError": "Failed to update status."
   },
   "appProvider": {
     "loginError": "Failed to log in. Please try reloading the app.",
@@ -52,14 +71,20 @@
     }
   },
   "subscription": {
+    "pageTitle": "Premium Subscription",
+    "pageSubtitle": "Get the most out of OhMyRevit",
+    "activeTitle": "Your Premium is active!",
+    "activeSubtitle": "Enjoy unlimited access to new families.",
     "premiumActive": "Premium Active",
     "daysRemaining": "Days remaining:",
-    "activeUntil": "Until",
+    "activeUntil": "Active until:",
     "premiumTitle": "Premium Subscription",
-    "feature1": "Access to all premium products",
-    "feature2": "New products every week",
-    "feature3": "Products are yours forever",
+    "whatYouGet": "What you get:",
+    "feature1": "<b>Access to all premium products</b> released during your subscription period.",
+    "feature2": "<b>Lifetime access:</b> Products you get remain with you forever, even after the subscription ends.",
+    "feature3": "<b>Regular updates:</b> New exclusive families and archives every week.",
     "feature4": "Priority support",
+    "priceTitle": "Price",
     "perMonth": "/month",
     "checkoutButton": "Subscribe Now",
     "cancelAnytime": "Cancel anytime"
@@ -148,6 +173,273 @@
       "total": "Total:",
       "checkout": "Checkout",
       "cancelDiscount": "Cancel discount"
+    }
+  },
+  "profilePages": {
+    "main": {
+      "adminBadge": "Administrator",
+      "adminPanel": "Admin Panel",
+      "settings": {
+        "title": "Settings",
+        "contactInfo": "Contact Information",
+        "emailDescription": "Your email will be used for important notifications and access recovery.",
+        "emailPlaceholder": "Your Email"
+      },
+      "menu": {
+        "downloads": "Downloads",
+        "collections": "My Collections",
+        "bonuses": "Bonuses",
+        "referrals": "Referrals",
+        "support": "Support",
+        "faq": "FAQ",
+        "goToSection": "Go to section"
+      },
+      "stats": {
+        "bonuses": "Bonuses",
+        "streakDays": "Streak days",
+        "downloads": "Downloads",
+        "referrals": "Referrals"
+      },
+      "toasts": {
+        "emailSaved": "Email saved successfully!",
+        "emailError": "Error while saving email."
+      }
+    },
+    "bonuses": {
+      "pageTitle": "Bonus System",
+      "days": "days",
+      "currentStreak": "Current streak",
+      "claimBonus": "Claim Bonus",
+      "alreadyClaimed": "Already claimed",
+      "nextBonusTomorrow": "Next bonus will be available tomorrow.",
+      "currentBalance": "Current balance",
+      "equivalentDiscount": "This is equivalent to ≈ ${{amount}} discount",
+      "howItWorks": "How it works?",
+      "rule1": "Log in daily to receive bonuses.",
+      "rule2": "The longer your streak, the bigger the bonus.",
+      "rule3": "Use bonuses to pay for up to 50% of order value.",
+      "loadError": "Failed to load bonus information.",
+      "toasts": {
+        "claimError": "Error claiming bonus"
+      }
+    },
+    "collections": {
+      "pageTitle": "My Collections",
+      "empty": {
+        "title": "You don't have any collections yet",
+        "subtitle": "Create your first collection to save your favorite products.",
+        "cta": "Create first collection"
+      },
+      "createCta": "Create collection",
+      "deleteConfirm": "Are you sure you want to delete the collection \"{{name}}\"? This action cannot be undone.",
+      "deleteTitle": "Delete collection",
+      "modal": {
+        "title": "Create new collection",
+        "placeholder": "Collection name (e.g., 'Kitchen')",
+        "iconColor": "Icon color"
+      },
+      "toasts": {
+        "nameEmpty": "Collection name cannot be empty.",
+        "detailsError": "Failed to load collection details.",
+        "productRemoved": "Product removed from collection",
+        "productRemoveError": "Error removing product from collection."
+      },
+      "detail": {
+        "notFound": "Collection not found.",
+        "empty": {
+          "title": "This collection is empty",
+          "cta": "Add products"
+        }
+      }
+    },
+    "downloads": {
+      "pageTitle": "My Downloads",
+      "premium": "Premium",
+      "free": "Free",
+      "empty": {
+        "premium": "You have no premium products available yet.",
+        "goToMarket": "Go to marketplace",
+        "free": "There are currently no free products available."
+      },
+      "toasts": {
+        "loadError": "Failed to load the file list."
+      }
+    },
+    "referrals": {
+      "pageTitle": "Referral Program",
+      "yourLink": "Your referral link",
+      "description": "Share this link. You will receive <b>30 bonuses</b> for each person who signs up, and <b>5%</b> of their purchase amount.",
+      "shareText": "Hello! 👋 I'm inviting you to OhMyRevit - a cool marketplace for Revit content. Sign up using my link and start collecting bonuses!",
+      "history": "Earning History",
+      "emptyHistory": "Once someone registers using your link, it will appear here.",
+      "invited": "Invited",
+      "bonusesEarned": "Bonuses earned",
+      "log": {
+        "newUser": "New user: {{name}}",
+        "purchase": "Purchase from {{name}}"
+      },
+      "toasts": {
+        "loadError": "Failed to load referral information."
+      },
+      "loadError": {
+        "title": "Failed to load data",
+        "subtitle": "Please try to refresh the page.",
+        "back": "Back to profile"
+      }
+    },
+    "support": {
+      "pageTitle": "Support",
+      "needHelp": "Need help?",
+      "description": "We are already working on creating a convenient support center. You will be able to contact us soon.",
+      "backToProfile": "Back to profile"
+    },
+    "faq": {
+      "pageTitle": "Frequently Asked Questions (FAQ)",
+      "answersComingSoon": "Answers are being prepared",
+      "description": "We are collecting the most frequent questions to provide you with comprehensive answers in this section.",
+      "backToProfile": "Back to profile"
+    }
+  },
+  "admin": {
+    "sidebar": {
+      "title": "Admin Panel",
+      "dashboard": "Dashboard",
+      "users": "Users",
+      "products": "Products",
+      "orders": "Orders",
+      "promoCodes": "Promo Codes"
+    },
+    "dashboard": {
+      "title": "Dashboard Overview",
+      "totalUsers": "Total Users",
+      "newThisWeek": "+{{count}} this week",
+      "products": "Products",
+      "activeSubscriptions": "Active Subscriptions",
+      "revenue": "Revenue",
+      "thisMonth": "this month",
+      "ordersOverview": "Orders Overview",
+      "totalOrders": "Total Orders",
+      "paidOrders": "Paid Orders",
+      "conversionRate": "Conversion Rate",
+      "quickActions": "Quick Actions",
+      "addNewProduct": "Add New Product",
+      "createPromoCode": "Create Promo Code",
+      "addAdmin": "Add Administrator",
+      "statsLoadError": "Failed to load statistics."
+    },
+    "orders": {
+      "title": "Order #{{id}}",
+      "orderContent": "Order Content",
+      "details": "Details",
+      "status": "Status:",
+      "amount": "Amount:",
+      "discount": "Discount:",
+      "bonuses": "Bonuses:",
+      "total": "Total:",
+      "date": "Date:",
+      "paidAt": "Paid at:",
+      "customer": "Customer",
+      "promoCode": "Promo Code",
+      "management": "Management",
+      "changeStatus": "Change status:",
+      "statuses": {
+        "paid": "Paid",
+        "pending": "Pending",
+        "failed": "Failed"
+      },
+      "loadError": "Failed to load order details."
+    },
+    "users": {
+      "pageTitle": "User Profile",
+      "mainActions": "Main Actions",
+      "addBonus": "Add Bonuses",
+      "giveSubscription": "Give Subscription",
+      "revokeAdmin": "Revoke Admin",
+      "makeAdmin": "Make Admin",
+      "block": "Block",
+      "unblock": "Unblock",
+      "details": "Detailed Information",
+      "id": "ID:",
+      "email": "Email:",
+      "phone": "Phone:",
+      "bonuses": "Bonuses:",
+      "registration": "Registration:",
+      "lastVisit": "Last visit:",
+      "notSpecified": "Not specified",
+      "wasNot": "Never",
+      "subscriptions": "Subscriptions ({{count}})",
+      "noSubscriptions": "No active subscriptions.",
+      "orders": "Orders ({{count}})",
+      "noOrders": "No orders yet.",
+      "referrals": "Referred Users ({{count}})",
+      "noReferrals": "This user has not referred anyone yet.",
+      "loadError": "Failed to load user profile.",
+      "modals": {
+        "addBonusTitle": "Add bonus for {{name}}",
+        "bonusAmount": "Bonus amount",
+        "bonusReason": "Reason (optional)",
+        "add": "Add",
+        "giveSubscriptionTitle": "Give subscription to {{name}}",
+        "days": {
+          "7": "7 days",
+          "30": "30 days",
+          "90": "90 days",
+          "365": "365 days (a year)"
+        },
+        "give": "Give"
+      },
+      "toasts": {
+        "adminGranted": "Admin status granted",
+        "adminRevoked": "Admin status revoked",
+        "adminError": "Error changing admin status.",
+        "userUnblocked": "User unblocked",
+        "userBlocked": "User blocked",
+        "activityError": "Error changing activity status.",
+        "bonusAdded": "{{amount}} bonuses added",
+        "bonusError": "Error adding bonuses",
+        "subscriptionGiven": "Subscription for {{days}} days given",
+        "subscriptionError": "Error giving subscription"
+      }
+    },
+    "promo": {
+      "pageTitle": "Promo Codes",
+      "new": "New",
+      "empty": "No promo codes yet",
+      "used": "{{current}} / {{max}} used",
+      "unlimited": "∞",
+      "active": "Active",
+      "inactive": "Inactive",
+      "loadError": "Failed to load promo codes.",
+      "form": {
+        "title": "New Promo Code",
+        "codePlaceholder": "Code (e.g., WINTER25)",
+        "discountType": "Discount Type",
+        "percentage": "Percentage (%)",
+        "fixed": "Fixed Amount ($)",
+        "value": "Value",
+        "maxUses": "Max Uses",
+        "unlimitedPlaceholder": "Unlimited",
+        "expiresAt": "Expires At (optional)",
+        "isActive": "Active promo code"
+      },
+      "detail": {
+        "titleNew": "New Promo Code",
+        "titleEdit": "Editing: {{code}}",
+        "actions": "Actions",
+        "history": "Usage History ({{count}})",
+        "noUses": "Not used yet.",
+        "orderLink": "Order #{{id}}",
+        "byUser": "by {{name}}",
+        "toasts": {
+          "loadError": "Failed to load promo code.",
+          "created": "Promo code created!",
+          "updated": "Promo code updated!",
+          "saveError": "Save error",
+          "confirmDelete": "Delete promo code \"{{code}}\"?",
+          "deleted": "Promo code deleted",
+          "deleteError": "Delete error"
+        }
+      }
     }
   }
 }

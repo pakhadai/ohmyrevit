@@ -1,4 +1,3 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -7,18 +6,20 @@ import { ShoppingCart, ChevronRight } from 'lucide-react';
 import { adminApi } from '@/lib/api/admin';
 import { LoadingSpinner, EmptyState } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
-
-const statusMap: { [key: string]: { text: string; className: string } } = {
-  paid: { text: 'Оплачено', className: 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400' },
-  pending: { text: 'Очікує', className: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/50 dark:text-yellow-400' },
-  failed: { text: 'Невдале', className: 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400' },
-};
+import { useTranslation } from 'react-i18next';
 
 export default function OrdersManagementPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const { t } = useTranslation();
+
+  const statusMap: { [key: string]: { text: string; className: string } } = {
+    paid: { text: t('admin.orders.statuses.paid'), className: 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400' },
+    pending: { text: t('admin.orders.statuses.pending'), className: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/50 dark:text-yellow-400' },
+    failed: { text: t('admin.orders.statuses.failed'), className: 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400' },
+  };
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -27,11 +28,11 @@ export default function OrdersManagementPage() {
       const response = await adminApi.getOrders(params);
       setOrders(response.orders || []);
     } catch (error) {
-      toast.error('Не вдалося завантажити замовлення');
+      toast.error(t('admin.orders.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, t]);
 
   useEffect(() => {
     fetchOrders();
@@ -41,17 +42,17 @@ export default function OrdersManagementPage() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6">Керування замовленнями</h2>
+      <h2 className="text-xl font-bold mb-6">{t('admin.sidebar.orders')}</h2>
       <div className="mb-6 flex gap-4">
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
-          <option value="">Всі замовлення</option>
-          <option value="pending">Очікує</option>
-          <option value="paid">Оплачено</option>
-          <option value="failed">Невдале</option>
+          <option value="">{t('admin.orders.allOrders')}</option>
+          <option value="pending">{t('admin.orders.statuses.pending')}</option>
+          <option value="paid">{t('admin.orders.statuses.paid')}</option>
+          <option value="failed">{t('admin.orders.statuses.failed')}</option>
         </select>
       </div>
       {orders.length === 0 ? (
-        <EmptyState message="Замовлень не знайдено" icon={ShoppingCart} />
+        <EmptyState message={t('admin.orders.empty')} icon={ShoppingCart} />
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">

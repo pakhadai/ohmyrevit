@@ -1,4 +1,4 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
+// frontend/app/admin/promo-codes/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -7,11 +7,13 @@ import { Tag, PlusCircle, ChevronRight } from 'lucide-react';
 import { adminApi } from '@/lib/api/admin';
 import { LoadingSpinner, EmptyState } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 export default function PromoCodesManagementPage() {
   const router = useRouter();
   const [promoCodes, setPromoCodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   const fetchPromoCodes = useCallback(async () => {
     setLoading(true);
@@ -19,11 +21,11 @@ export default function PromoCodesManagementPage() {
       const response = await adminApi.getPromoCodes();
       setPromoCodes(response || []);
     } catch (error) {
-      toast.error('Не вдалося завантажити промокоди');
+      toast.error(t('admin.promo.loadError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchPromoCodes();
@@ -33,17 +35,16 @@ export default function PromoCodesManagementPage() {
 
   return (
     <div>
-      {/* OLD: <div className="flex justify-between items-center mb-6"> */}
       <div className="hidden lg:flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold">Промокоди</h2>
+        <h2 className="text-xl font-bold">{t('admin.promo.pageTitle')}</h2>
         <button onClick={() => router.push('/admin/promo-codes/new')} className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
           <PlusCircle size={18} />
-          Новий
+          {t('admin.promo.new')}
         </button>
       </div>
 
       {promoCodes.length === 0 ? (
-        <EmptyState message="Промокодів ще немає" icon={Tag} />
+        <EmptyState message={t('admin.promo.empty')} icon={Tag} />
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -60,10 +61,10 @@ export default function PromoCodesManagementPage() {
                           ? `${promo.value}%`
                           : `$${parseFloat(promo.value).toFixed(2)}`}
                     </div>
-                    <div>{promo.current_uses} / {promo.max_uses || '∞'} використано</div>
+                    <div>{t('admin.promo.used', { current: promo.current_uses, max: promo.max_uses || t('admin.promo.unlimited') })}</div>
                     <div>
                       <span className={`px-2 py-1 text-xs rounded ${promo.is_active ? 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'}`}>
-                        {promo.is_active ? 'Активний' : 'Неактивний'}
+                        {promo.is_active ? t('admin.promo.active') : t('admin.promo.inactive')}
                       </span>
                     </div>
                 </div>

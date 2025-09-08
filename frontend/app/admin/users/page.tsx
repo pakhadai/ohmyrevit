@@ -1,5 +1,3 @@
-// OLD: # ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -8,12 +6,14 @@ import { Users, Search, ChevronRight } from 'lucide-react';
 import { adminApi } from '@/lib/api/admin';
 import { LoadingSpinner, EmptyState } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 export default function UsersManagementPage() {
   const router = useRouter();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const { t } = useTranslation();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -21,12 +21,12 @@ export default function UsersManagementPage() {
       const response = await adminApi.getUsers({ search, skip: 0, limit: 100 });
       setUsers(response.users || []);
     } catch (error) {
-      toast.error('Не вдалося завантажити користувачів');
+      toast.error(t('toasts.dataLoadError'));
       console.error(error);
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [search, t]);
 
   useEffect(() => {
     fetchUsers();
@@ -36,13 +36,13 @@ export default function UsersManagementPage() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6">Керування користувачами</h2>
+      <h2 className="text-xl font-bold mb-6">{t('admin.users.pageTitle')}</h2>
       <div className="mb-6">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           <input
             type="text"
-            placeholder="Пошук за іменем, email або Telegram ID..."
+            placeholder={t('admin.users.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
@@ -50,7 +50,7 @@ export default function UsersManagementPage() {
         </div>
       </div>
       {users.length === 0 ? (
-        <EmptyState message="Користувачів не знайдено" icon={Users} />
+        <EmptyState message={t('admin.users.empty')} icon={Users} />
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
