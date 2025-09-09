@@ -311,8 +311,30 @@
       "dashboard": "Dashboard",
       "users": "Users",
       "products": "Products",
+      "categories": "Categories",
       "orders": "Orders",
       "promoCodes": "Promo Codes"
+    },
+    "categories": {
+      "pageTitle": "Category Management",
+      "new": "Create",
+      "hide": "Hide",
+      "formTitleNew": "New Category",
+      "formTitleEdit": "Editing Category",
+      "form": {
+        "name": "Name (e.g., Furniture)",
+        "slug": "Slug (e.g., furniture)",
+        "nameRequired": "Name and slug are required"
+      },
+      "empty": "No categories yet",
+      "toasts": {
+        "created": "Category created",
+        "updated": "Category updated",
+        "deleted": "Category deleted",
+        "deleteError": "Failed to delete category",
+        "saveError": "Save error occurred",
+        "confirmDelete": "Are you sure you want to delete this category?"
+      }
     },
     "dashboard": {
       "title": "Dashboard Overview",
@@ -462,7 +484,8 @@
           "categoriesLoadError": "Failed to load categories",
           "dataLoadError": "Error loading product data",
           "fileUploaded": "File uploaded successfully!",
-          "fileUploadError": "File upload error."
+          "fileUploadError": "File upload error.",
+          "clickToSelect": "Click to select"
         }
       }
     },

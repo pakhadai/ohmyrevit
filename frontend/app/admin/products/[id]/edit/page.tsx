@@ -4,18 +4,22 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { ArrowLeft, Upload, X, Package, Tag, Image as ImageIcon, FileArchive, Loader } from 'lucide-react'
-import { adminAPI, productsAPI } from '@/lib/api'
+// # OLD: import { adminAPI, productsAPI } from '@/lib/api'
+import { adminApi } from '@/lib/api/admin'
+import { productsAPI } from '@/lib/api'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 
 function FileUploader({
     onUpload,
     accept,
-    label
+    label,
+    oldPath
 }: {
     onUpload: (path: string, size: number) => void,
     accept: string,
-    label: string
+    label: string,
+    oldPath?: string
 }) {
     const { t } = useTranslation();
     const [isUploading, setIsUploading] = useState(false);
@@ -24,8 +28,8 @@ function FileUploader({
         setIsUploading(true);
         try {
             const isImage = accept.includes('image');
-            const uploadFunction = isImage ? adminAPI.uploadImage : adminAPI.uploadArchive;
-            const response = await uploadFunction(file);
+            const uploadFunction = isImage ? adminApi.uploadImage : adminApi.uploadArchive;
+            const response = await uploadFunction(file, oldPath);
 
             onUpload(response.file_path, response.file_size_mb);
             toast.success(t('admin.products.form.toasts.fileUploaded'));
@@ -115,7 +119,7 @@ export default function EditProductPage() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const response = await productsAPI.getCategories();
+      const response = await adminApi.getCategories();
       setCategories(response);
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -145,7 +149,8 @@ export default function EditProductPage() {
 
     setLoading(true);
     try {
-      await adminAPI.updateProduct(productId, formData);
+      // # OLD: await adminAPI.updateProduct(productId, formData);
+      await adminApi.updateProduct(Number(productId), formData);
       toast.success(t('admin.products.form.toasts.updated'));
       router.push('/admin/products');
     } catch (error: any) {
@@ -159,7 +164,8 @@ export default function EditProductPage() {
       if (window.confirm(t('admin.products.confirmDelete'))) {
           setLoading(true);
           try {
-              await adminAPI.deleteProduct(productId);
+              // # OLD: await adminAPI.deleteProduct(productId);
+              await adminApi.deleteProduct(Number(productId));
               toast.success(t('admin.products.toasts.deleted'));
               router.push('/admin/products');
           } catch (error: any) {
@@ -248,7 +254,7 @@ export default function EditProductPage() {
                                 <button type="button" onClick={() => setFormData({...formData, main_image_url: ''})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
                              </div>
                         ) : (
-                             <FileUploader onUpload={(path) => setFormData({...formData, main_image_url: path})} accept="image/*" label={t('admin.products.form.uploadMain')}/>
+                             <FileUploader onUpload={(path) => setFormData({...formData, main_image_url: path})} accept="image/*" label={t('admin.products.form.uploadMain')} oldPath={formData.main_image_url} />
                         )}
                     </div>
                     <div>
@@ -279,7 +285,7 @@ export default function EditProductPage() {
                                 <button onClick={() => setFormData({...formData, zip_file_path: '', file_size_mb: 0})} className="ml-auto text-red-500"><X size={16}/></button>
                             </div>
                         ) : (
-                            <FileUploader onUpload={(path, size) => setFormData({...formData, zip_file_path: path, file_size_mb: size})} accept=".zip,.rar,.7z,application/octet-stream" label={t('admin.products.form.uploadArchive')}/>
+                            <FileUploader onUpload={(path, size) => setFormData({...formData, zip_file_path: path, file_size_mb: size})} accept=".zip,.rar,.7z,application/octet-stream" label={t('admin.products.form.uploadArchive')} oldPath={formData.zip_file_path}/>
                         )}
                      </div>
                      <div>

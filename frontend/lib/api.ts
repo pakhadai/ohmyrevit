@@ -18,7 +18,7 @@ export interface Product {
   product_type: 'free' | 'premium';
   main_image_url: string;
   gallery_image_urls: string[];
-  zip_file_path?: string;
+  zip_file_path?: string; // ДОДАНО - було відсутнє
   file_size_mb: number;
   compatibility?: string;
   is_on_sale: boolean;
@@ -65,31 +65,44 @@ const createAPIClient = (): AxiosInstance => {
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-      // Додаємо мову
+      // # OLD: Додаємо мову
+      // # OLD: try {
+      // # OLD:   const languageStorage = localStorage.getItem('language-storage');
+      // # OLD:   if (languageStorage) {
+      // # OLD:     const langData = JSON.parse(languageStorage);
+      // # OLD:     if (langData.state?.language) {
+      // # OLD:       config.headers['Accept-Language'] = langData.state.language;
+      // # OLD:     }
+      // # OLD:   }
+      // # OLD: } catch (e) {
+      // # OLD:   console.error("Could not parse language from localStorage", e);
+      // # OLD: }
+      // ВИПРАВЛЕННЯ: Надійна логіка для читання мови з localStorage, що підтримує i18next та Zustand
       try {
         const languageStorage = localStorage.getItem('language-storage');
         if (languageStorage) {
-// OLD:           const langData = JSON.parse(languageStorage);
-// OLD:           if (langData.state?.language) {
-// OLD:             config.headers['Accept-Language'] = langData.state.language;
-// OLD:           }
-          // ВИПРАВЛЕННЯ: Zustand зберігає дані як JSON-рядок.
-          // Спочатку парсимо його, щоб отримати об'єкт стану.
-          const persistedState = JSON.parse(languageStorage);
-          const lang = persistedState?.state?.language;
-          if (lang) {
-            config.headers['Accept-Language'] = lang;
-          }
+            let lang: string | undefined;
+            // Спершу пробуємо парсити як JSON (формат Zustand)
+            try {
+                const persistedState = JSON.parse(languageStorage);
+                lang = persistedState?.state?.language;
+            } catch (jsonError) {
+                // Якщо не вдалося, можливо це простий рядок (формат i18next-browser-languagedetector)
+                // Видаляємо лапки, якщо вони є
+                const rawValue = languageStorage.replace(/"/g, '');
+                if (['uk', 'en', 'ru'].includes(rawValue)) {
+                    lang = rawValue;
+                }
+            }
+
+            if (lang) {
+                config.headers['Accept-Language'] = lang;
+            }
         }
       } catch (e) {
-        // Якщо парсинг не вдався (наприклад, i18next зберіг туди простий рядок),
-        // пробуємо використати значення напряму.
-        const languageStorage = localStorage.getItem('language-storage');
-        if (typeof languageStorage === 'string') {
-           config.headers['Accept-Language'] = languageStorage;
-        }
-        console.error("Could not parse language from localStorage, falling back to raw value.", e);
+          console.error("Could not determine language from localStorage", e);
       }
+
 
       return config;
     },

@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
-  Users, Package, ShoppingCart, TrendingUp, Tag, Menu, ArrowLeft, Plus
+  Users, Package, ShoppingCart, TrendingUp, Tag, Menu, ArrowLeft, Plus, LayoutList
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -18,6 +18,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { id: 'dashboard', label: t('admin.sidebar.dashboard'), icon: TrendingUp, href: '/admin' },
     { id: 'users', label: t('admin.sidebar.users'), icon: Users, href: '/admin/users' },
     { id: 'products', label: t('admin.sidebar.products'), icon: Package, href: '/admin/products' },
+    // ДОДАНО: Новий пункт меню для категорій
+    { id: 'categories', label: t('admin.sidebar.categories'), icon: LayoutList, href: '/admin/categories' },
     { id: 'orders', label: t('admin.sidebar.orders'), icon: ShoppingCart, href: '/admin/orders' },
     { id: 'promo-codes', label: t('admin.sidebar.promoCodes'), icon: Tag, href: '/admin/promo-codes' },
   ];
@@ -46,8 +48,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-        <aside className={`fixed lg:sticky lg:top-16 inset-y-0 left-0 h-screen lg:h-auto w-64 bg-white dark:bg-gray-800 shadow-lg z-40 transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} pt-16 lg:pt-0`}>
+    <div className="flex h-full bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+        <aside className={`fixed lg:sticky lg:top-0 inset-y-0 left-0 h-screen lg:h-auto w-64 bg-white dark:bg-gray-800 shadow-lg z-20 transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
             <div className="p-4 border-b dark:border-gray-700 flex items-center justify-between">
                 <h1 className="text-xl font-bold">{t('admin.sidebar.title')}</h1>
                 <button onClick={() => router.push('/')} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
@@ -75,11 +77,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </aside>
 
         {sidebarOpen && (
-            <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+            <div className="fixed inset-0 bg-black/50 z-10 lg:hidden" onClick={() => setSidebarOpen(false)} />
         )}
 
         <div className="flex-1 flex flex-col w-full">
-             <header className="lg:hidden sticky top-16 bg-white dark:bg-gray-800 shadow-sm z-10">
+             <header className="lg:hidden sticky top-0 bg-white dark:bg-gray-800 shadow-sm z-10">
                 <div className="flex items-center justify-between p-4">
                     <button onClick={() => setSidebarOpen(true)} className="p-2">
                         <Menu size={24} />

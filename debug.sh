@@ -43,7 +43,7 @@ docker-compose logs --tail=20 backend | grep -E "ERROR|CRITICAL|Exception" || ec
 
 # Перевірка API
 echo -e "\n🌐 Перевірка API..."
-# OLD: API_HEALTH=$(curl -s http://localhost:8000/health)
+# # OLD: API_HEALTH=$(curl -s http://localhost:8000/health)
 API_HEALTH=$(curl -s http://localhost/api/v1/health)
 if echo "$API_HEALTH" | grep -q "healthy"; then
     echo -e "${GREEN}✓ API доступний${NC}"

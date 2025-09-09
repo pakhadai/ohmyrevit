@@ -4,10 +4,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { ArrowLeft, Upload, X, Package, Tag, Image as ImageIcon, FileArchive, Loader } from 'lucide-react'
-import { adminAPI, productsAPI } from '@/lib/api'
+// # OLD: import { adminAPI, productsAPI } from '@/lib/api' // Використовуємо централізований API
+import { adminApi } from '@/lib/api/admin';
+import { productsAPI } from '@/lib/api';
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 
+// Компонент для завантаження файлів
 function FileUploader({
     onUpload,
     accept,
@@ -22,15 +25,17 @@ function FileUploader({
 
     const handleFileUpload = async (file: File) => {
         setIsUploading(true);
+
         try {
             const isImage = accept.includes('image');
-            const uploadFunction = isImage ? adminAPI.uploadImage : adminAPI.uploadArchive;
+            const uploadFunction = isImage ? adminApi.uploadImage : adminApi.uploadArchive;
+
             const response = await uploadFunction(file);
 
             onUpload(response.file_path, response.file_size_mb);
-            toast.success(t('admin.products.form.toasts.fileUploaded'));
+            toast.success('Файл успішно завантажено!');
         } catch (error: any) {
-            toast.error(error.message || t('admin.products.form.toasts.fileUploadError'));
+            toast.error(error.message || 'Помилка завантаження файлу.');
         } finally {
             setIsUploading(false);
         }
@@ -50,13 +55,13 @@ function FileUploader({
                  {isUploading ? (
                     <div className="flex flex-col items-center">
                         <Loader className="w-8 h-8 text-purple-500 animate-spin mb-2" />
-                        <span className="text-sm font-semibold">{t('common.loading')}</span>
+                        <span className="text-sm font-semibold">Завантаження...</span>
                     </div>
                 ) : (
                     <div className="flex flex-col items-center">
                         <Upload className="w-10 h-10 text-gray-400 mb-2" />
                         <span className="text-sm font-semibold">{label}</span>
-                        <p className="text-xs text-gray-500">{t('admin.products.form.toasts.clickToSelect')}</p>
+                        <p className="text-xs text-gray-500">Натисніть для вибору</p>
                     </div>
                 )}
             </label>
@@ -88,39 +93,40 @@ export default function NewProductPage() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const response = await productsAPI.getCategories();
+      const response = await adminApi.getCategories();
       setCategories(response);
     } catch (error) {
-        console.error('Error loading categories:', error);
-        toast.error(t('admin.products.form.toasts.categoriesLoadError'));
+        console.error('Помилка завантаження категорій:', error);
+        toast.error('Не вдалося завантажити категорії');
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     if (user === undefined) return;
 
     if (!user?.is_admin) {
-      toast.error(t('toasts.authError'));
+      toast.error('Доступ заборонено');
       router.push('/');
       return;
     }
 
     fetchCategories();
-  }, [user, router, fetchCategories, t]);
+  }, [user, router, fetchCategories]);
 
   const handleSubmit = async () => {
     if (!formData.title_uk || !formData.main_image_url || !formData.zip_file_path) {
-      toast.error(t('admin.products.form.toasts.fillRequired'));
+      toast.error("Будь ласка, заповніть обов'язкові поля: Назва, Головне зображення, ZIP-архів.");
       return;
     }
 
     setLoading(true);
     try {
-      await adminAPI.createProduct(formData);
-      toast.success(t('admin.products.form.toasts.created'));
+      // # OLD: await adminAPI.createProduct(formData);
+      await adminApi.createProduct(formData);
+      toast.success('Товар успішно створено! Переклад розпочнеться у фоновому режимі.');
       router.push('/admin/products');
     } catch (error: any) {
-      toast.error(error.message || t('admin.products.form.toasts.createError'));
+      toast.error(error.message || 'Помилка створення товару');
     } finally {
       setLoading(false);
     }
@@ -156,6 +162,7 @@ export default function NewProductPage() {
         </div>
 
         <div className="space-y-6">
+            {/* Основна інформація */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Package size={20} /> {t('admin.products.form.mainInfo')}</h2>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -181,6 +188,7 @@ export default function NewProductPage() {
                  </div>
             </div>
 
+            {/* Ціни та знижки */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Tag size={20} /> {t('admin.products.form.pricing')}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -201,6 +209,7 @@ export default function NewProductPage() {
                  </div>
             </div>
 
+            {/* Зображення */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><ImageIcon size={20} /> {t('admin.products.form.images')}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -208,11 +217,11 @@ export default function NewProductPage() {
                         <h3 className="font-medium mb-2">{t('admin.products.form.mainImage')}</h3>
                         {formData.main_image_url ? (
                              <div className="relative group">
-                                <img src={formData.main_image_url} alt="Main image" className="w-full h-40 object-cover rounded-lg border dark:border-gray-600"/>
+                                <img src={formData.main_image_url} alt="Головне зображення" className="w-full h-40 object-cover rounded-lg border dark:border-gray-600"/>
                                 <button type="button" onClick={() => setFormData({...formData, main_image_url: ''})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
                              </div>
                         ) : (
-                             <FileUploader onUpload={(path) => setFormData({...formData, main_image_url: path})} accept="image/*" label={t('admin.products.form.uploadMain')}/>
+                             <FileUploader onUpload={(path) => setFormData({...formData, main_image_url: path})} accept="image/*" label="Завантажити головне фото"/>
                         )}
                     </div>
                     <div>
@@ -224,7 +233,7 @@ export default function NewProductPage() {
                             ))}
                             {formData.gallery_image_urls.length < 6 && (
                                 <div className="h-20">
-                                <FileUploader onUpload={(path) => setFormData({...formData, gallery_image_urls: [...formData.gallery_image_urls, path]})} accept="image/*" label={t('admin.products.form.addImage')}/>
+                                <FileUploader onUpload={(path) => setFormData({...formData, gallery_image_urls: [...formData.gallery_image_urls, path]})} accept="image/*" label="Додати фото"/>
                                 </div>
                             )}
                         </div>
@@ -232,11 +241,12 @@ export default function NewProductPage() {
                 </div>
             </div>
 
+            {/* Файли товару */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><FileArchive size={20} /> {t('admin.products.form.files')}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                      <div>
-                        <label className="block text-sm font-medium mb-2">{t('admin.products.form.archive')}</label>
+                        <label className="block text-sm font-medium mb-2">{t('admin.products.form.archive')} *</label>
                         {formData.zip_file_path ? (
                             <div className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
                                 <FileArchive className="text-gray-500" />
@@ -244,7 +254,7 @@ export default function NewProductPage() {
                                 <button onClick={() => setFormData({...formData, zip_file_path: '', file_size_mb: 0})} className="ml-auto text-red-500"><X size={16}/></button>
                             </div>
                         ) : (
-                            <FileUploader onUpload={(path, size) => setFormData({...formData, zip_file_path: path, file_size_mb: size})} accept=".zip,.rar,.7z,application/octet-stream" label={t('admin.products.form.uploadArchive')}/>
+                            <FileUploader onUpload={(path, size) => setFormData({...formData, zip_file_path: path, file_size_mb: size})} accept=".zip,.rar,.7z,application/octet-stream" label="Завантажити архів"/>
                         )}
                      </div>
                      <div>
@@ -254,6 +264,7 @@ export default function NewProductPage() {
                 </div>
             </div>
 
+            {/* Категорії */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold mb-4">{t('admin.products.form.categories')}</h2>
                 <div className="flex flex-wrap gap-2">
@@ -267,6 +278,7 @@ export default function NewProductPage() {
             </div>
         </div>
 
+        {/* Кнопки */}
         <div className="flex justify-end gap-4 mt-8">
             <button type="button" onClick={() => router.push('/admin/products')} className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">{t('common.cancel')}</button>
             <button onClick={handleSubmit} disabled={loading} className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-colors">

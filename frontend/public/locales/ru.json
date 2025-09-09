@@ -311,8 +311,30 @@
       "dashboard": "Панель",
       "users": "Пользователи",
       "products": "Товары",
+      "categories": "Категории",
       "orders": "Заказы",
       "promoCodes": "Промокоды"
+    },
+    "categories": {
+      "pageTitle": "Управление категориями",
+      "new": "Создать",
+      "hide": "Скрыть",
+      "formTitleNew": "Новая категория",
+      "formTitleEdit": "Редактирование категории",
+      "form": {
+        "name": "Название (напр., Мебель)",
+        "slug": "Slug (напр., furniture)",
+        "nameRequired": "Название и slug обязательны"
+      },
+      "empty": "Категорий еще нет",
+      "toasts": {
+        "created": "Категория создана",
+        "updated": "Категория обновлена",
+        "deleted": "Категория удалена",
+        "deleteError": "Не удалось удалить категорию",
+        "saveError": "Произошла ошибка сохранения",
+        "confirmDelete": "Вы уверены, что хотите удалить эту категорию?"
+      }
     },
     "dashboard": {
       "title": "Обзор панели",
@@ -462,7 +484,8 @@
           "categoriesLoadError": "Не удалось загрузить категории",
           "dataLoadError": "Ошибка загрузки данных товара",
           "fileUploaded": "Файл успешно загружен!",
-          "fileUploadError": "Ошибка загрузки файла."
+          "fileUploadError": "Ошибка загрузки файла.",
+          "clickToSelect": "Нажмите для выбора"
         }
       }
     },

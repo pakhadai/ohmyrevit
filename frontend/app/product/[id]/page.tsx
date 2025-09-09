@@ -1,4 +1,3 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 // frontend/app/product/[id]/page.tsx
 'use client';
 
@@ -13,7 +12,7 @@ import { useCartStore } from '@/store/cartStore';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useAccessStore } from '@/store/accessStore';
-import { useTranslation } from 'react-i18next'; // ДОДАНО
+import { useTranslation } from 'react-i18next';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -29,7 +28,7 @@ export default function ProductDetailPage() {
   const addItemToCart = useCartStore((state) => state.addItem);
   const { isAuthenticated } = useAuthStore();
   const { checkAccess, fetchAccessStatus } = useAccessStore();
-  const { t } = useTranslation(); // ДОДАНО
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (productId) {
@@ -44,9 +43,7 @@ export default function ProductDetailPage() {
             await fetchAccessStatus([Number(productId)]);
           }
         } catch (err) {
-          // OLD: setError('Не вдалося завантажити товар. Можливо, його не існує.');
           setError(t('productPage.loadError'));
-          // OLD: toast.error('Помилка завантаження товару.');
           toast.error(t('toasts.productLoadError'));
         } finally {
           setLoading(false);
@@ -69,10 +66,8 @@ export default function ProductDetailPage() {
     if (product && token) {
       const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL}/profile/download/${product.id}?token=${token}`;
       window.location.href = downloadUrl;
-      // OLD: toast.success('Завантаження почалось...');
       toast.success(t('toasts.downloadStarted'));
     } else {
-      // OLD: toast.error("Для завантаження потрібно авторизуватися.");
       toast.error(t('toasts.loginToDownload'));
     }
   };
@@ -104,7 +99,6 @@ export default function ProductDetailPage() {
           onClick={() => router.push('/marketplace')}
           className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
         >
-          {/* OLD: Повернутися до маркетплейсу */}
           {t('cart.empty.goToMarket')}
         </button>
       </div>
@@ -116,7 +110,7 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 pt-20">
+    <div className="container mx-auto px-4 py-8">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         {/* Кнопка "Назад" */}
         <button
@@ -124,7 +118,6 @@ export default function ProductDetailPage() {
           className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-500 mb-6"
         >
           <ArrowLeft size={20} />
-          {/* OLD: <span>Назад до товарів</span> */}
           <span>{t('productPage.backToProducts')}</span>
         </button>
 
@@ -175,7 +168,6 @@ export default function ProductDetailPage() {
                 </>
               ) : (
                 <span className="text-4xl font-bold">
-                  {/* OLD: {product.price === 0 ? 'Безкоштовно' : `$${product.price.toFixed(2)}`} */}
                   {product.price === 0 ? t('productPage.free') : `$${product.price.toFixed(2)}`}
                 </span>
               )}
@@ -189,12 +181,10 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-4 mb-6">
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <CheckCircle size={18} className="text-green-500" />
-                  {/* OLD: <span>Сумісність: <strong>{product.compatibility}</strong></span> */}
                   <span>{t('productPage.compatibility')} <strong>{product.compatibility}</strong></span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Info size={18} className="text-blue-500" />
-                  {/* OLD: <span>Розмір: <strong>{product.file_size_mb} MB</strong></span> */}
                   <span>{t('productPage.size')} <strong>{product.file_size_mb} MB</strong></span>
                 </div>
               </div>
@@ -206,7 +196,6 @@ export default function ProductDetailPage() {
                 >
                   <div className="flex items-center justify-center gap-3">
                     <Download size={24} />
-                    {/* OLD: <span>Завантажити</span> */}
                     <span>{t('productPage.download')}</span>
                   </div>
                 </button>
@@ -217,7 +206,6 @@ export default function ProductDetailPage() {
                 >
                   <div className="flex items-center justify-center gap-3">
                     <ShoppingCart size={24} />
-                    {/* OLD: <span>Додати в кошик</span> */}
                     <span>{t('product.addToCart')}</span>
                   </div>
                 </button>

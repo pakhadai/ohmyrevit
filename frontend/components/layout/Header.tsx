@@ -19,7 +19,7 @@ export default function Header() {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 nav-blur">
+    <header className="sticky top-0 left-0 right-0 z-50 nav-blur">
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">

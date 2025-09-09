@@ -1,4 +1,3 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -9,7 +8,7 @@ import { Filter, Grid3x3, List } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAccessStore } from '@/store/accessStore';
 import { useAuthStore } from '@/store/authStore';
-import { useTranslation } from 'react-i18next'; // ДОДАНО
+import { useTranslation } from 'react-i18next';
 
 export default function MarketplacePage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -17,7 +16,7 @@ export default function MarketplacePage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('newest');
   const [filterOpen, setFilterOpen] = useState(false);
-  const { t } = useTranslation(); // ДОДАНО
+  const { t } = useTranslation();
 
   const { fetchAccessStatus } = useAccessStore();
   const { isAuthenticated } = useAuthStore();
@@ -46,10 +45,6 @@ export default function MarketplacePage() {
   }, [products, isAuthenticated, fetchAccessStatus]);
 
   const sortOptions = [
-    // OLD: { value: 'newest', label: 'Найновіші' },
-    // OLD: { value: 'price_asc', label: 'Ціна: від низької' },
-    // OLD: { value: 'price_desc', label: 'Ціна: від високої' },
-    // OLD: { value: 'popular', label: 'Популярні' },
     { value: 'newest', label: t('marketplace.sort.newest') },
     { value: 'price_asc', label: t('marketplace.sort.priceAsc') },
     { value: 'price_desc', label: t('marketplace.sort.priceDesc') },
@@ -57,10 +52,9 @@ export default function MarketplacePage() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-6 pt-20">
+    <div className="container mx-auto px-4 py-6">
       {/* Заголовок та фільтри */}
       <div className="mb-6">
-        {/* OLD: <h1 className="text-3xl font-bold mb-4">Маркетплейс</h1> */}
         <h1 className="text-3xl font-bold mb-4">{t('nav.market')}</h1>
 
         <div className="flex flex-col md:flex-row items-center justify-between mb-4 gap-4">
@@ -69,7 +63,6 @@ export default function MarketplacePage() {
             className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700"
           >
             <Filter className="w-4 h-4" />
-            {/* OLD: <span>Фільтри</span> */}
             <span>{t('marketplace.filters')}</span>
           </button>
 
@@ -110,7 +103,6 @@ export default function MarketplacePage() {
             exit={{ height: 0, opacity: 0, marginTop: 0 }}
             className="p-4 bg-gray-50 dark:bg-slate-800 rounded-lg"
           >
-            {/* OLD: <p className="text-center text-sm text-gray-500">Фільтри в розробці...</p> */}
             <p className="text-center text-sm text-gray-500">{t('marketplace.filtersComingSoon')}</p>
           </motion.div>
         )}

@@ -25,10 +25,9 @@ export default function RootLayout({
       <body>
         <TelegramProvider>
           <AppProvider>
-            <div className={`${inter.className} bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100`}>
+            <div className={`${inter.className} min-h-screen grid grid-rows-[auto_1fr] bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100`}>
               <Header />
-              {/* OLD: <main className="pt-16 pb-20 min-h-screen"> */}
-              <main className="pb-20 min-h-screen">
+              <main className="overflow-y-auto pb-20">
                 {children}
               </main>
               <BottomNav />

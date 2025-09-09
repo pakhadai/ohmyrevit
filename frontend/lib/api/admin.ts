@@ -56,8 +56,7 @@ class AdminAPI {
     return response.json();
   }
 
-  // ... (всі методи з AdminAPI залишаються тут без змін)
-    // Dashboard
+  // Dashboard
   async getDashboardStats() {
     return this.request('/admin/dashboard/stats');
   }
@@ -70,7 +69,6 @@ class AdminAPI {
     return this.request(`/admin/users?${queryString}`);
   }
 
-  // ДОДАНО: Новий метод для отримання деталей
   async getUserDetails(userId: number) {
     return this.request(`/admin/users/${userId}`);
   }
@@ -98,6 +96,14 @@ class AdminAPI {
   }
 
   // Products
+  async createProduct(data: any) {
+    return this.request('/admin/products', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateProduct(id: number, data: any) {
+    return this.request(`/admin/products/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
   async getProducts(params?: any) {
     const queryString = new URLSearchParams(params).toString();
     return this.request(`/products?${queryString}`);
@@ -107,9 +113,46 @@ class AdminAPI {
     return this.request(`/admin/products/${id}`, { method: 'DELETE' });
   }
 
+  // ДОДАНО: Методи для завантаження файлів
+  async uploadImage(file: File, oldPath?: string) {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (oldPath) {
+      formData.append('old_path', oldPath);
+    }
+    return this.request(`/admin/upload/image`, { method: 'POST', body: formData });
+  }
+
+  async uploadArchive(file: File, oldPath?: string) {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (oldPath) {
+      formData.append('old_path', oldPath);
+    }
+    return this.request(`/admin/upload/archive`, { method: 'POST', body: formData });
+  }
+
   // Categories
   async getCategories() {
     return this.request('/admin/categories');
+  }
+
+  async createCategory(name: string, slug: string) {
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('slug', slug);
+    return this.request('/admin/categories', { method: 'POST', body: formData });
+  }
+
+  async updateCategory(id: number, name: string, slug: string) {
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('slug', slug);
+    return this.request(`/admin/categories/${id}`, { method: 'PUT', body: formData });
+  }
+
+  async deleteCategory(id: number) {
+    return this.request(`/admin/categories/${id}`, { method: 'DELETE' });
   }
 
   // Promo Codes
