@@ -1,8 +1,4 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/users/models.py
-"""
-SQLAlchemy модель для користувачів
-"""
 from sqlalchemy import (
     Column, Integer, BigInteger, String, Boolean,
     Date, DateTime, func, ForeignKey
@@ -13,9 +9,7 @@ from app.core.database import Base
 
 
 class User(Base):
-    """
-    Модель користувача для Telegram Mini App
-    """
+
     __tablename__ = "users"
 
     # Основні поля
@@ -45,7 +39,6 @@ class User(Base):
     referrer_id = Column(Integer, ForeignKey('users.id'), nullable=True)
 
     referrer = relationship("User", remote_side=[id], back_populates="referrals")
-    # OLD: referrals = relationship("User", foreign_keys=[referrer_id])
     referrals = relationship("User", back_populates="referrer", foreign_keys=[referrer_id])
 
 

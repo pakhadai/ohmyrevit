@@ -154,6 +154,7 @@ class AuthService:
                     if referrer and referrer.id != user.id:
                         user.referrer_id = referrer.id
                         referrer.bonus_balance += 30
+                        db.add(referrer)
                         db.add(ReferralLog(
                             referrer_id=referrer.id,
                             referred_user_id=user.id,
