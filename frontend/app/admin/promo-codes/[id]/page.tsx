@@ -4,7 +4,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Tag, Trash2, Save } from 'lucide-react';
-import { adminApi } from '@/lib/api/admin';
+// OLD: import { adminApi } from '@/lib/api/admin';
+import { adminAPI } from '@/lib/api';
 import { LoadingSpinner } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -32,7 +33,7 @@ export default function PromoCodeDetailPage() {
         if (isNew) return;
         setLoading(true);
         try {
-            const data = await adminApi.getPromoCodeDetails(Number(promoId));
+            const data = await adminAPI.getPromoCodeDetails(Number(promoId));
             setPromo({
                 ...data,
                 expires_at: data.expires_at ? new Date(data.expires_at).toISOString().slice(0, 16) : ''
@@ -60,10 +61,10 @@ export default function PromoCodeDetailPage() {
 
         try {
             if (isNew) {
-                await adminApi.createPromoCode(dataToSend);
+                await adminAPI.createPromoCode(dataToSend);
                 toast.success(t('admin.promo.detail.toasts.created'));
             } else {
-                await adminApi.updatePromoCode(Number(promoId), dataToSend);
+                await adminAPI.updatePromoCode(Number(promoId), dataToSend);
                 toast.success(t('admin.promo.detail.toasts.updated'));
             }
             router.push('/admin/promo-codes');
@@ -77,7 +78,7 @@ export default function PromoCodeDetailPage() {
     const handleDelete = async () => {
         if (isNew || !window.confirm(t('admin.promo.detail.toasts.confirmDelete', { code: promo.code }))) return;
         try {
-            await adminApi.deletePromoCode(Number(promoId));
+            await adminAPI.deletePromoCode(Number(promoId));
             toast.success(t('admin.promo.detail.toasts.deleted'));
             router.push('/admin/promo-codes');
         } catch (error) {

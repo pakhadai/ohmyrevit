@@ -1,12 +1,13 @@
+// frontend/app/admin/products/[id]/edit/page.tsx
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { ArrowLeft, Upload, X, Package, Tag, Image as ImageIcon, FileArchive, Loader } from 'lucide-react'
-// # OLD: import { adminAPI, productsAPI } from '@/lib/api'
-import { adminApi } from '@/lib/api/admin'
-import { productsAPI } from '@/lib/api'
+// OLD: import { adminApi } from '@/lib/api/admin'
+// OLD: import { productsAPI } from '@/lib/api'
+import { adminAPI, productsAPI } from '@/lib/api'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 
@@ -28,7 +29,7 @@ function FileUploader({
         setIsUploading(true);
         try {
             const isImage = accept.includes('image');
-            const uploadFunction = isImage ? adminApi.uploadImage : adminApi.uploadArchive;
+            const uploadFunction = isImage ? adminAPI.uploadImage : adminAPI.uploadArchive;
             const response = await uploadFunction(file, oldPath);
 
             onUpload(response.file_path, response.file_size_mb);
@@ -119,7 +120,7 @@ export default function EditProductPage() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const response = await adminApi.getCategories();
+      const response = await adminAPI.getCategories();
       setCategories(response);
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -149,8 +150,7 @@ export default function EditProductPage() {
 
     setLoading(true);
     try {
-      // # OLD: await adminAPI.updateProduct(productId, formData);
-      await adminApi.updateProduct(Number(productId), formData);
+      await adminAPI.updateProduct(Number(productId), formData);
       toast.success(t('admin.products.form.toasts.updated'));
       router.push('/admin/products');
     } catch (error: any) {
@@ -164,8 +164,7 @@ export default function EditProductPage() {
       if (window.confirm(t('admin.products.confirmDelete'))) {
           setLoading(true);
           try {
-              // # OLD: await adminAPI.deleteProduct(productId);
-              await adminApi.deleteProduct(Number(productId));
+              await adminAPI.deleteProduct(Number(productId));
               toast.success(t('admin.products.toasts.deleted'));
               router.push('/admin/products');
           } catch (error: any) {

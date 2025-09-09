@@ -1,8 +1,10 @@
+// frontend/app/admin/categories/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { LayoutList, PlusCircle, Trash2, Edit } from 'lucide-react';
-import { adminApi } from '@/lib/api/admin';
+// OLD: import { adminApi } from '@/lib/api/admin';
+import { adminAPI } from '@/lib/api';
 import { LoadingSpinner, EmptyState } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +20,7 @@ export default function CategoriesManagementPage() {
   const fetchCategories = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await adminApi.getCategories();
+      const response = await adminAPI.getCategories();
       setCategories(response || []);
     } catch (error) {
       toast.error(t('admin.products.form.toasts.categoriesLoadError'));
@@ -51,10 +53,10 @@ export default function CategoriesManagementPage() {
 
     try {
       if (isEditing) {
-        await adminApi.updateCategory(isEditing, formData.name, formData.slug);
+        await adminAPI.updateCategory(isEditing, formData.name, formData.slug);
         toast.success(t('admin.categories.toasts.updated'));
       } else {
-        await adminApi.createCategory(formData.name, formData.slug);
+        await adminAPI.createCategory(formData.name, formData.slug);
         toast.success(t('admin.categories.toasts.created'));
       }
       resetForm();
@@ -67,7 +69,7 @@ export default function CategoriesManagementPage() {
   const handleDelete = async (id: number) => {
     if (confirm(t('admin.categories.toasts.confirmDelete'))) {
       try {
-        await adminApi.deleteCategory(id);
+        await adminAPI.deleteCategory(id);
         toast.success(t('admin.categories.toasts.deleted'));
         await fetchCategories();
       } catch (error) {

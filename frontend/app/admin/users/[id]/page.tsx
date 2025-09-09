@@ -1,8 +1,10 @@
+// frontend/app/admin/users/[id]/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { adminApi } from '@/lib/api/admin';
+// OLD: import { adminApi } from '@/lib/api/admin';
+import { adminAPI } from '@/lib/api';
 import { LoadingSpinner } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
 import {
@@ -50,7 +52,7 @@ export default function UserDetailPage() {
         if (!userId) return;
         setLoading(true);
         try {
-            const userData = await adminApi.getUserDetails(userId);
+            const userData = await adminAPI.getUserDetails(userId);
             setUser(userData);
         } catch (error) {
             toast.error(t('admin.users.loadError'));
@@ -67,7 +69,7 @@ export default function UserDetailPage() {
     const handleToggleAdmin = async () => {
         if (!user) return;
         try {
-            const res = await adminApi.toggleUserAdmin(user.id);
+            const res = await adminAPI.toggleUserAdmin(user.id);
             toast.success(res.is_admin ? t('admin.users.toasts.adminGranted') : t('admin.users.toasts.adminRevoked'));
             fetchUserDetails();
         } catch (error) {
@@ -78,7 +80,7 @@ export default function UserDetailPage() {
     const handleToggleActive = async () => {
         if (!user) return;
         try {
-            const res = await adminApi.toggleUserActive(user.id);
+            const res = await adminAPI.toggleUserActive(user.id);
             toast.success(res.is_active ? t('admin.users.toasts.userUnblocked') : t('admin.users.toasts.userBlocked'));
             fetchUserDetails();
         } catch (error) {
@@ -89,7 +91,7 @@ export default function UserDetailPage() {
     const handleAddBonus = async () => {
         if (!user) return;
         try {
-            await adminApi.addUserBonus(user.id, bonusAmount, bonusReason);
+            await adminAPI.addUserBonus(user.id, bonusAmount, bonusReason);
             toast.success(t('admin.users.toasts.bonusAdded', { amount: bonusAmount }));
             setShowBonusModal(false);
             setBonusAmount(100);
@@ -103,7 +105,7 @@ export default function UserDetailPage() {
     const handleGiveSubscription = async () => {
         if (!user) return;
         try {
-            await adminApi.giveSubscription(user.id, subscriptionDays);
+            await adminAPI.giveSubscription(user.id, subscriptionDays);
             toast.success(t('admin.users.toasts.subscriptionGiven', { days: subscriptionDays }));
             setShowSubscriptionModal(false);
             setSubscriptionDays(30);

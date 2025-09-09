@@ -1,12 +1,13 @@
+// frontend/app/admin/products/new/page.tsx
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { ArrowLeft, Upload, X, Package, Tag, Image as ImageIcon, FileArchive, Loader } from 'lucide-react'
-// # OLD: import { adminAPI, productsAPI } from '@/lib/api' // Використовуємо централізований API
-import { adminApi } from '@/lib/api/admin';
-import { productsAPI } from '@/lib/api';
+// OLD: import { adminApi } from '@/lib/api/admin';
+// OLD: import { productsAPI } from '@/lib/api';
+import { adminAPI, productsAPI } from '@/lib/api' // ВИПРАВЛЕНО: Використовуємо централізований API
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 
@@ -28,7 +29,8 @@ function FileUploader({
 
         try {
             const isImage = accept.includes('image');
-            const uploadFunction = isImage ? adminApi.uploadImage : adminApi.uploadArchive;
+// OLD:             const uploadFunction = isImage ? adminApi.uploadImage : adminApi.uploadArchive;
+            const uploadFunction = isImage ? adminAPI.uploadImage : adminAPI.uploadArchive; // ВИПРАВЛЕНО
 
             const response = await uploadFunction(file);
 
@@ -93,7 +95,8 @@ export default function NewProductPage() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const response = await adminApi.getCategories();
+// OLD:       const response = await adminApi.getCategories();
+      const response = await adminAPI.getCategories(); // ВИПРАВЛЕНО
       setCategories(response);
     } catch (error) {
         console.error('Помилка завантаження категорій:', error);
@@ -122,7 +125,8 @@ export default function NewProductPage() {
     setLoading(true);
     try {
       // # OLD: await adminAPI.createProduct(formData);
-      await adminApi.createProduct(formData);
+// OLD:       await adminApi.createProduct(formData);
+      await adminAPI.createProduct(formData); // ВИПРАВЛЕНО
       toast.success('Товар успішно створено! Переклад розпочнеться у фоновому режимі.');
       router.push('/admin/products');
     } catch (error: any) {

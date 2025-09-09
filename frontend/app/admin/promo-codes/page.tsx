@@ -4,7 +4,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Tag, PlusCircle, ChevronRight } from 'lucide-react';
-import { adminApi } from '@/lib/api/admin';
+// OLD: import { adminApi } from '@/lib/api/admin';
+import { adminAPI } from '@/lib/api';
 import { LoadingSpinner, EmptyState } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +19,7 @@ export default function PromoCodesManagementPage() {
   const fetchPromoCodes = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await adminApi.getPromoCodes();
+      const response = await adminAPI.getPromoCodes();
       setPromoCodes(response || []);
     } catch (error) {
       toast.error(t('admin.promo.loadError'));

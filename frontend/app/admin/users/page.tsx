@@ -1,3 +1,4 @@
+// frontend/app/admin/users/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -5,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import {
   Users, Search, Gift, X, CheckCircle, CreditCard, ChevronRight
 } from 'lucide-react';
-import { adminApi } from '@/lib/api/admin';
+// OLD: import { adminApi } from '@/lib/api/admin';
+import { adminAPI } from '@/lib/api';
 import { LoadingSpinner, EmptyState } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -26,7 +28,7 @@ export default function UsersManagementPage() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await adminApi.getUsers({ search: search, skip: 0, limit: 100 });
+      const response = await adminAPI.getUsers({ search: search, skip: 0, limit: 100 });
       setUsers(response.users || []);
     } catch (error) {
       toast.error(t('toasts.dataLoadError'));
@@ -43,7 +45,7 @@ export default function UsersManagementPage() {
   const handleAddBonus = async () => {
     if (!selectedUser) return;
     try {
-      await adminApi.addUserBonus(selectedUser.id, bonusAmount, bonusReason);
+      await adminAPI.addUserBonus(selectedUser.id, bonusAmount, bonusReason);
       toast.success(t('admin.users.toasts.bonusAdded', { amount: bonusAmount }));
       setShowBonusModal(false);
       setBonusAmount(100);
@@ -57,7 +59,7 @@ export default function UsersManagementPage() {
   const handleGiveSubscription = async () => {
     if (!selectedUser) return;
     try {
-      await adminApi.giveSubscription(selectedUser.id, subscriptionDays);
+      await adminAPI.giveSubscription(selectedUser.id, subscriptionDays);
       toast.success(t('admin.users.toasts.subscriptionGiven', { days: subscriptionDays }));
       setShowSubscriptionModal(false);
       setSubscriptionDays(30);
