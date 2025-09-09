@@ -7,6 +7,7 @@ services:
     volumes:
       - ./config.yml:/etc/cloudflared/config.yml
       - ./2c52553e-1ffd-46b3-a653-1e52a8cac070.json:/etc/cloudflared/2c52553e-1ffd-46b3-a653-1e52a8cac070.json
+      - ./cert.pem:/etc/cloudflared/cert.pem
     networks:
       - ohmyrevit_network
     depends_on:

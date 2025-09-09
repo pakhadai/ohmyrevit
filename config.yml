@@ -1,5 +1,6 @@
 tunnel: 2c52553e-1ffd-46b3-a653-1e52a8cac070
 credentials-file: /etc/cloudflared/2c52553e-1ffd-46b3-a653-1e52a8cac070.json
+origincert: /etc/cloudflared/cert.pem
 
 ingress:
   - hostname: dev.ohmyrevit.pp.ua
