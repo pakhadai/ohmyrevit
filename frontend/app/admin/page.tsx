@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 // frontend/app/admin/page.tsx
 'use client';
 
@@ -6,7 +7,8 @@ import {
   Users, Package, ShoppingCart, CreditCard, TrendingUp, Tag, Loader, DollarSign,
   PlusCircle, UserPlus
 } from 'lucide-react';
-import { adminApi } from '@/lib/api/admin';
+// OLD: import { adminApi } from '@/lib/api/admin';
+import { adminAPI } from '@/lib/api';
 import { LoadingSpinner } from '@/components/admin/Shared';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -103,7 +105,8 @@ export default function AdminDashboardPage() {
   const { t } = useTranslation();
 
   useEffect(() => {
-    adminApi.getDashboardStats()
+// OLD:     adminApi.getDashboardStats()
+    adminAPI.getDashboardStats()
       .then(setStats)
       .catch(error => {
           console.error(error);

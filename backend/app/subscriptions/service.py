@@ -1,8 +1,11 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from sqlalchemy.ext.asyncio import AsyncSession
+# OLD: from app.subscriptions.models import Subscription, UserProductAccess, SubscriptionStatus
 from app.subscriptions.models import Subscription, UserProductAccess, SubscriptionStatus
 from app.products.models import Product
 from datetime import datetime, timedelta
-from sqlalchemy import select
+# OLD: from sqlalchemy import select
+from sqlalchemy import select, update
 
 
 class SubscriptionService:
@@ -35,15 +38,30 @@ class SubscriptionService:
         await self.db.refresh(subscription)
         return subscription
 
-    async def check_and_update_expired(self):
-        """Перевіряє та оновлює статус прострочених підписок"""
-        expired = await self.db.execute(
-            select(Subscription).where(
+    async def check_and_update_expired(self) -> int:
+        """
+        Перевіряє та оновлює статус прострочених підписок.
+        Повертає кількість оновлених підписок.
+        """
+        # OLD: expired = await self.db.execute(
+        # OLD:     select(Subscription).where(
+        # OLD:         Subscription.status == SubscriptionStatus.ACTIVE,
+        # OLD:         Subscription.end_date < datetime.utcnow()
+        # OLD:     )
+        # OLD: )
+        # OLD: for subscription in expired.scalars():
+        # OLD:     subscription.status = SubscriptionStatus.EXPIRED
+        # OLD: 
+        # OLD: await self.db.commit()
+        # ВИПРАВЛЕННЯ: Використовуємо один ефективний UPDATE запит замість SELECT+UPDATE
+        stmt = (
+            update(Subscription)
+            .where(
                 Subscription.status == SubscriptionStatus.ACTIVE,
                 Subscription.end_date < datetime.utcnow()
             )
+            .values(status=SubscriptionStatus.EXPIRED)
         )
-        for subscription in expired.scalars():
-            subscription.status = SubscriptionStatus.EXPIRED
-
+        result = await self.db.execute(stmt)
         await self.db.commit()
+        return result.rowcount

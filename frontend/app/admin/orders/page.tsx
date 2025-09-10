@@ -1,9 +1,11 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart, ChevronRight } from 'lucide-react';
-import { adminApi } from '@/lib/api/admin';
+// OLD: import { adminApi } from '@/lib/api/admin';
+import { adminAPI } from '@/lib/api';
 import { LoadingSpinner, EmptyState } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +27,8 @@ export default function OrdersManagementPage() {
     setLoading(true);
     try {
       const params = statusFilter ? { status: statusFilter } : {};
-      const response = await adminApi.getOrders(params);
+// OLD:       const response = await adminApi.getOrders(params);
+      const response = await adminAPI.getOrders(params);
       setOrders(response.orders || []);
     } catch (error) {
       toast.error(t('admin.orders.loadError'));

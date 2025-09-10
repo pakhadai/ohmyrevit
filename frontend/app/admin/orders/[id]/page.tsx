@@ -1,9 +1,11 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { adminApi } from '@/lib/api/admin';
+// OLD: import { adminApi } from '@/lib/api/admin';
+import { adminAPI } from '@/lib/api';
 import { LoadingSpinner } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
 import {
@@ -30,7 +32,8 @@ export default function OrderDetailPage() {
         if (!orderId) return;
         setLoading(true);
         try {
-            const orderData = await adminApi.getOrderDetail(orderId);
+// OLD:             const orderData = await adminApi.getOrderDetail(orderId);
+            const orderData = await adminAPI.getOrderDetail(orderId);
             setOrder(orderData);
         } catch (error) {
             toast.error(t('admin.orders.loadError'));
@@ -47,7 +50,8 @@ export default function OrderDetailPage() {
     const handleStatusChange = async (newStatus: string) => {
         if (!order) return;
         try {
-            await adminApi.updateOrderStatus(order.id, newStatus);
+// OLD:             await adminApi.updateOrderStatus(order.id, newStatus);
+            await adminAPI.updateOrderStatus(order.id, newStatus);
             toast.success(t('toasts.statusUpdated'));
             fetchOrderDetails();
         } catch (error) {

@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/orders/router.py
 
 import hashlib
@@ -11,10 +12,20 @@ from datetime import datetime
 from decimal import Decimal
 
 from app.core.database import get_db
+# OLD: from app.orders.models import Order, PromoCode, WebhookProcessed, OrderStatus, OrderItem
 from app.orders.models import Order, PromoCode, WebhookProcessed, OrderStatus, OrderItem
+# OLD: from app.subscriptions.models import UserProductAccess, Subscription, SubscriptionStatus, AccessType
+# OLD: from app.products.models import Product, ProductType
+# OLD: from app.users.models import User
+# OLD: from app.payments.cryptomus import CryptomusClient
+# OLD: from app.core.email import email_service
+# OLD: from app.core.config import settings
 from app.subscriptions.models import UserProductAccess, Subscription, SubscriptionStatus, AccessType
 from app.products.models import Product, ProductType
 from app.users.models import User
+from app.users.dependencies import get_current_user  # ДОДАНО
+from app.orders.service import OrderService  # ДОДАНО
+from app.orders.schemas import ApplyDiscountRequest, ApplyDiscountResponse  # ДОДАНО
 from app.payments.cryptomus import CryptomusClient
 from app.core.email import email_service
 from app.core.config import settings
@@ -24,6 +35,57 @@ from app.referrals.models import ReferralLog, ReferralBonusType
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Orders"])
+
+
+# ДОДАНО: Новий ендпоінт для розрахунку знижки
+@router.post("/promo/apply", response_model=ApplyDiscountResponse)
+async def apply_discount(
+        data: ApplyDiscountRequest,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Розраховує знижку для кошика без створення замовлення.
+    """
+    service = OrderService(db)
+
+    try:
+        # Отримуємо товари та розраховуємо subtotal
+        products_result = await db.execute(
+            select(Product).where(Product.id.in_(data.product_ids))
+        )
+        products = products_result.scalars().all()
+        if not products:
+            raise ValueError("Товари не знайдено")
+
+        subtotal = sum(p.get_actual_price() for p in products)
+
+        # Розраховуємо знижку
+        discount_data = await service.calculate_discount(
+            subtotal=subtotal,
+            user_id=current_user.id,
+            promo_code=data.promo_code,
+            bonus_points=data.use_bonus_points or 0
+        )
+
+        final_total = subtotal - discount_data["discount_amount"]
+
+        return ApplyDiscountResponse(
+            success=True,
+            discount_amount=float(discount_data["discount_amount"]),
+            final_total=float(max(final_total, Decimal(0))),
+            bonus_points_used=discount_data["bonus_used"]
+        )
+
+    except ValueError as e:
+        return ApplyDiscountResponse(
+            success=False,
+            final_total=float(subtotal),  # Повертаємо subtotal якщо знижка не застосувалась
+            message=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error applying discount: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутрішня помилка сервера")
 
 
 async def check_webhook_processed(payment_id: str, db: AsyncSession) -> bool:
