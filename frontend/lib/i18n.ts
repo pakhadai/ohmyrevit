@@ -29,8 +29,28 @@ i18n
       // Кастомна функція для парсингу стану Zustand з localStorage
       parse: (languages: readonly string[]): string | undefined => {
         try {
-          const persistedState = JSON.parse(localStorage.getItem('language-storage') || '{}');
-          const lang = persistedState?.state?.language;
+          // # OLD: const persistedState = JSON.parse(localStorage.getItem('language-storage') || '{}');
+          // # OLD: const lang = persistedState?.state?.language;
+          // # OLD: if (lang && languages.includes(lang)) {
+          // # OLD:   return lang;
+          // # OLD: }
+          const languageStorage = localStorage.getItem('language-storage');
+          if (!languageStorage) return undefined;
+
+          let lang: string | undefined;
+
+          // Спроба 1: Розпарсити як JSON-об'єкт від Zustand
+          try {
+            const persistedState = JSON.parse(languageStorage);
+            lang = persistedState?.state?.language;
+          } catch (e) {
+            // Спроба 2: Обробити як простий рядок (може бути збережено i18next-detector)
+            const rawValue = languageStorage.replace(/"/g, ''); // Видаляємо лапки на випадок '"uk"'
+            if (languages.includes(rawValue)) {
+              lang = rawValue;
+            }
+          }
+
           if (lang && languages.includes(lang)) {
             return lang;
           }

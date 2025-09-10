@@ -57,22 +57,24 @@
     "telegramConnectionError": "Could not connect to Telegram. Please open the app via Telegram."
   },
   "onboarding": {
-    "step1": {
-      "title": "Welcome to OhMyRevit!",
-      "description": "Your new marketplace for premium Autodesk Revit content."
-    },
-    "step2": {
-      "title": "Premium Subscription",
-      "description": "Get access to all new premium products while your subscription is active."
-    },
-    "step3": {
-      "title": "Daily Bonuses",
-      "description": "Log in daily to receive bonuses and use them to pay for up to 50% of your order value."
-    },
-    "step4": {
-      "title": "All set!",
-      "description": "Enjoy exclusive content and enhance your projects."
-    }
+      "welcome": {
+          "title": "Welcome to OhMyRevit!",
+          "description": "Your new source for high-quality Revit families and projects."
+      },
+      "features": {
+          "title": "All Families in One Place",
+          "description": "Access a huge library of premium products instantly. Save time and improve your workflow."
+      },
+      "subscription": {
+          "title": "Unlock Full Potential",
+          "description": "Subscribe for just $5/month to get unlimited access to all premium products and exclusive updates.",
+          "cta": "Explore Subscription"
+      },
+      "buttons": {
+          "next": "Next",
+          "skip": "Later",
+          "finish": "Let's Go!"
+      }
   },
   "subscription": {
     "pageTitle": "Premium Subscription",
