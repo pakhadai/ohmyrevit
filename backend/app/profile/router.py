@@ -1,32 +1,30 @@
 # ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/profile/router.py
-# OLD: from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi import APIRouter, Depends, Header, HTTPException, status, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-# OLD: from sqlalchemy import select
 from sqlalchemy import select, func
-# OLD: from typing import Optional, List
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import date, datetime
 from pathlib import Path
+import logging
 
 from app.core.database import get_db
 from app.users.dependencies import get_current_user
 from app.users.models import User
 from app.products.models import Product, ProductTranslation, ProductType
-from app.subscriptions.models import UserProductAccess, Subscription, SubscriptionStatus
+from app.subscriptions.models import UserProductAccess
 from app.profile.schemas import DownloadsResponse, DownloadableProduct
 from app.users.schemas import UserResponse, UserUpdate, BonusClaimResponse, TelegramAuthData
 from app.users.auth_service import AuthService
 from app.core.config import settings
 from app.bonuses.service import BonusService
-# ДОДАНО: Імпорти для реферальної системи
 from app.referrals.models import ReferralLog
 from app.referrals.schemas import ReferralInfoResponse, ReferralLogItem
 
 router = APIRouter(tags=["Profile"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/bonus/claim", response_model=BonusClaimResponse)
@@ -240,13 +238,24 @@ async def download_product_file(
 
     product = await db.get(Product, product_id)
     if not product or not product.zip_file_path:
-        raise HTTPException(status_code=404, detail="Файл товару не знайдено")
+        logger.error(f"DOWNLOAD ERROR: Product record for ID {product_id} found, but zip_file_path is missing.")
+        raise HTTPException(status_code=404, detail="Файл товару не знайдено в базі даних")
 
-    relative_path = product.zip_file_path.lstrip('/uploads/')
+    # OLD: relative_path = product.zip_file_path.lstrip('/uploads/')
+    relative_path = product.zip_file_path.removeprefix('/uploads/')
     file_path = Path(settings.UPLOAD_PATH) / relative_path
 
+    # Діагностичне логування можна закоментувати або видалити після вирішення проблеми
+    # logger.info(f"--- DOWNLOAD ATTEMPT: Product ID {product_id} ---")
+    # logger.info(f"DB zip_file_path: {product.zip_file_path}")
+    # logger.info(f"Settings UPLOAD_PATH: {settings.UPLOAD_PATH}")
+    # logger.info(f"Constructed absolute path: {file_path}")
+    # logger.info(f"Checking if path exists: {file_path.exists()}")
+    # logger.info(f"Checking if path is file: {file_path.is_file()}")
+    # logger.info(f"--- END DOWNLOAD ATTEMPT ---")
+
     if not file_path.is_file():
-        raise HTTPException(status_code=404, detail="Файл не знайдено на сервері")
+        raise HTTPException(status_code=404, detail=f"Файл не знайдено на сервері за шляхом: {file_path}")
 
     product.downloads_count += 1
     return FileResponse(str(file_path), filename=file_path.name, media_type='application/octet-stream')
