@@ -110,7 +110,10 @@ export default function AppProvider({ children }: { children: React.ReactNode })
               console.log('✅ Авторизація успішна');
               setAppReady(true);
 
-              if (loginResponse.is_new_user) {
+              const onboardingKey = `onboarding_${authData.id}`;
+              const hasCompletedOnboarding = localStorage.getItem(onboardingKey) === 'true';
+
+              if (loginResponse.is_new_user && !hasCompletedOnboarding) {
                 setShowOnboarding(true);
               }
 

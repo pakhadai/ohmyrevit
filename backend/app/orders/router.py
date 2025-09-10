@@ -1,4 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/orders/router.py
 
 import hashlib
@@ -12,24 +11,16 @@ from datetime import datetime
 from decimal import Decimal
 
 from app.core.database import get_db
-# OLD: from app.orders.models import Order, PromoCode, WebhookProcessed, OrderStatus, OrderItem
 from app.orders.models import Order, PromoCode, WebhookProcessed, OrderStatus, OrderItem
-# OLD: from app.subscriptions.models import UserProductAccess, Subscription, SubscriptionStatus, AccessType
-# OLD: from app.products.models import Product, ProductType
-# OLD: from app.users.models import User
-# OLD: from app.payments.cryptomus import CryptomusClient
-# OLD: from app.core.email import email_service
-# OLD: from app.core.config import settings
 from app.subscriptions.models import UserProductAccess, Subscription, SubscriptionStatus, AccessType
 from app.products.models import Product, ProductType
 from app.users.models import User
-from app.users.dependencies import get_current_user  # ДОДАНО
-from app.orders.service import OrderService  # ДОДАНО
-from app.orders.schemas import ApplyDiscountRequest, ApplyDiscountResponse  # ДОДАНО
+from app.users.dependencies import get_current_user
+from app.orders.service import OrderService
+from app.orders.schemas import ApplyDiscountRequest, ApplyDiscountResponse
 from app.payments.cryptomus import CryptomusClient
 from app.core.email import email_service
 from app.core.config import settings
-# ДОДАНО: Імпорти для реферальної системи
 from app.referrals.models import ReferralLog, ReferralBonusType
 
 logger = logging.getLogger(__name__)
@@ -37,20 +28,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Orders"])
 
 
-# ДОДАНО: Новий ендпоінт для розрахунку знижки
 @router.post("/promo/apply", response_model=ApplyDiscountResponse)
 async def apply_discount(
         data: ApplyDiscountRequest,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """
-    Розраховує знижку для кошика без створення замовлення.
-    """
+
     service = OrderService(db)
 
     try:
-        # Отримуємо товари та розраховуємо subtotal
         products_result = await db.execute(
             select(Product).where(Product.id.in_(data.product_ids))
         )
@@ -60,7 +47,6 @@ async def apply_discount(
 
         subtotal = sum(p.get_actual_price() for p in products)
 
-        # Розраховуємо знижку
         discount_data = await service.calculate_discount(
             subtotal=subtotal,
             user_id=current_user.id,
@@ -78,9 +64,13 @@ async def apply_discount(
         )
 
     except ValueError as e:
+
+        products_result = await db.execute(select(Product).where(Product.id.in_(data.product_ids)))
+        products = products_result.scalars().all()
+        subtotal_on_error = sum(p.get_actual_price() for p in products) if products else 0
         return ApplyDiscountResponse(
             success=False,
-            final_total=float(subtotal),  # Повертаємо subtotal якщо знижка не застосувалась
+            final_total=float(subtotal_on_error),
             message=str(e)
         )
     except Exception as e:
@@ -114,9 +104,7 @@ async def cryptomus_webhook(
         data: dict = Body(...),
         db: AsyncSession = Depends(get_db)
 ):
-    """
-    Покращена обробка webhook від Cryptomus з повною валідацією та коректними транзакціями.
-    """
+
     client_ip = request.client.host if request.client else "unknown"
     logger.info(f"Webhook received from {client_ip}, data: {data}")
 
@@ -140,14 +128,12 @@ async def cryptomus_webhook(
         raise HTTPException(status_code=400, detail="Invalid order_id format")
 
     try:
-        # ВИПРАВЛЕННЯ: Використовуємо одну атомарну транзакцію
         async with db.begin():
             if is_subscription:
                 subscription = await db.get(Subscription, order_id, options=[selectinload(Subscription.user)])
                 if not subscription:
                     logger.error(f"Subscription {order_id} not found for webhook.")
                     await mark_webhook_processed(payment_id, "error_not_found", db)
-                    # Не кидаємо HTTPException, щоб Cryptomus не повторював запит
                     return {"status": "error", "message": "Subscription not found"}
 
                 if status == "paid" and subscription.status != SubscriptionStatus.ACTIVE:
@@ -167,7 +153,7 @@ async def cryptomus_webhook(
                     subscription.status = SubscriptionStatus.CANCELLED
                     logger.warning(f"Subscription {order_id} payment failed with status: {status}")
 
-            else:  # Обробка звичайного замовлення
+            else:
                 order = await db.get(Order, order_id, options=[selectinload(Order.user),
                                                                selectinload(Order.items).selectinload(
                                                                    OrderItem.product)])
@@ -194,7 +180,6 @@ async def cryptomus_webhook(
                         if promo:
                             promo.current_uses += 1
 
-                    # РЕФЕРАЛЬНА ЛОГІКА ДЛЯ ПОКУПОК
                     buyer = order.user
                     if buyer and buyer.referrer_id:
                         referrer = await db.get(User, buyer.referrer_id)
@@ -224,9 +209,7 @@ async def cryptomus_webhook(
 
             await mark_webhook_processed(payment_id, status, db)
 
-        # db.begin() автоматично робить commit при успішному виході
         return {"status": "ok"}
     except Exception as e:
-        # db.begin() автоматично робить rollback при виключенні
         logger.error(f"Unexpected error processing webhook: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
