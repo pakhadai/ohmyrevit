@@ -6,8 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Package, PlusCircle, Edit, Trash2
 } from 'lucide-react';
-// OLD: import { adminApi } from '@/lib/api/admin';
-import { adminAPI } from '@/lib/api';
+import { adminAPI, productsAPI } from '@/lib/api';
 import { LoadingSpinner, EmptyState } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -21,8 +20,7 @@ export default function ProductsManagementPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-// OLD:       const productsRes = await adminApi.getProducts({ limit: 100 });
-      const productsRes = await adminAPI.getProducts({ limit: 100 });
+      const productsRes = await productsAPI.getProducts({ limit: 100 });
       setProducts(productsRes.products || []);
     } catch (error) {
       toast.error(t('admin.products.toasts.loadError'));
@@ -42,7 +40,6 @@ export default function ProductsManagementPage() {
   const handleDelete = async (id: number) => {
     if (!confirm(t('admin.products.confirmDelete'))) return;
     try {
-// OLD:       await adminApi.deleteProduct(id);
       await adminAPI.deleteProduct(id);
       toast.success(t('admin.products.toasts.deleted'));
       fetchData();
