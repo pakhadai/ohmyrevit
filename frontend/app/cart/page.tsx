@@ -9,7 +9,7 @@ import { Trash2, Tag, Coins, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ordersAPI } from '@/lib/api'
 import toast from 'react-hot-toast'
-import { useTranslation } from 'react-i18next'; // ДОДАНО
+import { useTranslation } from 'react-i18next';
 
 export default function CartPage() {
   const router = useRouter()
@@ -34,7 +34,7 @@ export default function CartPage() {
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [isCalculating, setIsCalculating] = useState(false)
-  const { t } = useTranslation(); // ДОДАНО
+  const { t } = useTranslation();
 
   const subtotal = useMemo(() => getTotalPrice(), [items])
 
@@ -50,11 +50,15 @@ export default function CartPage() {
         use_bonus_points: bonuses > 0 ? bonuses : undefined
       });
 
+      console.log('Discount API Response:', response);
+
       if (response.success) {
         setDiscountAmount(response.discount_amount);
         setFinalTotal(response.final_total);
-        if (promo) toast.success('Промокод застосовано!');
-        if (bonuses > 0) toast.success('Бонуси застосовано!');
+        // OLD: if (promo) toast.success('Промокод застосовано!');
+        // OLD: if (bonuses > 0) toast.success('Бонуси застосовано!');
+        if (promo) toast.success(t('toasts.promoApplied'));
+        if (bonuses > 0) toast.success(t('toasts.bonusesApplied'));
       } else {
         setDiscountAmount(0);
         setFinalTotal(subtotal);
@@ -63,7 +67,8 @@ export default function CartPage() {
         if (bonuses > 0) setBonusPoints(0);
       }
     } catch (err: any) {
-      toast.error('Помилка при розрахунку знижки');
+      // OLD: toast.error('Помилка при розрахунку знижки');
+      toast.error(t('toasts.discountCalculationError'));
       setDiscountAmount(0);
       setFinalTotal(subtotal);
     } finally {
@@ -91,17 +96,22 @@ export default function CartPage() {
         use_bonus_points: useBonusPoints > 0 ? useBonusPoints : null
       })
 
-      toast.success(response.message || 'Створюємо замовлення...');
-
+      // OLD: toast.success(response.message || 'Створюємо замовлення...');
       if (response.payment_url) {
+        // OLD: window.location.href = response.payment_url;
+        toast.success(t('toasts.redirectingToPayment'));
         window.location.href = response.payment_url;
       } else {
+        // OLD: clearCart();
+        // OLD: router.push('/profile');
+        toast.success(t('toasts.orderSuccessNoPayment'));
         clearCart();
-        router.push('/profile');
+        router.push('/profile/downloads');
       }
 
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Помилка при оформленні замовлення');
+      // OLD: toast.error(err.response?.data?.detail || 'Помилка при оформленні замовлення');
+      toast.error(err.response?.data?.detail || t('toasts.checkoutError'));
     } finally {
       setIsProcessing(false)
     }
@@ -136,15 +146,12 @@ export default function CartPage() {
   if (items.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
-        {/* OLD: <h2 className="text-2xl font-bold mb-4">Ваш кошик порожній</h2> */}
         <h2 className="text-2xl font-bold mb-4">{t('cart.empty.title')}</h2>
-        {/* OLD: <p className="text-gray-500 dark:text-gray-400 mb-6">Схоже, ви ще нічого не додали. Час це виправити!</p> */}
         <p className="text-gray-500 dark:text-gray-400 mb-6">{t('cart.empty.subtitle')}</p>
         <button
           onClick={() => router.push('/marketplace')}
           className="px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors"
         >
-          {/* OLD: Перейти до маркетплейсу */}
           {t('cart.empty.goToMarket')}
         </button>
       </div>
@@ -153,11 +160,9 @@ export default function CartPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* OLD: <h1 className="text-3xl font-bold mb-8">Мій кошик</h1> */}
       <h1 className="text-3xl font-bold mb-8">{t('cart.title')}</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Список товарів */}
         <div className="lg:col-span-2 space-y-4">
           <AnimatePresence>
             {items.map((item) => (
@@ -204,16 +209,12 @@ export default function CartPage() {
           </AnimatePresence>
         </div>
 
-        {/* Оформлення замовлення */}
         <div className="bg-white dark:bg-slate-800 rounded-lg p-6 h-fit shadow">
-          {/* OLD: <h2 className="text-xl font-bold mb-4">Ваше замовлення</h2> */}
           <h2 className="text-xl font-bold mb-4">{t('cart.summary.title')}</h2>
 
-          {/* Промокод */}
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">
               <Tag size={16} className="inline mr-1" />
-              {/* OLD: Промокод */}
               {t('cart.summary.promo')}
             </label>
             <div className="flex gap-2">
@@ -221,7 +222,6 @@ export default function CartPage() {
                 type="text"
                 value={promoInput}
                 onChange={(e) => setPromoInput(e.target.value)}
-                // OLD: placeholder="Введіть код"
                 placeholder={t('cart.summary.promoPlaceholder')}
                 disabled={useBonusPoints > 0 || isCalculating}
                 className="flex-1 px-3 py-2 border rounded-lg disabled:opacity-50 dark:bg-slate-700 dark:border-slate-600"
@@ -231,7 +231,6 @@ export default function CartPage() {
                 disabled={useBonusPoints > 0 || isCalculating}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:opacity-50"
               >
-                {/* OLD: OK */}
                 {t('cart.summary.apply')}
               </button>
             </div>
@@ -239,15 +238,12 @@ export default function CartPage() {
 
           <div className="relative text-center my-4">
               <span className="absolute left-0 top-1/2 w-full h-px bg-gray-200 dark:bg-slate-700"></span>
-              {/* OLD: <span className="relative bg-white dark:bg-slate-800 px-2 text-xs text-gray-500">АБО</span> */}
               <span className="relative bg-white dark:bg-slate-800 px-2 text-xs text-gray-500">{t('cart.summary.or')}</span>
           </div>
 
-          {/* Бонуси */}
           <div className="mb-6">
             <label className="block text-sm font-medium mb-2">
               <Coins size={16} className="inline mr-1" />
-              {/* OLD: Використати бонуси (доступно: {user?.bonus_balance || 0}) */}
               {t('cart.summary.useBonuses', { count: user?.bonus_balance || 0 })}
             </label>
             <div className="flex gap-2">
@@ -264,7 +260,6 @@ export default function CartPage() {
                 disabled={!!promoCode || isCalculating}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:opacity-50"
               >
-                {/* OLD: OK */}
                 {t('cart.summary.apply')}
               </button>
             </div>
@@ -277,34 +272,28 @@ export default function CartPage() {
               </div>
           )}
 
-          {/* Підсумок */}
           <div className="border-t dark:border-slate-700 pt-4 space-y-2">
             <div className="flex justify-between text-gray-600 dark:text-gray-300">
-              {/* OLD: <span>Разом:</span> */}
               <span>{t('cart.summary.subtotal')}</span>
               <span>${subtotal.toFixed(2)}</span>
             </div>
             {discountAmount > 0 && (
               <div className="flex justify-between text-green-500">
-                {/* OLD: <span>Знижка:</span> */}
                 <span>{t('cart.summary.discount')}</span>
                 <span>-${discountAmount.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between text-xl font-bold">
-              {/* OLD: <span>До сплати:</span> */}
               <span>{t('cart.summary.total')}</span>
               <span>${finalTotal.toFixed(2)}</span>
             </div>
           </div>
 
-          {/* Кнопка оформлення */}
           <button
             onClick={handleCheckout}
             disabled={isProcessing || isCalculating || items.length === 0}
             className="w-full mt-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-semibold disabled:opacity-50 hover:shadow-lg transition"
           >
-            {/* OLD: {isProcessing ? 'Обробка...' : 'Оформити замовлення'} */}
             {isProcessing ? t('common.processing') : t('cart.summary.checkout')}
           </button>
 
@@ -313,7 +302,6 @@ export default function CartPage() {
                 onClick={clearDiscounts}
                 className="w-full mt-2 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               >
-                {/* OLD: Скасувати знижку */}
                 {t('cart.summary.cancelDiscount')}
               </button>
           )}

@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/orders/router.py
 
 import hashlib
@@ -17,7 +18,7 @@ from app.products.models import Product, ProductType
 from app.users.models import User
 from app.users.dependencies import get_current_user
 from app.orders.service import OrderService
-from app.orders.schemas import ApplyDiscountRequest, ApplyDiscountResponse
+from app.orders.schemas import CreateOrderRequest, ApplyDiscountRequest, ApplyDiscountResponse, CheckoutResponse
 from app.payments.cryptomus import CryptomusClient
 from app.core.email import email_service
 from app.core.config import settings
@@ -28,13 +29,86 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Orders"])
 
 
+@router.post("/checkout", response_model=CheckoutResponse)
+async def create_checkout_order(
+        data: CreateOrderRequest,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Створює замовлення та платіжне посилання, або одразу надає доступ,
+    якщо сума до сплати дорівнює нулю.
+    """
+    service = OrderService(db)
+    try:
+        order = await service.create_order(
+            user_id=current_user.id,
+            product_ids=data.product_ids,
+            promo_code=data.promo_code,
+            use_bonus_points=data.use_bonus_points
+        )
+
+        if order.final_total <= 0:
+            order.status = OrderStatus.PAID
+            order.paid_at = datetime.utcnow()
+
+            for item in order.items:
+                access_exists = await db.execute(
+                    select(UserProductAccess).where(
+                        UserProductAccess.user_id == current_user.id,
+                        UserProductAccess.product_id == item.product_id
+                    )
+                )
+                if not access_exists.scalar_one_or_none():
+                    db.add(UserProductAccess(
+                        user_id=current_user.id,
+                        product_id=item.product_id,
+                        access_type=AccessType.PURCHASE
+                    ))
+
+            if order.promo_code_id:
+                promo = await db.get(PromoCode, order.promo_code_id)
+                if promo:
+                    promo.current_uses += 1
+
+            await db.commit()
+            logger.info(f"Order {order.id} was fully covered by discount. Access granted immediately.")
+            return CheckoutResponse(
+                order_id=order.id,
+                payment_url=None,
+                amount=0.0
+            )
+
+        cryptomus = CryptomusClient()
+        payment_data = await cryptomus.create_payment(
+            amount=float(order.final_total),
+            order_id=str(order.id)
+        )
+        result = payment_data.get("result", {})
+        order.payment_url = result.get("url")
+        order.payment_id = result.get("uuid")
+
+        await db.commit()
+
+        return CheckoutResponse(
+            order_id=order.id,
+            payment_url=order.payment_url,
+            amount=float(order.final_total)
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error creating checkout: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Внутрішня помилка сервера при створенні замовлення")
+
+
 @router.post("/promo/apply", response_model=ApplyDiscountResponse)
 async def apply_discount(
         data: ApplyDiscountRequest,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-
     service = OrderService(db)
 
     try:
@@ -56,6 +130,11 @@ async def apply_discount(
 
         final_total = subtotal - discount_data["discount_amount"]
 
+        # ДОДАНО: Детальне логування успішного застосування знижки
+        logger.info(f"Discount applied for user {current_user.id}. "
+                    f"Promo: '{data.promo_code}', Bonuses: {data.use_bonus_points}. "
+                    f"Subtotal: {subtotal}, Discount: {discount_data['discount_amount']}, Final: {final_total}")
+
         return ApplyDiscountResponse(
             success=True,
             discount_amount=float(discount_data["discount_amount"]),
@@ -64,6 +143,9 @@ async def apply_discount(
         )
 
     except ValueError as e:
+        # ДОДАНО: Детальне логування помилки застосування знижки
+        logger.warning(f"Failed to apply discount for user {current_user.id}. "
+                       f"Promo: '{data.promo_code}', Bonuses: {data.use_bonus_points}. Reason: {e}")
 
         products_result = await db.execute(select(Product).where(Product.id.in_(data.product_ids)))
         products = products_result.scalars().all()
@@ -104,7 +186,6 @@ async def cryptomus_webhook(
         data: dict = Body(...),
         db: AsyncSession = Depends(get_db)
 ):
-
     client_ip = request.client.host if request.client else "unknown"
     logger.info(f"Webhook received from {client_ip}, data: {data}")
 

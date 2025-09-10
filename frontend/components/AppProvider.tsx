@@ -52,7 +52,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         setAppReady(true);
         return;
       }
-      console.log('🚀 Ініціалізація Telegram Mini App...');
+      console.log('🚀 Initializing Telegram Mini App...');
       let attempts = 0;
       const maxAttempts = 20;
       const checkTelegram = async () => {
@@ -64,16 +64,17 @@ export default function AppProvider({ children }: { children: React.ReactNode })
           tg.ready();
           tg.expand();
 
-          console.log('📱 Telegram WebApp знайдено');
+          console.log('📱 Telegram WebApp found');
 
           const initData = tg.initDataUnsafe;
 
           if (initData && initData.user) {
-            console.log('👤 Користувач Telegram:', initData.user);
+            console.log('👤 Telegram User:', initData.user);
 
             const authData = {
               id: initData.user.id,
-              first_name: initData.user.first_name || 'Користувач',
+              // OLD: first_name: initData.user.first_name || 'Користувач',
+              first_name: initData.user.first_name || t('common.userFallbackName'),
               last_name: initData.user.last_name || '',
               username: initData.user.username || '',
               photo_url: initData.user.photo_url || '',
@@ -94,7 +95,8 @@ export default function AppProvider({ children }: { children: React.ReactNode })
                 setLanguage(authData.language_code as any);
               }
 
-              const userName = authData.first_name || 'Користувач';
+              // OLD: const userName = authData.first_name || 'Користувач';
+              const userName = authData.first_name || t('common.userFallbackName');
               toast.success(t('toasts.welcome', { userName }), {
                 duration: 4000,
                 position: 'top-center',
@@ -107,7 +109,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
                 }
               });
 
-              console.log('✅ Авторизація успішна');
+              console.log('✅ Authorization successful');
               setAppReady(true);
 
               const onboardingKey = `onboarding_${authData.id}`;
@@ -118,18 +120,18 @@ export default function AppProvider({ children }: { children: React.ReactNode })
               }
 
             } catch (error: any) {
-              console.error('❌ Помилка авторизації:', error);
+              console.error('❌ Authorization error:', error);
               setAuthError(t('appProvider.loginError'));
               toast.error(t('toasts.authError'), {
                 duration: 5000
               });
             }
           } else {
-            console.warn('⚠️ Немає даних користувача від Telegram');
+            console.warn('⚠️ No user data from Telegram');
             setAuthError(t('appProvider.telegramOnlyError'));
           }
         } else if (attempts >= maxAttempts) {
-          console.error('❌ Telegram WebApp не завантажився');
+          console.error('❌ Telegram WebApp did not load');
           setAuthError(t('appProvider.telegramConnectionError'));
           setAppReady(true);
         } else {
@@ -167,7 +169,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         <div className="text-center text-white">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-4"></div>
           <h2 className="text-2xl font-bold mb-2">OhMyRevit</h2>
-          <p className="text-white/80">{isI18nReady ? t('common.loading') : 'Loading settings...'}</p>
+          <p className="text-white/80">{t('common.loading')}</p>
         </div>
       </div>
     );

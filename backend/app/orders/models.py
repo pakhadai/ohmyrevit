@@ -59,6 +59,7 @@ class Order(Base):
     # Зв'язки
     user = relationship("User", backref="orders")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    # OLD: promo_code = relationship("PromoCode", back_populates="orders_used_in")
     promo_code = relationship("PromoCode", back_populates="orders_used_in")
 
 

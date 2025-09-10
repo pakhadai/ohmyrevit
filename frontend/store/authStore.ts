@@ -1,10 +1,8 @@
-// frontend/store/authStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User } from '@/types';
 import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
-import i18n from '@/lib/i18n'; // ДОДАНО
 
 interface AuthState {
   user: User | null;
@@ -13,7 +11,7 @@ interface AuthState {
   isAuthenticated: boolean;
   lastLoginAt: number | null;
 
-  login: (initData: object) => Promise<any>; // Змінено тип повернення
+  login: (initData: object) => Promise<any>;
   logout: () => void;
   setUser: (user: User) => void;
   checkTokenValidity: () => void;
@@ -26,7 +24,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isLoading: false,
       isAuthenticated: false,
-      lastLoginAt: null,
+      lastLoginAt: null, // ДОДАНО
 
       login: async (initData: object) => {
         set({ isLoading: true });
@@ -48,7 +46,7 @@ export const useAuthStore = create<AuthState>()(
           });
 
           console.log('✅ Користувач авторизований:', response.user.first_name);
-          return response; // Повертаємо всю відповідь
+          return response;
 
         } catch (error: any) {
           console.error('❌ Помилка авторизації:', error);
@@ -71,8 +69,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           lastLoginAt: null,
         });
-        // OLD: toast.success('Ви вийшли з системи');
-        toast.success(i18n.t('toasts.loggedOut'));
+        toast.success('Ви вийшли з системи');
       },
 
       setUser: (user: User) => {
@@ -87,8 +84,7 @@ export const useAuthStore = create<AuthState>()(
 
         if (Date.now() - lastLoginAt > TOKEN_LIFETIME_MS) {
           get().logout();
-          // OLD: toast.error("Сесія застаріла. Будь ласка, увійдіть знову.");
-          toast.error(i18n.t('toasts.sessionExpired'));
+          toast.error("Сесія застаріла. Будь ласка, увійдіть знову.");
         }
       },
     }),

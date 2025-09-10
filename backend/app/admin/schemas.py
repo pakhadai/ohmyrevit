@@ -97,6 +97,8 @@ class OrderForPromoCode(BaseModel):
     final_total: float
     created_at: datetime
     user: UserBrief
+    # ДОДАНО: Конфігурація для роботи з ORM
+    model_config = ConfigDict(from_attributes=True)
 
 class PromoCodeDetailResponse(PromoCodeResponse):
     """Детальна відповідь для промокоду з історією замовлень"""
@@ -128,6 +130,7 @@ class SubscriptionForUser(BaseModel):
     start_date: datetime
     end_date: datetime
     status: str
+    model_config = ConfigDict(from_attributes=True)
 
 class OrderForUser(BaseModel):
     id: int
@@ -135,6 +138,7 @@ class OrderForUser(BaseModel):
     status: str
     created_at: datetime
     items_count: int
+    model_config = ConfigDict(from_attributes=True)
 
 class ReferralForUser(BaseModel):
     id: int
@@ -142,6 +146,7 @@ class ReferralForUser(BaseModel):
     last_name: Optional[str]
     username: Optional[str]
     created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
 
 class UserDetailResponse(UserBrief):
     """Повна інформація про користувача для адмін-панелі"""
@@ -163,6 +168,7 @@ class ProductInOrder(BaseModel):
     title: str
     price_at_purchase: float
     main_image_url: str
+    model_config = ConfigDict(from_attributes=True)
 
 class OrderDetailResponse(BaseModel):
     id: int

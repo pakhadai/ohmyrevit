@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from decimal import Decimal
@@ -54,5 +55,6 @@ class OrderItemResponse(BaseModel):
 
 class CheckoutResponse(BaseModel):
     order_id: int
-    payment_url: str
+    # OLD: payment_url: str
+    payment_url: Optional[str] = None
     amount: float
