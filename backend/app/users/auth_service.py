@@ -1,8 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
-# backend/app/users/auth_service.py
-"""
-Сервіс для авторизації користувачів через Telegram
-"""
 import hashlib
 import hmac
 import time
@@ -12,6 +7,7 @@ from typing import Optional, Dict, Any, Tuple
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 import logging
 import secrets
@@ -26,15 +22,10 @@ logger = logging.getLogger(__name__)
 
 
 class AuthService:
-    """
-    Сервіс для роботи з авторизацією
-    """
 
     @staticmethod
     def verify_telegram_auth(auth_data: dict) -> bool:
-        """
-        Перевірка підпису даних від Telegram
-        """
+
         if settings.DEBUG:
             logger.info("🔧 Debug mode: skipping Telegram auth verification")
             return True
@@ -49,7 +40,7 @@ class AuthService:
             return settings.DEBUG
 
         auth_date = auth_dict.get('auth_date', 0)
-        if time.time() - int(auth_date) > 86400:  # 24 години
+        if time.time() - int(auth_date) > 86400:
             logger.warning("⏰ Auth data is too old")
             return False
 
@@ -71,9 +62,6 @@ class AuthService:
 
     @staticmethod
     def create_access_token(user_id: int) -> str:
-        """
-        Створення JWT токену
-        """
         expire = datetime.utcnow() + timedelta(hours=settings.JWT_EXPIRATION_HOURS)
         payload = {"sub": str(user_id), "exp": expire, "iat": datetime.utcnow()}
         token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
@@ -82,9 +70,6 @@ class AuthService:
 
     @staticmethod
     def verify_token(token: str) -> Optional[int]:
-        """
-        Перевірка JWT токену
-        """
         try:
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
             user_id = int(payload.get("sub"))
@@ -95,7 +80,6 @@ class AuthService:
 
     @staticmethod
     def _generate_referral_code(length: int = 8) -> str:
-        """Генерує випадковий реферальний код."""
         alphabet = string.ascii_uppercase + string.digits
         return ''.join(secrets.choice(alphabet) for _ in range(length))
 
@@ -104,9 +88,7 @@ class AuthService:
             db: AsyncSession,
             auth_data: TelegramAuthData
     ) -> Tuple[User, bool]:
-        """
-        Автентифікація користувача через Telegram з коректним управлінням транзакціями.
-        """
+
         logger.info(f"🔄 Starting authentication for Telegram user {auth_data.id}")
         auth_data_dict = auth_data.model_dump(exclude_none=True)
 
@@ -131,20 +113,25 @@ class AuthService:
                     photo_url=auth_data.photo_url,
                     last_login_at=datetime.utcnow()
                 )
+                db.add(user)
 
-                while True:
-                    new_code = AuthService._generate_referral_code()
-                    existing = await db.execute(select(User.id).where(User.referral_code == new_code))
-                    if not existing.scalar_one_or_none():
-                        user.referral_code = new_code
+                for _ in range(5):
+                    try:
+                        user.referral_code = AuthService._generate_referral_code()
+                        await db.flush()
                         break
+                    except IntegrityError:
+                        await db.rollback()
+                        logger.warning(f"Referral code collision for new user, retrying...")
+                else:
+                    raise HTTPException(status_code=500, detail="Could not generate unique referral code")
+
 
                 users_count_res = await db.execute(select(func.count(User.id)))
-                if users_count_res.scalar_one() == 0:
+                if users_count_res.scalar_one() == 1:
                     user.is_admin = True
                     logger.info("👑 First user - setting as admin")
 
-                db.add(user)
                 await db.flush()
 
                 if auth_data.start_param:
@@ -154,7 +141,6 @@ class AuthService:
                     if referrer and referrer.id != user.id:
                         user.referrer_id = referrer.id
                         referrer.bonus_balance += 30
-                        # OLD: db.add(referrer)
                         db.add(ReferralLog(
                             referrer_id=referrer.id,
                             referred_user_id=user.id,
@@ -163,7 +149,7 @@ class AuthService:
                         ))
                         logger.info(f"🎁 User {referrer.id} will receive 30 bonuses for inviting user {user.id}")
 
-            else:  # Якщо користувач існує
+            else:
                 logger.info(f"📝 Updating existing user {user.id}")
                 user.username = auth_data.username
                 user.first_name = auth_data.first_name or f'User {auth_data.id}'
@@ -172,19 +158,28 @@ class AuthService:
                 user.photo_url = auth_data.photo_url
                 user.last_login_at = datetime.utcnow()
 
-                # ДОДАНО: Генерація реферального коду для існуючих користувачів, у яких його немає
                 if not user.referral_code:
-                    while True:
-                        new_code = AuthService._generate_referral_code()
-                        existing = await db.execute(select(User.id).where(User.referral_code == new_code))
-                        if not existing.scalar_one_or_none():
-                            user.referral_code = new_code
+                    for _ in range(5):
+                        try:
+                            user.referral_code = AuthService._generate_referral_code()
+                            await db.flush()
                             logger.info(f"🔑 Generated missing referral code for existing user {user.id}")
                             break
+                        except IntegrityError:
+                            await db.rollback()
+                            logger.warning(f"Referral code collision for existing user {user.id}, retrying...")
+                    else:
+                        logger.error(f"Failed to generate referral code for user {user.id}")
+
 
             logger.info(f"✅ User {user.id} authenticated successfully. Final commit will be handled by dependency.")
             return user, is_new_user
 
+        except IntegrityError:
+             await db.rollback()
+             logger.error(f"Database integrity error during auth for user {auth_data.id}", exc_info=True)
+             raise HTTPException(status_code=500, detail="Database conflict occurred")
         except Exception as e:
+            await db.rollback()
             logger.error(f"❌ Database error during auth: {e}", exc_info=True)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to process user data")

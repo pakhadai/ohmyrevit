@@ -1,6 +1,6 @@
+// frontend/components/Onboarding.tsx
 'use client';
 
-import { useUiStore } from '@/store/uiStore';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,8 +12,7 @@ const slideVariants = {
   exit: { opacity: 0, x: -300 },
 };
 
-const Onboarding = () => {
-  const { finishOnboarding, onboardingCompleted } = useUiStore();
+const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
   const [step, setStep] = useState(0);
   const { t } = useTranslation();
   const router = useRouter();
@@ -43,19 +42,15 @@ const Onboarding = () => {
       handleFinish();
     }
   };
-  
+
   const handleSubscription = () => {
-    finishOnboarding();
+    onComplete();
     router.push('/subscription');
   };
 
   const handleFinish = () => {
-    finishOnboarding();
+    onComplete();
   };
-
-  if (onboardingCompleted) {
-    return null;
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-between bg-white dark:bg-zinc-900 p-6">
