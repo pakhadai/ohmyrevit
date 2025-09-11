@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from fastapi import APIRouter, Depends, Header, HTTPException, status, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -208,6 +209,17 @@ async def check_product_access(
     return {"accessible_product_ids": list(accessible_ids)}
 
 
+def get_archive_media_type(filename: str) -> str:
+    """Визначає MIME-тип на основі розширення файлу для кращої сумісності."""
+    if filename.lower().endswith('.zip'):
+        return 'application/zip'
+    if filename.lower().endswith('.rar'):
+        return 'application/vnd.rar'
+    if filename.lower().endswith('.7z'):
+        return 'application/x-7z-compressed'
+    return 'application/octet-stream'  # Загальний тип як запасний варіант
+
+
 @router.get("/download/{product_id}")
 async def download_product_file(
         product_id: int,
@@ -232,7 +244,10 @@ async def download_product_file(
 
     product.downloads_count += 1
     await db.commit()
-    return FileResponse(str(file_path), filename=file_path.name, media_type='application/octet-stream')
+    # OLD: return FileResponse(str(file_path), filename=file_path.name, media_type='application/octet-stream')
+    media_type = get_archive_media_type(file_path.name)
+    return FileResponse(str(file_path), filename=file_path.name, media_type=media_type)
+
 
 @router.get("/referrals", response_model=ReferralInfoResponse)
 async def get_referral_info(
