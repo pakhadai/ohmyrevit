@@ -49,29 +49,30 @@ async def create_checkout_order(
         )
 
         if order.final_total <= 0:
-            order.status = OrderStatus.PAID
-            order.paid_at = datetime.utcnow()
-
-            for item in order.items:
-                access_exists = await db.execute(
-                    select(UserProductAccess).where(
-                        UserProductAccess.user_id == current_user.id,
-                        UserProductAccess.product_id == item.product_id
-                    )
-                )
-                if not access_exists.scalar_one_or_none():
-                    db.add(UserProductAccess(
-                        user_id=current_user.id,
-                        product_id=item.product_id,
-                        access_type=AccessType.PURCHASE
-                    ))
-
-            if order.promo_code_id:
-                promo = await db.get(PromoCode, order.promo_code_id)
-                if promo:
-                    promo.current_uses += 1
-
-            await db.commit()
+            # OLD: order.status = OrderStatus.PAID
+            # OLD: order.paid_at = datetime.utcnow()
+            # OLD:
+            # OLD: for item in order.items:
+            # OLD:     access_exists = await db.execute(
+            # OLD:         select(UserProductAccess).where(
+            # OLD:             UserProductAccess.user_id == current_user.id,
+            # OLD:             UserProductAccess.product_id == item.product_id
+            # OLD:         )
+            # OLD:     )
+            # OLD:     if not access_exists.scalar_one_or_none():
+            # OLD:         db.add(UserProductAccess(
+            # OLD:             user_id=current_user.id,
+            # OLD:             product_id=item.product_id,
+            # OLD:             access_type=AccessType.PURCHASE
+            # OLD:         ))
+            # OLD:
+            # OLD: if order.promo_code_id:
+            # OLD:     promo = await db.get(PromoCode, order.promo_code_id)
+            # OLD:     if promo:
+            # OLD:         promo.current_uses += 1
+            # OLD:
+            # OLD: await db.commit()
+            order = await service.process_successful_order(order.id)
             logger.info(f"Order {order.id} was fully covered by discount. Access granted immediately.")
             return CheckoutResponse(
                 order_id=order.id,
@@ -88,7 +89,7 @@ async def create_checkout_order(
         order.payment_url = result.get("url")
         order.payment_id = result.get("uuid")
 
-        await db.commit()
+        # OLD: await db.commit()
 
         return CheckoutResponse(
             order_id=order.id,
@@ -235,56 +236,24 @@ async def cryptomus_webhook(
                     logger.warning(f"Subscription {order_id} payment failed with status: {status}")
 
             else:
-                order = await db.get(Order, order_id, options=[selectinload(Order.user),
-                                                               selectinload(Order.items).selectinload(
-                                                                   OrderItem.product)])
+                order_res = await db.execute(select(Order).where(Order.id == order_id))
+                order = order_res.scalar_one()
                 if not order:
                     logger.error(f"Order {order_id} not found for webhook.")
                     await mark_webhook_processed(payment_id, "error_not_found", db)
                     return {"status": "error", "message": "Order not found"}
 
                 if status == "paid" and order.status != OrderStatus.PAID:
-                    order.status = OrderStatus.PAID
-                    order.paid_at = datetime.utcnow()
                     order.payment_id = payment_id
+                    service = OrderService(db)
+                    await service.process_successful_order(order.id)
 
-                    for item in order.items:
-                        existing_access_res = await db.execute(
-                            select(UserProductAccess).where(UserProductAccess.user_id == order.user_id,
-                                                            UserProductAccess.product_id == item.product_id))
-                        if not existing_access_res.scalar_one_or_none():
-                            db.add(UserProductAccess(user_id=order.user_id, product_id=item.product_id,
-                                                     access_type=AccessType.PURCHASE))
-
-                    if order.promo_code_id:
-                        promo = await db.get(PromoCode, order.promo_code_id)
-                        if promo:
-                            promo.current_uses += 1
-
-                    buyer = order.user
-                    if buyer and buyer.referrer_id:
-                        referrer = await db.get(User, buyer.referrer_id)
-                        if referrer:
-                            commission_amount = int(order.final_total * Decimal('0.05') * 100)
-                            if commission_amount > 0:
-                                referrer.bonus_balance += commission_amount
-                                db.add(ReferralLog(
-                                    referrer_id=referrer.id,
-                                    referred_user_id=buyer.id,
-                                    order_id=order.id,
-                                    bonus_type=ReferralBonusType.PURCHASE,
-                                    bonus_amount=commission_amount,
-                                    purchase_amount=order.final_total
-                                ))
-                                logger.info(
-                                    f"🎁 User {referrer.id} received {commission_amount} bonuses for referral purchase from user {buyer.id}")
-
-                    logger.info(f"Order {order_id} paid successfully.")
 
                 elif status in ["cancel", "wrong_amount", "fail", "system_fail"]:
                     order.status = OrderStatus.FAILED
-                    if order.bonus_used > 0 and order.user:
-                        order.user.bonus_balance += order.bonus_used
+                    user_to_refund = await db.get(User, order.user_id)
+                    if order.bonus_used > 0 and user_to_refund:
+                        user_to_refund.bonus_balance += order.bonus_used
                         logger.info(f"Returned {order.bonus_used} bonus points to user {order.user_id}")
                     logger.warning(f"Order {order_id} payment failed with status: {status}")
 

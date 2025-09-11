@@ -4,12 +4,20 @@ from typing import Optional, List
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.orders.models import Order, OrderItem, PromoCode, DiscountType
+from sqlalchemy.orm import selectinload
+# OLD: from app.orders.models import Order, OrderItem, PromoCode, DiscountType
+from app.orders.models import Order, OrderItem, PromoCode, DiscountType, OrderStatus
 from app.products.models import Product
 from app.users.models import User
 from datetime import datetime
 from fastapi import HTTPException
 from app.core.config import settings
+# ДОДАНО: Імпорти для нової логіки
+import logging
+from app.subscriptions.models import UserProductAccess, AccessType
+from app.referrals.models import ReferralLog, ReferralBonusType
+
+logger = logging.getLogger(__name__)
 
 
 class OrderService:
@@ -121,22 +129,106 @@ class OrderService:
             promo_code_id=discount_data["promo_code_id"],
             bonus_used=discount_data["bonus_used"]
         )
+
+        # ВИПРАВЛЕННЯ: Ідіоматичне створення пов'язаних об'єктів через relationship
+        for product in products:
+            order.items.append(
+                OrderItem(
+                    product_id=product.id,
+                    price_at_purchase=product.get_actual_price()
+                )
+            )
+
         self.db.add(order)
         await self.db.flush()
 
-        for product in products:
-            order_item = OrderItem(
-                order_id=order.id,
-                product_id=product.id,
-                price_at_purchase=product.get_actual_price()
-            )
-            self.db.add(order_item)
-
-        await self.db.refresh(order, attribute_names=['items'])
+        # OLD: for product in products:
+        # OLD:     order_item = OrderItem(
+        # OLD:         order_id=order.id,
+        # OLD:         product_id=product.id,
+        # OLD:         price_at_purchase=product.get_actual_price()
+        # OLD:     )
+        # OLD:     self.db.add(order_item)
+        # OLD:
+        # OLD: await self.db.refresh(order, attribute_names=['items'])
 
         if discount_data["bonus_used"] > 0:
             user = await self.db.get(User, user_id)
             if user:
                 user.bonus_balance -= discount_data["bonus_used"]
 
+        return order
+
+    # OLD: async def process_successful_order(self, order: Order) -> Order:
+    async def process_successful_order(self, order_id: int) -> Order:
+        """
+        Централізована обробка успішного замовлення (оплаченого або безкоштовного).
+        Змінює статус, надає доступ, оновлює промокоди та нараховує реферальні бонуси.
+        """
+        # ГАРАНТІЯ НАДІЙНОСТІ: Завжди завантажуємо замовлення з БД з усіма потрібними зв'язками
+        order_res = await self.db.execute(
+            select(Order).options(
+                selectinload(Order.user).selectinload(User.referrer),
+                selectinload(Order.items).selectinload(OrderItem.product)
+            ).where(Order.id == order_id)
+        )
+        # OLD: order = order_res.scalar_one_or_none()
+        order = order_res.unique().scalar_one_or_none()
+
+        if not order:
+            logger.error(f"Attempted to process non-existent order with ID {order_id}")
+            raise ValueError(f"Order with ID {order_id} not found.")
+
+        if order.status == OrderStatus.PAID:
+            logger.warning(f"Order {order.id} is already marked as paid. Skipping processing.")
+            return order
+
+        # 1. Оновлюємо статус замовлення
+        order.status = OrderStatus.PAID
+        order.paid_at = datetime.utcnow()
+
+        # 2. Надаємо доступ до товарів
+        for item in order.items:
+            access_exists_res = await self.db.execute(
+                select(UserProductAccess).where(
+                    UserProductAccess.user_id == order.user_id,
+                    UserProductAccess.product_id == item.product_id
+                )
+            )
+            if not access_exists_res.scalar_one_or_none():
+                self.db.add(UserProductAccess(
+                    user_id=order.user_id,
+                    product_id=item.product_id,
+                    access_type=AccessType.PURCHASE
+                ))
+                logger.info(f"ACCESS GRANTED: User {order.user_id}, Product {item.product_id}")
+
+        # 3. Оновлюємо лічильник промокоду
+        if order.promo_code_id:
+            promo = await self.db.get(PromoCode, order.promo_code_id)
+            if promo:
+                promo.current_uses += 1
+                logger.info(f"Promo code {promo.code} usage incremented for order {order.id}")
+
+        # 4. Нараховуємо реферальний бонус
+        buyer = order.user
+        if buyer and buyer.referrer_id:
+            referrer = buyer.referrer
+            if referrer:
+                commission_amount = int(order.final_total * Decimal('0.05') * 100)
+                if commission_amount > 0:
+                    referrer.bonus_balance += commission_amount
+                    self.db.add(ReferralLog(
+                        referrer_id=referrer.id,
+                        referred_user_id=buyer.id,
+                        order_id=order.id,
+                        bonus_type=ReferralBonusType.PURCHASE,
+                        bonus_amount=commission_amount,
+                        purchase_amount=order.final_total
+                    ))
+                    logger.info(
+                        f"REFERRAL: User {referrer.id} received {commission_amount} bonuses for purchase from user {buyer.id}")
+
+        logger.info(f"Order {order.id} processed successfully as PAID.")
+        await self.db.flush()
         return order
