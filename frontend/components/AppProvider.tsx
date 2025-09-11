@@ -1,3 +1,4 @@
+// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -17,7 +18,7 @@ declare global {
 }
 
 export default function AppProvider({ children }: { children: React.ReactNode }) {
-  const { user, login, isLoading, isAuthenticated } = useAuthStore();
+  const { user, login, isLoading, isAuthenticated, isNewUser, completeOnboarding } = useAuthStore();
   const { fetchInitialData } = useCollectionStore();
   const { setLanguage } = useLanguageStore();
   const { setTheme } = useUIStore();
@@ -73,7 +74,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
 
             const authData = {
               id: initData.user.id,
-              // OLD: first_name: initData.user.first_name || 'Користувач',
               first_name: initData.user.first_name || t('common.userFallbackName'),
               last_name: initData.user.last_name || '',
               username: initData.user.username || '',
@@ -95,29 +95,26 @@ export default function AppProvider({ children }: { children: React.ReactNode })
                 setLanguage(authData.language_code as any);
               }
 
-              // OLD: const userName = authData.first_name || 'Користувач';
               const userName = authData.first_name || t('common.userFallbackName');
-              toast.success(t('toasts.welcome', { userName }), {
-                duration: 4000,
-                position: 'top-center',
-                style: {
-                  background: '#10B981',
-                  color: 'white',
-                  fontSize: '16px',
-                  padding: '16px',
-                  borderRadius: '12px'
-                }
-              });
+              if (!loginResponse.is_new_user) {
+                  toast.success(t('toasts.welcome', { userName }), {
+                    duration: 4000,
+                    position: 'top-center',
+                    style: {
+                      background: '#10B981',
+                      color: 'white',
+                      fontSize: '16px',
+                      padding: '16px',
+                      borderRadius: '12px'
+                    }
+                  });
+              }
+
 
               console.log('✅ Authorization successful');
               setAppReady(true);
 
-              const onboardingKey = `onboarding_${authData.id}`;
-              const hasCompletedOnboarding = localStorage.getItem(onboardingKey) === 'true';
-
-              if (loginResponse.is_new_user && !hasCompletedOnboarding) {
-                setShowOnboarding(true);
-              }
+              // Логіка онбордингу тепер буде в іншому useEffect
 
             } catch (error: any) {
               console.error('❌ Authorization error:', error);
@@ -156,11 +153,21 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     };
   }, [login, isAuthenticated, fetchInitialData, t, setTheme, setLanguage]);
 
-  const handleOnboardingComplete = () => {
-    if (user) {
-      localStorage.setItem(`onboarding_${user.telegram_id}`, 'true');
+  // ДОДАНО: Окремий useEffect для управління онбордингом
+  useEffect(() => {
+    if (isAuthenticated && user && isNewUser) {
+      const onboardingKey = `onboarding_${user.telegram_id}`;
+      const hasCompletedOnboarding = localStorage.getItem(onboardingKey) === 'true';
+      if (!hasCompletedOnboarding) {
+        setShowOnboarding(true);
+      }
     }
+  }, [isAuthenticated, user, isNewUser]);
+
+
+  const handleOnboardingComplete = () => {
     setShowOnboarding(false);
+    completeOnboarding(); // Викликаємо метод зі стору
   };
 
   if (!appReady || isLoading || !isI18nReady) {
@@ -169,7 +176,8 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         <div className="text-center text-white">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-4"></div>
           <h2 className="text-2xl font-bold mb-2">OhMyRevit</h2>
-          <p className="text-white/80">{t('common.loading')}</p>
+          {/* OLD: <p className="text-white/80">{t('common.loading')}</p> */}
+          <p className="text-white/80">Завантаження...</p>
         </div>
       </div>
     );

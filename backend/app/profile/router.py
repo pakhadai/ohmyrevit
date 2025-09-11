@@ -1,5 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
-# backend/app/profile/router.py
 from fastapi import APIRouter, Depends, Header, HTTPException, status, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,9 +30,6 @@ async def claim_daily_bonus(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """
-    Отримання щоденного бонусу
-    """
     bonus_service = BonusService(db)
     result = await bonus_service.claim_daily_bonus(current_user.id)
     return result
@@ -45,9 +40,7 @@ async def get_bonus_info(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """
-    Інформація про бонусний статус користувача
-    """
+
     bonus_service = BonusService(db)
     info = await bonus_service.get_bonus_info(current_user.id)
     return info
@@ -58,9 +51,7 @@ async def get_favorites(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """
-    Отримання списку обраних товарів
-    """
+
     # TODO: Реалізувати після додавання таблиці favorites
     return {"message": "Coming soon"}
 
@@ -71,9 +62,7 @@ async def get_my_downloads(
         accept_language: Optional[str] = Header(default="uk"),
         db: AsyncSession = Depends(get_db)
 ):
-    """
-    Отримання списку товарів, доступних для завантаження, розділених на преміум та безкоштовні.
-    """
+
     language_code = accept_language.split(",")[0].split("-")[0].lower()
     if language_code not in ["uk", "en", "ru"]:
         language_code = "uk"
@@ -127,9 +116,7 @@ async def get_my_downloads(
 async def get_current_user_profile(
         current_user: User = Depends(get_current_user)
 ):
-    """
-    Отримання профілю поточного користувача
-    """
+
     return UserResponse.from_orm(current_user)
 
 
@@ -139,9 +126,7 @@ async def sync_profile_with_telegram(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """
-    Оновлює дані профілю (ім'я, юзернейм, фото) з даних Telegram
-    """
+
     auth_data_dict = auth_data.model_dump(exclude_unset=True)
     if not AuthService.verify_telegram_auth(auth_data_dict):
         raise HTTPException(
@@ -177,9 +162,7 @@ async def update_current_user_profile(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """
-    Оновлення профілю поточного користувача (тільки email та телефон)
-    """
+
     update_data = user_update.model_dump(exclude_unset=True)
     allowed_fields = ['email', 'phone']
 
@@ -241,44 +224,43 @@ async def download_product_file(
         logger.error(f"DOWNLOAD ERROR: Product record for ID {product_id} found, but zip_file_path is missing.")
         raise HTTPException(status_code=404, detail="Файл товару не знайдено в базі даних")
 
-    # OLD: relative_path = product.zip_file_path.lstrip('/uploads/')
     relative_path = product.zip_file_path.removeprefix('/uploads/')
     file_path = Path(settings.UPLOAD_PATH) / relative_path
-
-    # Діагностичне логування можна закоментувати або видалити після вирішення проблеми
-    # logger.info(f"--- DOWNLOAD ATTEMPT: Product ID {product_id} ---")
-    # logger.info(f"DB zip_file_path: {product.zip_file_path}")
-    # logger.info(f"Settings UPLOAD_PATH: {settings.UPLOAD_PATH}")
-    # logger.info(f"Constructed absolute path: {file_path}")
-    # logger.info(f"Checking if path exists: {file_path.exists()}")
-    # logger.info(f"Checking if path is file: {file_path.is_file()}")
-    # logger.info(f"--- END DOWNLOAD ATTEMPT ---")
 
     if not file_path.is_file():
         raise HTTPException(status_code=404, detail=f"Файл не знайдено на сервері за шляхом: {file_path}")
 
     product.downloads_count += 1
+    await db.commit()
     return FileResponse(str(file_path), filename=file_path.name, media_type='application/octet-stream')
 
-
-# ДОДАНО: Новий ендпоінт для реферальної системи
 @router.get("/referrals", response_model=ReferralInfoResponse)
 async def get_referral_info(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Отримання інформації для реферальної сторінки."""
 
+    user_with_referrals = await db.execute(
+        select(User).options(selectinload(User.referrals)).where(User.id == current_user.id)
+    )
+    user = user_with_referrals.scalar_one_or_none()
+    if not user:
+         raise HTTPException(status_code=404, detail="Користувача не знайдено")
+
+
+    # Отримуємо логування з жадібним завантаженням
     logs_query = await db.execute(
         select(ReferralLog)
         .options(selectinload(ReferralLog.referred_user))
-        .where(ReferralLog.referrer_id == current_user.id)
+        .where(ReferralLog.referrer_id == user.id)
         .order_by(ReferralLog.created_at.desc())
     )
     logs = logs_query.scalars().unique().all()
 
-    total_referrals = len(set(log.referred_user_id for log in logs))
+
+    total_referrals = len(user.referrals)
     total_bonuses_earned = sum(log.bonus_amount for log in logs)
+
 
     formatted_logs = [
         ReferralLogItem(
@@ -292,8 +274,9 @@ async def get_referral_info(
     ]
 
     return ReferralInfoResponse(
-        referral_code=current_user.referral_code,
+        referral_code=user.referral_code,
         total_referrals=total_referrals,
         total_bonuses_earned=total_bonuses_earned,
-        logs=formatted_logs
+        logs=formatted_logs,
+        referred_users=user.referrals
     )

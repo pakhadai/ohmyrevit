@@ -10,11 +10,13 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   lastLoginAt: number | null;
+  isNewUser: boolean | null; // ДОДАНО: Для відстеження онбордингу
 
   login: (initData: object) => Promise<any>;
   logout: () => void;
   setUser: (user: User) => void;
   checkTokenValidity: () => void;
+  completeOnboarding: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -24,10 +26,11 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isLoading: false,
       isAuthenticated: false,
-      lastLoginAt: null, // ДОДАНО
+      lastLoginAt: null,
+      isNewUser: null, // ДОДАНО
 
       login: async (initData: object) => {
-        set({ isLoading: true });
+        set({ isLoading: true, isNewUser: null });
 
         try {
           console.log('🔐 Починаємо авторизацію...');
@@ -43,6 +46,7 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
             isLoading: false,
             lastLoginAt: Date.now(),
+            isNewUser: response.is_new_user,
           });
 
           console.log('✅ Користувач авторизований:', response.user.first_name);
@@ -55,7 +59,8 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             isAuthenticated: false,
             user: null,
-            token: null
+            token: null,
+            isNewUser: null,
           });
 
           throw error;
@@ -68,12 +73,20 @@ export const useAuthStore = create<AuthState>()(
           token: null,
           isAuthenticated: false,
           lastLoginAt: null,
+          isNewUser: null,
         });
         toast.success('Ви вийшли з системи');
       },
 
       setUser: (user: User) => {
         set({ user });
+      },
+
+      completeOnboarding: () => {
+        set({ isNewUser: false });
+        if (get().user) {
+          localStorage.setItem(`onboarding_${get().user!.telegram_id}`, 'true');
+        }
       },
 
       checkTokenValidity: () => {
@@ -95,6 +108,7 @@ export const useAuthStore = create<AuthState>()(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
         lastLoginAt: state.lastLoginAt,
+        // Не зберігаємо isNewUser, це стан сесії
       }),
     }
   )

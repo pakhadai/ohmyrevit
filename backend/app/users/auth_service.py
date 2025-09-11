@@ -125,6 +125,7 @@ class AuthService:
         is_new_user = not user
 
         try:
+            # OLD: async with db.begin():
             if is_new_user:
                 logger.info(f"✨ Creating new user with telegram_id {auth_data.id}")
                 user = User(
@@ -137,6 +138,7 @@ class AuthService:
                     last_login_at=datetime.utcnow()
                 )
                 db.add(user)
+                await db.flush() # Потрібно для отримання user.id
 
                 for _ in range(5): # 5 спроб згенерувати унікальний код
                     try:
@@ -145,6 +147,7 @@ class AuthService:
                         break
                     except IntegrityError:
                         await db.rollback() # Відкат, якщо код не унікальний
+                        db.add(user) # Додаємо користувача знову після відкату
                         logger.warning(f"Referral code collision for new user, retrying...")
                 else: # Якщо всі 5 спроб невдалі
                     raise HTTPException(status_code=500, detail="Could not generate unique referral code")
@@ -154,8 +157,6 @@ class AuthService:
                 if users_count_res.scalar_one() == 1: # Перший користувач системи
                     user.is_admin = True
                     logger.info("👑 First user - setting as admin")
-
-                await db.flush()
 
                 if auth_data.start_param:
                     referrer_code = auth_data.start_param.strip()
@@ -198,17 +199,19 @@ class AuthService:
                             break
                         except IntegrityError:
                             await db.rollback()
+                            db.add(user)
                             logger.warning(f"Referral code collision for existing user {user.id}, retrying...")
                     else:
                         logger.error(f"Failed to generate referral code for user {user.id}")
 
-
-            logger.info(f"✅ User {user.id} authenticated successfully. Final commit will be handled by dependency.")
+            await db.flush()
+            await db.refresh(user)
+            logger.info(f"✅ User {user.id} authenticated successfully.")
             return user, is_new_user
 
-        except IntegrityError:
+        except IntegrityError as e:
              await db.rollback()
-             logger.error(f"Database integrity error during auth for user {auth_data.id}", exc_info=True)
+             logger.error(f"Database integrity error during auth for user {auth_data.id}: {e}", exc_info=True)
              raise HTTPException(status_code=500, detail="Database conflict occurred")
         except Exception as e:
             await db.rollback()
