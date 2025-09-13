@@ -31,10 +31,11 @@ pytz==2024.1
 sentry-sdk[fastapi]==1.39.2
 colorlog==6.8.2
 
-# Testing
+# Testing (опціонально)
 pytest==8.1.1
-pytest-asyncio==0.23.6
+pytest-anyio
 freezegun==1.5.0
+
 
 # Для роботи з файлами
 aiofiles==23.2.1

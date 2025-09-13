@@ -1,15 +1,17 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 import asyncio
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool
+import time
 
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app
 from app.users.models import User
-from app.products.models import Product, Category, ProductTranslation, CategoryTranslation
+from app.products.models import Product, ProductTranslation
 from app.orders.models import PromoCode, DiscountType
 from decimal import Decimal
 
@@ -26,12 +28,6 @@ async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
 
 app.dependency_overrides[get_db] = override_get_db
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
 @pytest.fixture(autouse=True, scope="session")
 async def prepare_database():
     async with engine_test.begin() as conn:
@@ -40,19 +36,20 @@ async def prepare_database():
     async with engine_test.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
-@pytest.fixture(scope="session")
+# OLD: @pytest.fixture(scope="session")
+@pytest.fixture(scope="function") # ВИПРАВЛЕНО: Змінено scope на "function" для ізоляції тестів
 async def async_client() -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(app=app, base_url="http://test") as client:
         yield client
 
 # --- FIXTURES ДЛЯ СТВОРЕННЯ ТЕСТОВИХ ДАНИХ ---
 
-@pytest.fixture
+@pytest.fixture(scope="function") # ДОДАНО: Явно вказуємо scope
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
         yield session
 
-@pytest.fixture
+@pytest.fixture(scope="function") # ДОДАНО: Явно вказуємо scope
 async def referrer_user(db_session: AsyncSession) -> User:
     user = User(
         telegram_id=1001,
@@ -65,7 +62,7 @@ async def referrer_user(db_session: AsyncSession) -> User:
     await db_session.refresh(user)
     return user
 
-@pytest.fixture
+@pytest.fixture(scope="function") # ДОДАНО: Явно вказуємо scope
 async def referred_user(db_session: AsyncSession, referrer_user: User) -> User:
     user = User(
         telegram_id=1002,
@@ -79,7 +76,7 @@ async def referred_user(db_session: AsyncSession, referrer_user: User) -> User:
     await db_session.refresh(user)
     return user
 
-@pytest.fixture
+@pytest.fixture(scope="function") # ДОДАНО: Явно вказуємо scope
 async def test_products(db_session: AsyncSession) -> list[Product]:
     p1 = Product(price=Decimal("10.00"), main_image_url="/img.jpg", zip_file_path="/file.zip", file_size_mb=10)
     p1.translations.append(ProductTranslation(language_code='uk', title='Преміум Товар 1', description='...'))
@@ -97,8 +94,7 @@ async def test_products(db_session: AsyncSession) -> list[Product]:
     await db_session.refresh(p3)
     return [p1, p2, p3]
 
-
-@pytest.fixture
+@pytest.fixture(scope="function") # ДОДАНО: Явно вказуємо scope
 async def test_promo_code(db_session: AsyncSession) -> PromoCode:
     promo = PromoCode(
         code="TEST10",
@@ -111,15 +107,19 @@ async def test_promo_code(db_session: AsyncSession) -> PromoCode:
     await db_session.refresh(promo)
     return promo
 
-@pytest.fixture
+@pytest.fixture(scope="function") # ДОДАНО: Явно вказуємо scope
 async def authorized_client(async_client: AsyncClient, referred_user: User) -> AsyncClient:
     """Створює клієнта, який вже авторизований під referred_user."""
     auth_data = {
         "id": referred_user.telegram_id,
         "first_name": referred_user.first_name,
+        # OLD: "hash": "test_hash_for_development"
+        # ВИПРАВЛЕНО: Додано обов'язкові поля для валідації
+        "auth_date": int(time.time()),
         "hash": "test_hash_for_development"
     }
-    response = await async_client.post("/auth/telegram", json=auth_data)
-    token = response.json()["access_token"]
+    response = await async_client.post("/api/v1/auth/telegram", json=auth_data)
+    response.raise_for_status()
+    token = response.json().get("access_token")
     async_client.headers = {"Authorization": f"Bearer {token}"}
     return async_client
