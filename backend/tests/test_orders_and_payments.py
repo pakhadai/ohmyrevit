@@ -3,14 +3,16 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.users.models import User
-from app.orders.models import Order, OrderStatus
+# OLD: from app.orders.models import Order, OrderStatus
+from app.orders.models import Order, OrderStatus, PromoCode
 from app.products.models import Product
 from app.subscriptions.models import UserProductAccess
 from decimal import Decimal
 
 
 async def test_create_order_with_promo(authorized_client: AsyncClient, db_session: AsyncSession,
-                                       test_products: list[Product], test_promo_code: dict):
+# OLD:                                        test_products: list[Product], test_promo_code: dict):
+                                       test_products: list[Product], test_promo_code: PromoCode):
     product_ids = [p.id for p in test_products if p.product_type == 'premium']
     response = await authorized_client.post("/orders/checkout",
                                             json={"product_ids": product_ids, "promo_code": test_promo_code.code})

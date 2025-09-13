@@ -34,23 +34,24 @@ shell-db: ## Відкрити psql в контейнері бази даних
 
 # Міграції бази даних
 migrate: ## Застосувати міграції
-	docker-compose exec backend alembic upgrade head
+	docker-compose exec -T backend alembic upgrade head
 
 makemigration: ## Створити нову міграцію
-	docker-compose exec backend alembic revision --autogenerate -m "$(msg)"
+# OLD: 	docker-compose exec backend alembic revision --autogenerate -m "$(msg)"
+	docker-compose exec -T backend alembic revision --autogenerate -m "$(msg)"
 
 downgrade: ## Відкатити останню міграцію
-	docker-compose exec backend alembic downgrade -1
+	docker-compose exec -T backend alembic downgrade -1
 
 migration-history: ## Показати історію міграцій
-	docker-compose exec backend alembic history
+	docker-compose exec -T backend alembic history
 
 # Тестування
 test: ## Запустити тести
-	docker-compose exec backend pytest
+	docker-compose exec -T backend pytest
 
 test-coverage: ## Запустити тести з покриттям
-	docker-compose exec backend pytest --cov=app --cov-report=html
+	docker-compose exec -T backend pytest --cov=app --cov-report=html
 
 # Утиліти
 clean: ## Очистити невикористані Docker ресурси

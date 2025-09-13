@@ -1,6 +1,3 @@
-"""
-API роутери для роботи з товарами
-"""
 from fastapi import APIRouter, Depends, HTTPException, Query, Header, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
@@ -156,7 +153,8 @@ async def delete_product(
 @admin_router.post("/{product_id}/translations")
 async def update_product_translation(
         product_id: int,
-        language_code: str = Query(..., regex="^(en|ru)$", description="Код мови: en або ru"),
+        # OLD: language_code: str = Query(..., regex="^(en|ru)$", description="Код мови: en або ru"),
+        language_code: str = Query(..., pattern="^(en|ru)$", description="Код мови: en або ru"),
         title: str = Query(..., min_length=1, max_length=200),
         description: str = Query(..., min_length=1),
         db: AsyncSession = Depends(get_db),
@@ -241,14 +239,7 @@ async def create_category(
 # ========== Допоміжні функції ==========
 
 def _parse_language_header(accept_language: str) -> str:
-    """
-    Парсинг заголовка Accept-Language
 
-    Приклади:
-    - "uk" -> "uk"
-    - "en-US,en;q=0.9" -> "en"
-    - "ru-RU" -> "ru"
-    """
     if not accept_language:
         return "uk"
 
@@ -261,6 +252,6 @@ def _parse_language_header(accept_language: str) -> str:
     # Перевіряємо підтримувані мови
     supported_languages = ["uk", "en", "ru"]
     if lang not in supported_languages:
-        return "uk"  # Fallback
+        return "uk"
 
     return lang

@@ -110,11 +110,14 @@ async def test_promo_code(db_session: AsyncSession) -> PromoCode:
 @pytest.fixture(scope="function") # ДОДАНО: Явно вказуємо scope
 async def authorized_client(async_client: AsyncClient, referred_user: User) -> AsyncClient:
     """Створює клієнта, який вже авторизований під referred_user."""
-    auth_data = {
+    # OLD: auth_data = {
+    # OLD:     "id": referred_user.telegram_id,
+    # OLD:     "first_name": referred_user.first_name,
+    # OLD:     "hash": "test_hash_for_development"
+    # OLD: }
+    auth_data = { # ВИПРАВЛЕНО: Додано обов'язкове поле auth_date для валідації
         "id": referred_user.telegram_id,
         "first_name": referred_user.first_name,
-        # OLD: "hash": "test_hash_for_development"
-        # ВИПРАВЛЕНО: Додано обов'язкові поля для валідації
         "auth_date": int(time.time()),
         "hash": "test_hash_for_development"
     }
