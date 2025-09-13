@@ -1,12 +1,13 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: ohmyrevit_cloudflared
     restart: unless-stopped
-    command: tunnel --config /etc/cloudflared/config.yml run 2c52553e-1ffd-46b3-a653-1e52a8cac070
+    command: tunnel --config /etc/cloudflared/config.yml run 2c52553e-1ffd-463-a653-1e52a8cac070
     volumes:
       - ./config.yml:/etc/cloudflared/config.yml
-      - ./2c52553e-1ffd-46b3-a653-1e52a8cac070.json:/etc/cloudflared/2c52553e-1ffd-46b3-a653-1e52a8cac070.json
+      - ./2c52553e-1ffd-463-a653-1e52a8cac070.json:/etc/cloudflared/2c52553e-1ffd-463-a653-1e52a8cac070.json
       - ./cert.pem:/etc/cloudflared/cert.pem
     networks:
       - ohmyrevit_network
@@ -36,6 +37,9 @@ services:
     container_name: ohmyrevit_backend
     env_file:
       - ./.env
+    # ДОДАНО: Змінна середовища PYTHONPATH для коректної роботи імпортів в тестах
+    environment:
+      PYTHONPATH: .
     volumes:
       - ./backend:/app
       - backend_uploads:/app/uploads
