@@ -6,6 +6,7 @@ from app.users.models import User
 from app.referrals.models import ReferralLog
 import time
 
+@pytest.mark.anyio
 async def test_new_user_registration(async_client: AsyncClient, db_session: AsyncSession):
     auth_data = {
         "id": 12345, "first_name": "Newbie", "username": "new_user",
@@ -17,6 +18,7 @@ async def test_new_user_registration(async_client: AsyncClient, db_session: Asyn
     assert data["is_new_user"] is True
     assert "access_token" in data
 
+@pytest.mark.anyio
 async def test_existing_user_login(async_client: AsyncClient, referrer_user: User):
     auth_data = {
         "id": referrer_user.telegram_id, "first_name": "Updated Name",
@@ -27,6 +29,7 @@ async def test_existing_user_login(async_client: AsyncClient, referrer_user: Use
     data = response.json()
     assert data["is_new_user"] is False
 
+@pytest.mark.anyio
 async def test_referral_on_registration(async_client: AsyncClient, db_session: AsyncSession, referrer_user: User):
     initial_balance = referrer_user.bonus_balance
     auth_data = {

@@ -3,15 +3,14 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.users.models import User
-# OLD: from app.orders.models import Order, OrderStatus
 from app.orders.models import Order, OrderStatus, PromoCode
 from app.products.models import Product
 from app.subscriptions.models import UserProductAccess
 from decimal import Decimal
 
 
+@pytest.mark.anyio
 async def test_create_order_with_promo(authorized_client: AsyncClient, db_session: AsyncSession,
-# OLD:                                        test_products: list[Product], test_promo_code: dict):
                                        test_products: list[Product], test_promo_code: PromoCode):
     product_ids = [p.id for p in test_products if p.product_type == 'premium']
     response = await authorized_client.post("/orders/checkout",
@@ -22,6 +21,7 @@ async def test_create_order_with_promo(authorized_client: AsyncClient, db_sessio
     assert order.promo_code_id == test_promo_code.id
 
 
+@pytest.mark.anyio
 async def test_create_order_with_bonuses(authorized_client: AsyncClient, db_session: AsyncSession, referred_user: User,
                                          test_products: list[Product]):
     product_ids = [p.id for p in test_products if p.product_type == 'premium']
@@ -34,6 +34,7 @@ async def test_create_order_with_bonuses(authorized_client: AsyncClient, db_sess
     assert referred_user.bonus_balance == 500
 
 
+@pytest.mark.anyio
 async def test_free_order_grants_access_immediately(authorized_client: AsyncClient, db_session: AsyncSession,
                                                     test_products: list[Product]):
     free_product_id = next(p.id for p in test_products if p.product_type == 'free')
@@ -46,6 +47,7 @@ async def test_free_order_grants_access_immediately(authorized_client: AsyncClie
     assert access_result.scalar_one_or_none() is not None
 
 
+@pytest.mark.anyio
 async def test_webhook_successful_payment(async_client: AsyncClient, db_session: AsyncSession, referred_user: User,
                                           test_products: list[Product]):
     premium_product = next(p for p in test_products if p.product_type == 'premium')

@@ -7,6 +7,7 @@ from freezegun import freeze_time
 import time
 
 
+@pytest.mark.anyio
 async def test_claim_bonus_first_time(authorized_client: AsyncClient, db_session: AsyncSession, referred_user: User):
     response = await authorized_client.post("/profile/bonus/claim")
     assert response.status_code == 200
@@ -17,6 +18,7 @@ async def test_claim_bonus_first_time(authorized_client: AsyncClient, db_session
     assert referred_user.last_bonus_claim_date == date.today()
 
 
+@pytest.mark.anyio
 async def test_claim_bonus_twice_fails(authorized_client: AsyncClient):
     await authorized_client.post("/profile/bonus/claim")
     response = await authorized_client.post("/profile/bonus/claim")
@@ -25,6 +27,7 @@ async def test_claim_bonus_twice_fails(authorized_client: AsyncClient):
     assert data["success"] is False
 
 
+@pytest.mark.anyio
 @freeze_time("2025-01-01")
 async def test_bonus_streak(authorized_client: AsyncClient, db_session: AsyncSession, referred_user: User):
     await authorized_client.post("/profile/bonus/claim")
@@ -36,6 +39,7 @@ async def test_bonus_streak(authorized_client: AsyncClient, db_session: AsyncSes
         assert response.json()["new_streak"] == 1
 
 
+@pytest.mark.anyio
 async def test_get_referral_info(async_client: AsyncClient, db_session: AsyncSession, referrer_user: User,
                                  referred_user: User):
     from app.referrals.models import ReferralLog, ReferralBonusType

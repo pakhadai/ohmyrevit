@@ -1,17 +1,12 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
-"""
-Конфігурація додатку з використанням Pydantic Settings
-"""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
 from functools import lru_cache
 
 class Settings(BaseSettings):
-    """
-    Основні налаштування додатку
-    """
+
     # Database
     DATABASE_URL: str
+    DB_NAME: str
     DB_ECHO: bool = False
 
     # Redis
@@ -54,8 +49,6 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # =================================================================
-    # ВИРІШЕННЯ ПРОБЛЕМИ: Жорстко кодуємо значення, які викликають помилку
-    # =================================================================
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "https://dev.ohmyrevit.pp.ua", "https://t.me"]
     ALLOWED_FILE_EXTENSIONS: List[str] = [".zip", ".rar", ".7z"]
     # =================================================================
@@ -88,9 +81,7 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings() -> Settings:
-    """
-    Функція для отримання налаштувань (кешується)
-    """
+
     return Settings()
 
 # Глобальний об'єкт налаштувань
