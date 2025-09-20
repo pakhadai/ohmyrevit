@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional, Any
 from functools import lru_cache
@@ -50,17 +51,19 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # =================================================================
-    ALLOWED_ORIGINS: List[str] = []
+    # OLD: ALLOWED_ORIGINS: List[str] = []
+    ALLOWED_ORIGINS: str = "" # ЗМІНЕНО ТИП НА str
     ALLOWED_FILE_EXTENSIONS: List[str] = [".zip", ".rar", ".7z"]
     # =================================================================
 
-    @field_validator("ALLOWED_ORIGINS", mode="before")
-    @classmethod
-    def _parse_comma_separated_list(cls, v: Any) -> Any:
-        """Перетворює рядок, розділений комами, на список рядків."""
-        if isinstance(v, str):
-            return [item.strip() for item in v.split(",") if item.strip()]
-        return v
+    # OLD: @field_validator("ALLOWED_ORIGINS", mode="before")
+    # OLD: @classmethod
+    # OLD: def _parse_comma_separated_list(cls, v: Any) -> Any:
+    # OLD:     """Перетворює рядок, розділений комами, на список рядків."""
+    # OLD:     if isinstance(v, str):
+    # OLD:         return [item.strip() for item in v.split(",") if item.strip()]
+    # OLD:     return v
+    # ВАЛІДАТОР ВИДАЛЕНО, оскільки він більше не потрібен
 
 
     # Files

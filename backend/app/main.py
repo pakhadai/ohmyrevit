@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -47,13 +48,22 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# OLD: app.add_middleware(
+# OLD:     CORSMiddleware,
+# OLD:     allow_origins=settings.ALLOWED_ORIGINS,
+# OLD:     allow_credentials=True,
+# OLD:     allow_methods=["*"],
+# OLD:     allow_headers=["*"],
+# OLD: )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    # ПЕРЕТВОРЮЄМО РЯДОК НА СПИСОК ПРЯМО ТУТ
+    allow_origins=[origin.strip() for origin in settings.ALLOWED_ORIGINS.split(',')] if settings.ALLOWED_ORIGINS else [],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_PATH), name="uploads")
 
