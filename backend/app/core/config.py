@@ -1,7 +1,8 @@
 # ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List, Optional
+from typing import List, Optional, Any
 from functools import lru_cache
+from pydantic import field_validator
 
 class Settings(BaseSettings):
 
@@ -51,10 +52,16 @@ class Settings(BaseSettings):
 
     # =================================================================
     # OLD: ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "https://dev.ohmyrevit.pp.ua", "https://t.me"]
-    # ВИПРАВЛЕНО: Забираємо жорстке кодування, щоб значення бралось тільки з .env файлу
     ALLOWED_ORIGINS: List[str] = []
     ALLOWED_FILE_EXTENSIONS: List[str] = [".zip", ".rar", ".7z"]
     # =================================================================
+
+    @field_validator('ALLOWED_ORIGINS', mode='before')
+    @classmethod
+    def _split_str(cls, v: Any) -> List[str]:
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(',') if item.strip()]
+        return v
 
     # Files
     MAX_UPLOAD_SIZE_MB: int = 100
@@ -75,7 +82,7 @@ class Settings(BaseSettings):
     DAILY_BONUS_BASE: int = 10
     BONUS_TO_USD_RATE: int = 100  # 100 бонусів = $1
     MAX_BONUS_DISCOUNT_PERCENT: float = 0.5
-    REFERRAL_REGISTRATION_BONUS: int = 30 # ДОДАНО
+    REFERRAL_REGISTRATION_BONUS: int = 30
 
     # Налаштування для файлів
     UPLOAD_DIR: str = "./uploads"
