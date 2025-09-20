@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # Core
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
@@ -33,9 +34,11 @@ colorlog==6.8.2
 
 # Testing (опціонально)
 pytest==8.1.1
-# OLD: pytest-anyio
-# OLD: pytest-lazy-fixture
-pytest-lazy-fixture==0.6.3
+# OLD: # OLD: pytest-anyio
+# OLD: # OLD: pytest-lazy-fixture
+# OLD: pytest-lazy-fixture==0.6.3
+pytest-anyio
+# OLD: pytest-lazy-fixture==0.6.3  # Цей пакет більше не потрібен завдяки виправленню conftest.py
 freezegun==1.5.0
 
 

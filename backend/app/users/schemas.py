@@ -85,8 +85,9 @@ class TelegramAuthData(BaseModel):
     language_code: Optional[str] = "uk"
     is_premium: Optional[bool] = False
 
-    class Config:
-        extra = "allow"
+    # OLD: class Config:
+    # OLD:     extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
 
 class TokenResponse(BaseModel):

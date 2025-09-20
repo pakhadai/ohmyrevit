@@ -25,24 +25,31 @@ TEST_DATABASE_URL = settings.DATABASE_URL.replace(settings.DB_NAME, TEST_DB_NAME
 engine_test = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
 async_session_maker = async_sessionmaker(engine_test, class_=AsyncSession, expire_on_commit=False)
 
-async def override_get_db(session: AsyncSession = pytest.lazy_fixture("db_session")) -> AsyncGenerator[
-    AsyncSession, None]:
-    yield session
 
+# OLD: # OLD: async def override_get_db(session: AsyncSession = pytest.lazy_fixture("db_session")) -> AsyncGenerator[
+# OLD: # OLD:     AsyncSession, None]:
+# OLD: # OLD:     yield session
+# OLD: # OLD:
+# OLD: # OLD:
+# OLD: # OLD: app.dependency_overrides[get_db] = override_get_db
 
-app.dependency_overrides[get_db] = override_get_db
+# ДОДАНО: Перевизначаємо фікстуру anyio_backend з областю видимості 'session'
+# Це вирішує проблему ScopeMismatch для асинхронних фікстур рівня сесії.
+@pytest.fixture(scope='session')
+def anyio_backend():
+    return 'asyncio'
 
 
 @pytest.fixture(scope="session")
-def event_loop():
+def event_loop(anyio_backend):
     """Створює event loop для всієї тестової сесії."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
+
 @pytest.fixture(scope="session", autouse=True)
 async def prepare_database(event_loop):
-
     service_db_url = settings.DATABASE_URL.replace(f"/{settings.DB_NAME}", "/postgres")
     create_engine = create_async_engine(service_db_url, isolation_level="AUTOCOMMIT")
 
@@ -63,22 +70,32 @@ async def prepare_database(event_loop):
     await create_engine.dispose()
 
 
-@pytest.fixture(scope="function")
-async def async_client() -> AsyncGenerator[AsyncClient, None]:
-    async with AsyncClient(app=app, base_url="http://test") as client:
-        yield client
-
-
 # --- FIXTURES ДЛЯ СТВОРЕННЯ ТЕСТОВИХ ДАНИХ ---
 
 @pytest.fixture(scope="function")
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
-
     async with engine_test.connect() as connection:
         async with connection.begin() as transaction:
             session = AsyncSession(bind=connection, expire_on_commit=False)
             yield session
             await transaction.rollback()
+
+
+# ОНОВЛЕНА ФІКСТУРА: Тепер вона напряму приймає db_session і підміняє залежність
+@pytest.fixture(scope="function")
+async def async_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """Створює тестовий клієнт і підміняє залежність БД на тестову сесію."""
+
+    async def override_get_db_for_test() -> AsyncGenerator[AsyncSession, None]:
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db_for_test
+
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        yield client
+
+    # Очищуємо підміну після тесту
+    del app.dependency_overrides[get_db]
 
 
 @pytest.fixture(scope="function")
