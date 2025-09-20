@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Body, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from datetime import datetime
+# OLD: from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from app.core.database import get_db
@@ -49,29 +50,29 @@ async def create_checkout_order(
         )
 
         if order.final_total <= 0:
-            # # OLD: order.status = OrderStatus.PAID
-            # # OLD: order.paid_at = datetime.utcnow()
-            # # OLD:
-            # # OLD: for item in order.items:
-            # # OLD:     access_exists = await db.execute(
-            # # OLD:         select(UserProductAccess).where(
-            # # OLD:             UserProductAccess.user_id == current_user.id,
-            # # OLD:             UserProductAccess.product_id == item.product_id
-            # # OLD:         )
-            # # OLD:     )
-            # # OLD:     if not access_exists.scalar_one_or_none():
-            # # OLD:         db.add(UserProductAccess(
-            # # OLD:             user_id=current_user.id,
-            # # OLD:             product_id=item.product_id,
-            # # OLD:             access_type=AccessType.PURCHASE
-            # # OLD:         ))
-            # # OLD:
-            # # OLD: if order.promo_code_id:
-            # # OLD:     promo = await db.get(PromoCode, order.promo_code_id)
-            # # OLD:     if promo:
-            # # OLD:         promo.current_uses += 1
-            # # OLD:
-            # # OLD: await db.commit()
+            # # # OLD: order.status = OrderStatus.PAID
+            # # # OLD: order.paid_at = datetime.utcnow()
+            # # # OLD:
+            # # # OLD: for item in order.items:
+            # # # OLD:     access_exists = await db.execute(
+            # # # OLD:         select(UserProductAccess).where(
+            # # # OLD:             UserProductAccess.user_id == current_user.id,
+            # # # OLD:             UserProductAccess.product_id == item.product_id
+            # # # OLD:         )
+            # # # OLD:     )
+            # # # OLD:     if not access_exists.scalar_one_or_none():
+            # # # OLD:         db.add(UserProductAccess(
+            # # # OLD:             user_id=current_user.id,
+            # # # OLD:             product_id=item.product_id,
+            # # # OLD:             access_type=AccessType.PURCHASE
+            # # # OLD:         ))
+            # # # OLD:
+            # # # OLD: if order.promo_code_id:
+            # # # OLD:     promo = await db.get(PromoCode, order.promo_code_id)
+            # # # OLD:     if promo:
+            # # # OLD:         promo.current_uses += 1
+            # # # OLD:
+            # # # OLD: await db.commit()
             order = await service.process_successful_order(order.id)
             logger.info(f"Order {order.id} was fully covered by discount. Access granted immediately.")
             return CheckoutResponse(
@@ -89,7 +90,7 @@ async def create_checkout_order(
         order.payment_url = result.get("url")
         order.payment_id = result.get("uuid")
 
-        # # OLD: await db.commit()
+        # # # OLD: await db.commit()
 
         return CheckoutResponse(
             order_id=order.id,
@@ -173,8 +174,9 @@ async def mark_webhook_processed(payment_id: str, status: str, db: AsyncSession)
     """Позначити webhook як оброблений"""
     if not await db.get(WebhookProcessed, payment_id):
         webhook_record = WebhookProcessed(
+# OLD:             processed_at=datetime.utcnow(),
+            processed_at=datetime.now(timezone.utc),
             payment_id=payment_id,
-            processed_at=datetime.utcnow(),
             status=status,
             success=True
         )
@@ -210,7 +212,7 @@ async def cryptomus_webhook(
         raise HTTPException(status_code=400, detail="Invalid order_id format")
 
     try:
-        # OLD: async with db.begin():
+        # # OLD: async with db.begin():
         if is_subscription:
             subscription = await db.get(Subscription, order_id, options=[selectinload(Subscription.user)])
             if not subscription:

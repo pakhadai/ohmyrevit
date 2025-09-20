@@ -1,10 +1,11 @@
 # ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from sqlalchemy.ext.asyncio import AsyncSession
-# OLD: from app.subscriptions.models import Subscription, UserProductAccess, SubscriptionStatus
+# # OLD: from app.subscriptions.models import Subscription, UserProductAccess, SubscriptionStatus
 from app.subscriptions.models import Subscription, UserProductAccess, SubscriptionStatus
 from app.products.models import Product
-from datetime import datetime, timedelta
-# OLD: from sqlalchemy import select
+# OLD: from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+# # OLD: from sqlalchemy import select
 from sqlalchemy import select, update
 
 
@@ -20,7 +21,8 @@ class SubscriptionService:
             select(Subscription).where(
                 Subscription.user_id == user_id,
                 Subscription.status == SubscriptionStatus.ACTIVE,
-                Subscription.end_date > datetime.utcnow()
+# OLD:                 Subscription.end_date > datetime.utcnow()
+                Subscription.end_date > datetime.now(timezone.utc)
             )
         )
         if existing.scalar_one_or_none():
@@ -29,8 +31,10 @@ class SubscriptionService:
         # Створюємо підписку зі статусом PENDING
         subscription = Subscription(
             user_id=user_id,
-            start_date=datetime.utcnow(),
-            end_date=datetime.utcnow() + timedelta(days=30),
+# OLD:             start_date=datetime.utcnow(),
+# OLD:             end_date=datetime.utcnow() + timedelta(days=30),
+            start_date=datetime.now(timezone.utc),
+            end_date=datetime.now(timezone.utc) + timedelta(days=30),
             # Статус буде PENDING за замовчуванням з моделі
         )
         self.db.add(subscription)
@@ -43,22 +47,23 @@ class SubscriptionService:
         Перевіряє та оновлює статус прострочених підписок.
         Повертає кількість оновлених підписок.
         """
-        # OLD: expired = await self.db.execute(
-        # OLD:     select(Subscription).where(
-        # OLD:         Subscription.status == SubscriptionStatus.ACTIVE,
-        # OLD:         Subscription.end_date < datetime.utcnow()
-        # OLD:     )
-        # OLD: )
-        # OLD: for subscription in expired.scalars():
-        # OLD:     subscription.status = SubscriptionStatus.EXPIRED
-        # OLD: 
-        # OLD: await self.db.commit()
+        # # OLD: expired = await self.db.execute(
+        # # OLD:     select(Subscription).where(
+        # # OLD:         Subscription.status == SubscriptionStatus.ACTIVE,
+        # # OLD:         Subscription.end_date < datetime.utcnow()
+        # # OLD:     )
+        # # OLD: )
+        # # OLD: for subscription in expired.scalars():
+        # # OLD:     subscription.status = SubscriptionStatus.EXPIRED
+        # # OLD:
+        # # OLD: await self.db.commit()
         # ВИПРАВЛЕННЯ: Використовуємо один ефективний UPDATE запит замість SELECT+UPDATE
         stmt = (
             update(Subscription)
             .where(
                 Subscription.status == SubscriptionStatus.ACTIVE,
-                Subscription.end_date < datetime.utcnow()
+# OLD:                 Subscription.end_date < datetime.utcnow()
+                Subscription.end_date < datetime.now(timezone.utc)
             )
             .values(status=SubscriptionStatus.EXPIRED)
         )

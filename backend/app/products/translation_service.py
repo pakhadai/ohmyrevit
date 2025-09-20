@@ -5,7 +5,8 @@
 import httpx
 import logging
 from typing import Dict, List, Optional
-from datetime import datetime
+# OLD: from datetime import datetime
+from datetime import datetime, timezone
 from app.core.config import settings
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select # Додано
@@ -20,7 +21,7 @@ class TranslationService:
     def __init__(self):
         self.deepl_api_key = settings.DEEPL_API_KEY
         self.deepl_api_url = "https://api-free.deepl.com/v2/translate"  # або api.deepl.com для Pro
-        # OLD: self.target_languages = ['EN', 'RU']  # Мови для перекладу
+        # # OLD: self.target_languages = ['EN', 'RU']  # Мови для перекладу
         self.target_languages = settings.DEEPL_TARGET_LANGUAGES # Мови для перекладу беруться з конфігурації
 
     async def translate_text(
@@ -165,7 +166,8 @@ class TranslationService:
                 translation.description = description
                 # Якщо це ручне оновлення, знімаємо позначку авто-перекладу
                 translation.is_auto_translated = is_auto
-                translation.translated_at = datetime.utcnow()
+# OLD:                 translation.translated_at = datetime.utcnow()
+                translation.translated_at = datetime.now(timezone.utc)
             else:
                 # Створюємо новий
                 translation = ProductTranslation(
@@ -174,7 +176,8 @@ class TranslationService:
                     title=title,
                     description=description,
                     is_auto_translated=is_auto,
-                    translated_at=datetime.utcnow()
+# OLD:                     translated_at=datetime.utcnow()
+                    translated_at=datetime.now(timezone.utc)
                 )
                 db.add(translation)
 

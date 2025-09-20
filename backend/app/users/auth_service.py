@@ -7,12 +7,13 @@ import hashlib
 import hmac
 import time
 import json
-from datetime import datetime, timedelta
-# OLD: from typing import Optional, Dict, Any
+# OLD: from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+# # OLD: from typing import Optional, Dict, Any
 from typing import Optional, Dict, Any, Tuple
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
-# OLD: from sqlalchemy import select, func
+# # OLD: from sqlalchemy import select, func
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
@@ -79,8 +80,10 @@ class AuthService:
         """
         Створення JWT токену
         """
-        expire = datetime.utcnow() + timedelta(hours=settings.JWT_EXPIRATION_HOURS)
-        payload = {"sub": str(user_id), "exp": expire, "iat": datetime.utcnow()}
+# OLD:         expire = datetime.utcnow() + timedelta(hours=settings.JWT_EXPIRATION_HOURS)
+# OLD:         payload = {"sub": str(user_id), "exp": expire, "iat": datetime.utcnow()}
+        expire = datetime.now(timezone.utc) + timedelta(hours=settings.JWT_EXPIRATION_HOURS)
+        payload = {"sub": str(user_id), "exp": expire, "iat": datetime.now(timezone.utc)}
         token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
         logger.info(f"🔑 Created token for user {user_id}")
         return token
@@ -125,7 +128,7 @@ class AuthService:
         is_new_user = not user
 
         try:
-            # OLD: async with db.begin():
+            # # OLD: async with db.begin():
             if is_new_user:
                 logger.info(f"✨ Creating new user with telegram_id {auth_data.id}")
                 user = User(
@@ -135,7 +138,8 @@ class AuthService:
                     last_name=auth_data.last_name,
                     language_code=auth_data.language_code or 'uk',
                     photo_url=auth_data.photo_url,
-                    last_login_at=datetime.utcnow()
+# OLD:                     last_login_at=datetime.utcnow()
+                    last_login_at=datetime.now(timezone.utc)
                 )
                 db.add(user)
                 await db.flush() # Потрібно для отримання user.id
@@ -188,7 +192,8 @@ class AuthService:
                 user.last_name = auth_data.last_name
                 user.language_code = auth_data.language_code or 'uk'
                 user.photo_url = auth_data.photo_url
-                user.last_login_at = datetime.utcnow()
+# OLD:                 user.last_login_at = datetime.utcnow()
+                user.last_login_at = datetime.now(timezone.utc)
 
                 if not user.referral_code:
                     for _ in range(5):

@@ -5,11 +5,12 @@ from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-# OLD: from app.orders.models import Order, OrderItem, PromoCode, DiscountType
+# # OLD: from app.orders.models import Order, OrderItem, PromoCode, DiscountType
 from app.orders.models import Order, OrderItem, PromoCode, DiscountType, OrderStatus
 from app.products.models import Product
 from app.users.models import User
-from datetime import datetime
+# OLD: from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import HTTPException
 from app.core.config import settings
 # ДОДАНО: Імпорти для нової логіки
@@ -55,10 +56,11 @@ class OrderService:
             if not promo:
                 raise ValueError("Невалідний або прострочений промокод")
 
-            # OLD: # ВИПРАВЛЕННЯ: Порівнюємо naive datetime з naive datetime
-            # OLD: if promo.expires_at and promo.expires_at.replace(tzinfo=None) < datetime.utcnow():
+            # # OLD: # ВИПРАВЛЕННЯ: Порівнюємо naive datetime з naive datetime
+            # # OLD: if promo.expires_at and promo.expires_at.replace(tzinfo=None) < datetime.utcnow():
             # Повторне виправлення для гарантованої роботи.
-            if promo.expires_at and promo.expires_at.replace(tzinfo=None) < datetime.utcnow():
+# OLD:             if promo.expires_at and promo.expires_at.replace(tzinfo=None) < datetime.utcnow():
+            if promo.expires_at and promo.expires_at.replace(tzinfo=None) < datetime.now(timezone.utc):
                 raise ValueError("Термін дії промокоду закінчився")
 
             if promo.max_uses and promo.current_uses >= promo.max_uses:
@@ -142,24 +144,25 @@ class OrderService:
         self.db.add(order)
         await self.db.flush()
 
-        # OLD: for product in products:
-        # OLD:     order_item = OrderItem(
-        # OLD:         order_id=order.id,
-        # OLD:         product_id=product.id,
-        # OLD:         price_at_purchase=product.get_actual_price()
-        # OLD:     )
-        # OLD:     self.db.add(order_item)
-        # OLD:
-        # OLD: await self.db.refresh(order, attribute_names=['items'])
+        # # OLD: for product in products:
+        # # OLD:     order_item = OrderItem(
+        # # OLD:         order_id=order.id,
+        # # OLD:         product_id=product.id,
+        # # OLD:         price_at_purchase=product.get_actual_price()
+        # # OLD:     )
+        # # OLD:     self.db.add(order_item)
+        # # OLD:
+        # # OLD: await self.db.refresh(order, attribute_names=['items'])
 
         if discount_data["bonus_used"] > 0:
             user = await self.db.get(User, user_id)
             if user:
                 user.bonus_balance -= discount_data["bonus_used"]
+                await self.db.flush()
 
         return order
 
-    # OLD: async def process_successful_order(self, order: Order) -> Order:
+    # # OLD: async def process_successful_order(self, order: Order) -> Order:
     async def process_successful_order(self, order_id: int) -> Order:
         """
         Централізована обробка успішного замовлення (оплаченого або безкоштовного).
@@ -172,7 +175,7 @@ class OrderService:
                 selectinload(Order.items).selectinload(OrderItem.product)
             ).where(Order.id == order_id)
         )
-        # OLD: order = order_res.scalar_one_or_none()
+        # # OLD: order = order_res.scalar_one_or_none()
         order = order_res.unique().scalar_one_or_none()
 
         if not order:
@@ -185,7 +188,8 @@ class OrderService:
 
         # 1. Оновлюємо статус замовлення
         order.status = OrderStatus.PAID
-        order.paid_at = datetime.utcnow()
+# OLD:         order.paid_at = datetime.utcnow()
+        order.paid_at = datetime.now(timezone.utc)
 
         # 2. Надаємо доступ до товарів
         for item in order.items:

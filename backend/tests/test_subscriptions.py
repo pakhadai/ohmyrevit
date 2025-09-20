@@ -6,7 +6,8 @@ from sqlalchemy import select, func
 from app.users.models import User
 from app.products.models import Product, ProductType
 from app.subscriptions.models import Subscription, SubscriptionStatus, UserProductAccess
-from datetime import datetime, timedelta
+# OLD: from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 # ДОДАНО: Імпорт для імітації (mock)
 from unittest.mock import AsyncMock
 
@@ -52,8 +53,10 @@ async def test_get_status_with_active_subscription(authorized_client: AsyncClien
     """Тест статусу, коли є активна підписка."""
     active_sub = Subscription(
         user_id=referred_user.id,
-        start_date=datetime.utcnow() - timedelta(days=10),
-        end_date=datetime.utcnow() + timedelta(days=20),
+# OLD:         start_date=datetime.utcnow() - timedelta(days=10),
+# OLD:         end_date=datetime.utcnow() + timedelta(days=20),
+        start_date=datetime.now(timezone.utc) - timedelta(days=10),
+        end_date=datetime.now(timezone.utc) + timedelta(days=20),
         status=SubscriptionStatus.ACTIVE
     )
     db_session.add(active_sub)
@@ -73,8 +76,10 @@ async def test_webhook_activates_subscription(async_client: AsyncClient, db_sess
     # Створюємо підписку в стані pending
     pending_sub = Subscription(
         user_id=referred_user.id,
-        start_date=datetime.utcnow(),
-        end_date=datetime.utcnow() + timedelta(days=30),
+# OLD:         start_date=datetime.utcnow(),
+# OLD:         end_date=datetime.utcnow() + timedelta(days=30),
+        start_date=datetime.now(timezone.utc),
+        end_date=datetime.now(timezone.utc) + timedelta(days=30),
         status=SubscriptionStatus.PENDING
     )
     db_session.add(pending_sub)

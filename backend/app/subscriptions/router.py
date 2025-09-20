@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
@@ -6,7 +7,8 @@ from app.users.models import User  # ДОДАНО: імпорт User
 from app.subscriptions.service import SubscriptionService
 from app.payments.cryptomus import CryptomusClient
 from sqlalchemy import select
-from datetime import datetime
+# OLD: from datetime import datetime
+from datetime import datetime, timezone
 from app.subscriptions.models import Subscription
 from app.core.config import settings
 
@@ -73,6 +75,7 @@ async def get_subscription_status(
         "subscription": {
             "start_date": subscription.start_date,
             "end_date": subscription.end_date,
-            "days_remaining": (subscription.end_date - datetime.utcnow()).days
+# OLD:             "days_remaining": (subscription.end_date - datetime.utcnow()).days
+            "days_remaining": (subscription.end_date - datetime.now(timezone.utc)).days
         }
     }
