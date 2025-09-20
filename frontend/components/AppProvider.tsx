@@ -72,6 +72,19 @@ export default function AppProvider({ children }: { children: React.ReactNode })
           if (initData && initData.user) {
             console.log('👤 Telegram User:', initData.user);
 
+            // OLD: const authData = {
+            // OLD:   id: initData.user.id,
+            // OLD:   first_name: initData.user.first_name || t('common.userFallbackName'),
+            // OLD:   last_name: initData.user.last_name || '',
+            // OLD:   username: initData.user.username || '',
+            // OLD:   photo_url: initData.user.photo_url || '',
+            // OLD:   language_code: initData.user.language_code || 'uk',
+            // OLD:   is_premium: initData.user.is_premium || false,
+            // OLD:   auth_date: initData.auth_date || Math.floor(Date.now() / 1000),
+            // OLD:   hash: initData.hash || '',
+            // OLD:   query_id: initData.query_id || '',
+            // OLD:   start_param: initData.start_param || null
+            // OLD: };
             const authData = {
               id: initData.user.id,
               first_name: initData.user.first_name || t('common.userFallbackName'),
@@ -83,8 +96,9 @@ export default function AppProvider({ children }: { children: React.ReactNode })
               auth_date: initData.auth_date || Math.floor(Date.now() / 1000),
               hash: initData.hash || '',
               query_id: initData.query_id || '',
-              start_param: initData.start_param || null
+              start_param: initData.start_param || null // ДОДАНО: Явна передача start_param
             };
+
 
             try {
               authAttempted.current = true;

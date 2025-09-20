@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 import hashlib
 import hmac
 import time
@@ -143,20 +144,28 @@ class AuthService:
                     referrer = referrer_result.scalar_one_or_none()
                     if referrer and referrer.id != user.id:
                         user.referrer_id = referrer.id
-                        # OLD: referrer.bonus_balance += 30
+                        # OLD: # OLD: referrer.bonus_balance += 30
+                        # OLD: referrer.bonus_balance += settings.REFERRAL_REGISTRATION_BONUS
                         referrer.bonus_balance += settings.REFERRAL_REGISTRATION_BONUS
                         db.add(ReferralLog(
                             referrer_id=referrer.id,
                             referred_user_id=user.id,
                             bonus_type=ReferralBonusType.REGISTRATION,
-                            # OLD: bonus_amount=30
+                            # OLD: # OLD: bonus_amount=30
+                            # OLD: bonus_amount=settings.REFERRAL_REGISTRATION_BONUS
                             bonus_amount=settings.REFERRAL_REGISTRATION_BONUS
                         ))
-                        # OLD: logger.info(f"🎁 User {referrer.id} will receive 30 bonuses for inviting user {user.id}")
+                        # OLD: # OLD: logger.info(f"🎁 User {referrer.id} will receive 30 bonuses for inviting user {user.id}")
+                        # OLD: logger.info(f"🎁 User {referrer.id} will receive {settings.REFERRAL_REGISTRATION_BONUS} bonuses for inviting user {user.id}")
                         logger.info(f"🎁 User {referrer.id} will receive {settings.REFERRAL_REGISTRATION_BONUS} bonuses for inviting user {user.id}")
-                        # OLD: await telegram_service.send_message(
-                        # OLD:     chat_id=referrer.telegram_id,
-                        # OLD:     text=f"🎉 За вашим посиланням зареєструвався {user.first_name}! Вам нараховано 30 бонусів."
+                        # OLD: # OLD: await telegram_service.send_message(
+                        # OLD: # OLD:     chat_id=referrer.telegram_id,
+                        # OLD: # OLD:     text=f"🎉 За вашим посиланням зареєструвався {user.first_name}! Вам нараховано 30 бонусів."
+                        # OLD: # OLD: )
+                        # OLD: message = (
+                        # OLD:     f"🎉 Вітаємо! За вашим посиланням зареєструвався новий користувач: *{user.first_name}*.\n"
+                        # OLD:     f"Вам нараховано *+{settings.REFERRAL_REGISTRATION_BONUS}* бонусів. 💎\n\n"
+                        # OLD:     f"Дякуємо, що ви з нами!"
                         # OLD: )
                         message = (
                             f"🎉 Вітаємо! За вашим посиланням зареєструвався новий користувач: *{user.first_name}*.\n"
