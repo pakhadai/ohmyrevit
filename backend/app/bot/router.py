@@ -1,12 +1,18 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/bot/router.py
 import logging
 from typing import Optional
-from fastapi import APIRouter, Request, status, Response
-
+from fastapi import APIRouter, Depends, status, Response
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.telegram_service import telegram_service
+from app.core.database import get_db, AsyncSessionLocal
+from app.users.models import User
+from app.referrals.models import ReferralLog, ReferralBonusType
+from app.users.auth_service import AuthService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhook", tags=["Bot Webhook"])
@@ -66,36 +72,35 @@ WELCOME_MESSAGES = {
 
 @router.post(f"/{settings.TELEGRAM_BOT_TOKEN}")
 async def telegram_webhook(update: Update):
-    """
-    Приймає оновлення від Telegram Bot API.
-    Обробляє команду /start.
-    """
     if not update.message or not update.message.from_user or not update.message.text:
         return Response(status_code=status.HTTP_200_OK)
 
     message = update.message
-    user = update.message.from_user
+    user_data = update.message.from_user
     chat_id = message.chat.id
 
     if message.text.startswith("/start"):
-        logger.info(f"Received /start command from user {user.id}")
+        logger.info(f"Received /start command from user {user_data.id}")
 
-        # Визначаємо мову користувача
-        lang = user.language_code if user.language_code in WELCOME_MESSAGES else 'en'
+        parts = message.text.split()
+        start_param = None
+        if len(parts) > 1:
+            start_param = parts[1]
+            logger.info(f"Found start_param in message: {start_param}")
+            # ДОДАНО: Обробляємо реферала відразу тут
+            async with AsyncSessionLocal() as db:
+                await process_referral(db, user_data, start_param)
+
+        lang = user_data.language_code if user_data.language_code in WELCOME_MESSAGES else 'en'
         welcome_text = WELCOME_MESSAGES[lang]
 
-        # Створюємо кнопку для запуску Mini App
         web_app_button = {
             "text": "🚀 Відкрити маркет",
             "web_app": {"url": settings.FRONTEND_URL}
         }
 
-        # Створюємо клавіатуру
-        reply_markup = {
-            "inline_keyboard": [[web_app_button]]
-        }
+        reply_markup = {"inline_keyboard": [[web_app_button]]}
 
-        # Надсилаємо повідомлення
         await telegram_service.send_message(
             chat_id=chat_id,
             text=welcome_text,
@@ -103,3 +108,54 @@ async def telegram_webhook(update: Update):
         )
 
     return Response(status_code=status.HTTP_200_OK)
+
+
+async def process_referral(db: AsyncSession, invited_user_data: TelegramUser, referrer_code: str):
+    """
+    Обробляє реферальний код: знаходить/створює користувача та нараховує бонус.
+    """
+    # 1. Знаходимо того, хто запросив (реферера)
+    referrer_res = await db.execute(select(User).where(User.referral_code == referrer_code))
+    referrer = referrer_res.scalar_one_or_none()
+
+    if not referrer:
+        logger.warning(f"Referrer with code {referrer_code} not found.")
+        return
+
+    # 2. Знаходимо або створюємо запрошеного користувача
+    invited_user_res = await db.execute(select(User).where(User.telegram_id == invited_user_data.id))
+    invited_user = invited_user_res.scalar_one_or_none()
+
+    is_new_user = not invited_user
+    if is_new_user:
+        logger.info(f"Creating new referred user {invited_user_data.id} via webhook")
+        invited_user = User(
+            telegram_id=invited_user_data.id,
+            first_name=invited_user_data.first_name,
+            last_name=invited_user_data.last_name,
+            username=invited_user_data.username,
+            language_code=invited_user_data.language_code
+        )
+        db.add(invited_user)
+        await db.flush()  # Потрібно, щоб отримати invited_user.id
+
+    # 3. Перевіряємо, чи користувач не намагається активувати власний код
+    # і чи не був він вже кимось запрошений
+    if invited_user.id == referrer.id or invited_user.referrer_id is not None:
+        logger.info(f"User {invited_user.id} already has a referrer or is the referrer themselves.")
+        await db.commit()  # Зберігаємо нового користувача, якщо він був створений
+        return
+
+    # 4. Встановлюємо зв'язок і нараховуємо бонус
+    invited_user.referrer_id = referrer.id
+    referrer.bonus_balance += settings.REFERRAL_REGISTRATION_BONUS
+
+    db.add(ReferralLog(
+        referrer_id=referrer.id,
+        referred_user_id=invited_user.id,
+        bonus_type=ReferralBonusType.REGISTRATION,
+        bonus_amount=settings.REFERRAL_REGISTRATION_BONUS
+    ))
+
+    logger.info(f"Referral successful: User {referrer.id} invited {invited_user.id}. Bonus added.")
+    await db.commit()
