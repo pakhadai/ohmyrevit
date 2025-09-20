@@ -1,7 +1,10 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/users/__init__.py
 """
 Модуль користувачів
 """
-from app.users.router import router
+# OLD: from app.users.router import router
+from app.users.router import auth_router
 
-__all__ = ["router"]
+# OLD: __all__ = ["router"]
+__all__ = ["auth_router"]

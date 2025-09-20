@@ -1,4 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -48,16 +47,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# OLD: app.add_middleware(
-# OLD:     CORSMiddleware,
-# OLD:     allow_origins=settings.ALLOWED_ORIGINS,
-# OLD:     allow_credentials=True,
-# OLD:     allow_methods=["*"],
-# OLD:     allow_headers=["*"],
-# OLD: )
 app.add_middleware(
     CORSMiddleware,
-    # ПЕРЕТВОРЮЄМО РЯДОК НА СПИСОК ПРЯМО ТУТ
     allow_origins=[origin.strip() for origin in settings.ALLOWED_ORIGINS.split(',')] if settings.ALLOWED_ORIGINS else [],
     allow_credentials=True,
     allow_methods=["*"],
@@ -84,15 +75,15 @@ async def health_check():
     }
 
 # Підключаємо роутери
-from app.users.router import router as users_router
 from app.products.router import router as products_router, admin_router as products_admin_router
 from app.orders.router import router as orders_router
 from app.admin.router import router as admin_main_router
 from app.collections.router import router as collections_router
+from app.users.router import auth_router
 
 # Основні роутери API v1
 api_v1_router = APIRouter(prefix="/api/v1")
-api_v1_router.include_router(users_router)
+api_v1_router.include_router(auth_router)
 api_v1_router.include_router(products_router, prefix="/products")
 api_v1_router.include_router(orders_router, prefix="/orders")
 api_v1_router.include_router(profile_router, prefix="/profile")
