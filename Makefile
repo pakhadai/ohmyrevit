@@ -37,8 +37,10 @@ migrate: ## Застосувати міграції
 	docker-compose exec -T backend alembic upgrade head
 
 makemigration: ## Створити нову міграцію
-# OLD: 	docker-compose exec backend alembic revision --autogenerate -m "$(msg)"
+# OLD: # OLD: 	docker-compose exec backend alembic revision --autogenerate -m "$(msg)"
+# OLD: 	docker-compose exec -T backend alembic revision --autogenerate -m "$(msg)"
 	docker-compose exec -T backend alembic revision --autogenerate -m "$(msg)"
+
 
 downgrade: ## Відкатити останню міграцію
 	docker-compose exec -T backend alembic downgrade -1
@@ -47,8 +49,13 @@ migration-history: ## Показати історію міграцій
 	docker-compose exec -T backend alembic history
 
 # Тестування
-test: ## Запустити тести
-	docker-compose exec -T backend pytest
+test-simple: ## Запустити один простий тест для перевірки налаштувань
+	docker-compose exec -T backend pytest tests/test_simple.py -v
+
+test: ## Запустити всі тести
+# OLD: 	docker-compose exec -T backend pytest
+	docker-compose exec -T backend pytest -v
+
 
 test-coverage: ## Запустити тести з покриттям
 	docker-compose exec -T backend pytest --cov=app --cov-report=html
@@ -84,7 +91,7 @@ db-restore: ## Відновити базу даних з backup
 	docker-compose exec -T db psql -U ${DB_USER:-ohmyrevit} -d ${DB_NAME:-ohmyrevit_db} < $(file)
 
 # Початкове налаштування
-init: ## Початкове налаштування проєкту
+init:
 	cp .env.example .env
 	@echo "✅ Створено .env файл. Будь ласка, заповніть його вашими даними."
 	@echo "📝 Редагуйте .env файл та запустіть 'make up' для старту проєкту"
