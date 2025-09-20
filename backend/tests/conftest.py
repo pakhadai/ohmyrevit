@@ -14,7 +14,9 @@ from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app
 from app.users.models import User
-from app.products.models import Product, ProductTranslation
+# OLD: from app.products.models import Product, ProductTranslation
+from app.products.models import Product, ProductTranslation, Category, CategoryTranslation
+# OLD: from app.orders.models import PromoCode, DiscountType
 from app.orders.models import PromoCode, DiscountType
 from decimal import Decimal
 
@@ -26,12 +28,12 @@ engine_test = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
 async_session_maker = async_sessionmaker(engine_test, class_=AsyncSession, expire_on_commit=False)
 
 
-# OLD: # OLD: async def override_get_db(session: AsyncSession = pytest.lazy_fixture("db_session")) -> AsyncGenerator[
-# OLD: # OLD:     AsyncSession, None]:
-# OLD: # OLD:     yield session
-# OLD: # OLD:
-# OLD: # OLD:
-# OLD: # OLD: app.dependency_overrides[get_db] = override_get_db
+# # OLD: # OLD: async def override_get_db(session: AsyncSession = pytest.lazy_fixture("db_session")) -> AsyncGenerator[
+# # OLD: # OLD:     AsyncSession, None]:
+# # OLD: # OLD:     yield session
+# # OLD: # OLD:
+# # OLD: # OLD:
+# # OLD: # OLD: app.dependency_overrides[get_db] = override_get_db
 
 # ДОДАНО: Перевизначаємо фікстуру anyio_backend з областю видимості 'session'
 # Це вирішує проблему ScopeMismatch для асинхронних фікстур рівня сесії.
@@ -175,3 +177,45 @@ async def authorized_client(async_client: AsyncClient, referred_user: User) -> A
     token = response.json().get("access_token")
     async_client.headers = {"Authorization": f"Bearer {token}"}
     return async_client
+
+@pytest.fixture(scope="function")
+async def admin_user(db_session: AsyncSession) -> User:
+    user = User(
+        telegram_id=999,
+        first_name="Admin",
+        username="admin_user",
+        is_admin=True
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+@pytest.fixture(scope="function")
+async def authorized_admin_client(async_client: AsyncClient, admin_user: User) -> AsyncClient:
+    auth_data = {
+        "id": admin_user.telegram_id,
+        "first_name": admin_user.first_name,
+        "auth_date": int(time.time()),
+        "hash": "test_hash_for_development"
+    }
+    response = await async_client.post("/api/v1/auth/telegram", json=auth_data)
+    response.raise_for_status()
+    token = response.json().get("access_token")
+    async_client.headers = {"Authorization": f"Bearer {token}"}
+    return async_client
+
+@pytest.fixture(scope="function")
+async def test_category(db_session: AsyncSession) -> Category:
+    category = Category(slug="test-category")
+    db_session.add(category)
+    await db_session.flush()
+    translation = CategoryTranslation(
+        category_id=category.id,
+        language_code="uk",
+        name="Тестова Категорія"
+    )
+    db_session.add(translation)
+    await db_session.commit()
+    await db_session.refresh(category)
+    return category

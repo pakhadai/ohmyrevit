@@ -85,8 +85,8 @@ class TelegramAuthData(BaseModel):
     language_code: Optional[str] = "uk"
     is_premium: Optional[bool] = False
 
-    # OLD: class Config:
-    # OLD:     extra = "allow"
+    # # OLD: class Config:
+    # # OLD:     extra = "allow"
     model_config = ConfigDict(extra="allow")
 
 
@@ -101,7 +101,10 @@ class TokenResponse(BaseModel):
 class BonusClaimResponse(BaseModel):
     """Схема відповіді для отримання бонусу"""
     success: bool
-    bonus_amount: int
-    new_balance: int
-    new_streak: int
+    # OLD: bonus_amount: int
+    # OLD: new_balance: int
+    # OLD: new_streak: int
+    bonus_amount: Optional[int] = None
+    new_balance: Optional[int] = None
+    new_streak: Optional[int] = None
     message: str

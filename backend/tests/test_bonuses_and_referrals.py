@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +10,8 @@ import time
 
 @pytest.mark.anyio
 async def test_claim_bonus_first_time(authorized_client: AsyncClient, db_session: AsyncSession, referred_user: User):
-    response = await authorized_client.post("/profile/bonus/claim")
+# OLD:     response = await authorized_client.post("/profile/bonus/claim")
+    response = await authorized_client.post("/api/v1/profile/bonus/claim")
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
@@ -20,8 +22,10 @@ async def test_claim_bonus_first_time(authorized_client: AsyncClient, db_session
 
 @pytest.mark.anyio
 async def test_claim_bonus_twice_fails(authorized_client: AsyncClient):
-    await authorized_client.post("/profile/bonus/claim")
-    response = await authorized_client.post("/profile/bonus/claim")
+# OLD:     await authorized_client.post("/profile/bonus/claim")
+    await authorized_client.post("/api/v1/profile/bonus/claim")
+# OLD:     response = await authorized_client.post("/profile/bonus/claim")
+    response = await authorized_client.post("/api/v1/profile/bonus/claim")
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is False
@@ -30,12 +34,15 @@ async def test_claim_bonus_twice_fails(authorized_client: AsyncClient):
 @pytest.mark.anyio
 @freeze_time("2025-01-01")
 async def test_bonus_streak(authorized_client: AsyncClient, db_session: AsyncSession, referred_user: User):
-    await authorized_client.post("/profile/bonus/claim")
+# OLD:     await authorized_client.post("/profile/bonus/claim")
+    await authorized_client.post("/api/v1/profile/bonus/claim")
     with freeze_time("2025-01-02"):
-        response = await authorized_client.post("/profile/bonus/claim")
+# OLD:         response = await authorized_client.post("/profile/bonus/claim")
+        response = await authorized_client.post("/api/v1/profile/bonus/claim")
         assert response.json()["new_streak"] == 2
     with freeze_time("2025-01-04"):
-        response = await authorized_client.post("/profile/bonus/claim")
+# OLD:         response = await authorized_client.post("/profile/bonus/claim")
+        response = await authorized_client.post("/api/v1/profile/bonus/claim")
         assert response.json()["new_streak"] == 1
 
 
@@ -52,7 +59,8 @@ async def test_get_referral_info(async_client: AsyncClient, db_session: AsyncSes
     login_res = await async_client.post("/api/v1/auth/telegram", json=auth_data)
     async_client.headers = {"Authorization": f"Bearer {login_res.json()['access_token']}"}
 
-    response = await async_client.get("/profile/referrals")
+# OLD:     response = await async_client.get("/profile/referrals")
+    response = await async_client.get("/api/v1/profile/referrals")
     assert response.status_code == 200
     data = response.json()
     assert data["referral_code"] == referrer_user.referral_code

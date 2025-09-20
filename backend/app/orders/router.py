@@ -49,29 +49,29 @@ async def create_checkout_order(
         )
 
         if order.final_total <= 0:
-            # OLD: order.status = OrderStatus.PAID
-            # OLD: order.paid_at = datetime.utcnow()
-            # OLD:
-            # OLD: for item in order.items:
-            # OLD:     access_exists = await db.execute(
-            # OLD:         select(UserProductAccess).where(
-            # OLD:             UserProductAccess.user_id == current_user.id,
-            # OLD:             UserProductAccess.product_id == item.product_id
-            # OLD:         )
-            # OLD:     )
-            # OLD:     if not access_exists.scalar_one_or_none():
-            # OLD:         db.add(UserProductAccess(
-            # OLD:             user_id=current_user.id,
-            # OLD:             product_id=item.product_id,
-            # OLD:             access_type=AccessType.PURCHASE
-            # OLD:         ))
-            # OLD:
-            # OLD: if order.promo_code_id:
-            # OLD:     promo = await db.get(PromoCode, order.promo_code_id)
-            # OLD:     if promo:
-            # OLD:         promo.current_uses += 1
-            # OLD:
-            # OLD: await db.commit()
+            # # OLD: order.status = OrderStatus.PAID
+            # # OLD: order.paid_at = datetime.utcnow()
+            # # OLD:
+            # # OLD: for item in order.items:
+            # # OLD:     access_exists = await db.execute(
+            # # OLD:         select(UserProductAccess).where(
+            # # OLD:             UserProductAccess.user_id == current_user.id,
+            # # OLD:             UserProductAccess.product_id == item.product_id
+            # # OLD:         )
+            # # OLD:     )
+            # # OLD:     if not access_exists.scalar_one_or_none():
+            # # OLD:         db.add(UserProductAccess(
+            # # OLD:             user_id=current_user.id,
+            # # OLD:             product_id=item.product_id,
+            # # OLD:             access_type=AccessType.PURCHASE
+            # # OLD:         ))
+            # # OLD:
+            # # OLD: if order.promo_code_id:
+            # # OLD:     promo = await db.get(PromoCode, order.promo_code_id)
+            # # OLD:     if promo:
+            # # OLD:         promo.current_uses += 1
+            # # OLD:
+            # # OLD: await db.commit()
             order = await service.process_successful_order(order.id)
             logger.info(f"Order {order.id} was fully covered by discount. Access granted immediately.")
             return CheckoutResponse(
@@ -89,7 +89,7 @@ async def create_checkout_order(
         order.payment_url = result.get("url")
         order.payment_id = result.get("uuid")
 
-        # OLD: await db.commit()
+        # # OLD: await db.commit()
 
         return CheckoutResponse(
             order_id=order.id,
@@ -210,54 +210,54 @@ async def cryptomus_webhook(
         raise HTTPException(status_code=400, detail="Invalid order_id format")
 
     try:
-        async with db.begin():
-            if is_subscription:
-                subscription = await db.get(Subscription, order_id, options=[selectinload(Subscription.user)])
-                if not subscription:
-                    logger.error(f"Subscription {order_id} not found for webhook.")
-                    await mark_webhook_processed(payment_id, "error_not_found", db)
-                    return {"status": "error", "message": "Subscription not found"}
+        # OLD: async with db.begin():
+        if is_subscription:
+            subscription = await db.get(Subscription, order_id, options=[selectinload(Subscription.user)])
+            if not subscription:
+                logger.error(f"Subscription {order_id} not found for webhook.")
+                await mark_webhook_processed(payment_id, "error_not_found", db)
+                return {"status": "error", "message": "Subscription not found"}
 
-                if status == "paid" and subscription.status != SubscriptionStatus.ACTIVE:
-                    subscription.status = SubscriptionStatus.ACTIVE
-                    subscription.payment_id = payment_id
-                    products_to_grant = await db.execute(
-                        select(Product).where(Product.product_type == ProductType.PREMIUM))
-                    for product in products_to_grant.scalars().all():
-                        existing_access_res = await db.execute(
-                            select(UserProductAccess).where(UserProductAccess.user_id == subscription.user_id,
-                                                            UserProductAccess.product_id == product.id))
-                        if not existing_access_res.scalar_one_or_none():
-                            db.add(UserProductAccess(user_id=subscription.user_id, product_id=product.id,
-                                                     access_type=AccessType.SUBSCRIPTION))
-                    logger.info(f"Subscription {order_id} activated successfully.")
-                elif status in ["cancel", "wrong_amount", "fail", "system_fail", "refund"]:
-                    subscription.status = SubscriptionStatus.CANCELLED
-                    logger.warning(f"Subscription {order_id} payment failed with status: {status}")
+            if status == "paid" and subscription.status != SubscriptionStatus.ACTIVE:
+                subscription.status = SubscriptionStatus.ACTIVE
+                subscription.payment_id = payment_id
+                products_to_grant = await db.execute(
+                    select(Product).where(Product.product_type == ProductType.PREMIUM))
+                for product in products_to_grant.scalars().all():
+                    existing_access_res = await db.execute(
+                        select(UserProductAccess).where(UserProductAccess.user_id == subscription.user_id,
+                                                        UserProductAccess.product_id == product.id))
+                    if not existing_access_res.scalar_one_or_none():
+                        db.add(UserProductAccess(user_id=subscription.user_id, product_id=product.id,
+                                                    access_type=AccessType.SUBSCRIPTION))
+                logger.info(f"Subscription {order_id} activated successfully.")
+            elif status in ["cancel", "wrong_amount", "fail", "system_fail", "refund"]:
+                subscription.status = SubscriptionStatus.CANCELLED
+                logger.warning(f"Subscription {order_id} payment failed with status: {status}")
 
-            else:
-                order_res = await db.execute(select(Order).where(Order.id == order_id))
-                order = order_res.scalar_one()
-                if not order:
-                    logger.error(f"Order {order_id} not found for webhook.")
-                    await mark_webhook_processed(payment_id, "error_not_found", db)
-                    return {"status": "error", "message": "Order not found"}
+        else:
+            order_res = await db.execute(select(Order).where(Order.id == order_id))
+            order = order_res.scalar_one()
+            if not order:
+                logger.error(f"Order {order_id} not found for webhook.")
+                await mark_webhook_processed(payment_id, "error_not_found", db)
+                return {"status": "error", "message": "Order not found"}
 
-                if status == "paid" and order.status != OrderStatus.PAID:
-                    order.payment_id = payment_id
-                    service = OrderService(db)
-                    await service.process_successful_order(order.id)
+            if status == "paid" and order.status != OrderStatus.PAID:
+                order.payment_id = payment_id
+                service = OrderService(db)
+                await service.process_successful_order(order.id)
 
 
-                elif status in ["cancel", "wrong_amount", "fail", "system_fail"]:
-                    order.status = OrderStatus.FAILED
-                    user_to_refund = await db.get(User, order.user_id)
-                    if order.bonus_used > 0 and user_to_refund:
-                        user_to_refund.bonus_balance += order.bonus_used
-                        logger.info(f"Returned {order.bonus_used} bonus points to user {order.user_id}")
-                    logger.warning(f"Order {order_id} payment failed with status: {status}")
+            elif status in ["cancel", "wrong_amount", "fail", "system_fail"]:
+                order.status = OrderStatus.FAILED
+                user_to_refund = await db.get(User, order.user_id)
+                if order.bonus_used > 0 and user_to_refund:
+                    user_to_refund.bonus_balance += order.bonus_used
+                    logger.info(f"Returned {order.bonus_used} bonus points to user {order.user_id}")
+                logger.warning(f"Order {order_id} payment failed with status: {status}")
 
-            await mark_webhook_processed(payment_id, status, db)
+        await mark_webhook_processed(payment_id, status, db)
 
         return {"status": "ok"}
     except Exception as e:
