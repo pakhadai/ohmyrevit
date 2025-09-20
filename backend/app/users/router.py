@@ -1,8 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
-# backend/app/users/router.py
-"""
-API роутер для користувачів та авторизації
-"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date, datetime
@@ -28,14 +23,7 @@ async def telegram_auth(
         auth_data: TelegramAuthData,
         db: AsyncSession = Depends(get_db)
 ):
-    """
-    Авторизація через Telegram Mini App
 
-    Приймає дані від Telegram, перевіряє їх підпис,
-    створює або оновлює користувача та повертає JWT токен.
-    """
-    # Автентифікуємо користувача
-    # OLD: user = await AuthService.authenticate_telegram_user(db, auth_data)
     user, is_new_user = await AuthService.authenticate_telegram_user(db, auth_data)
 
     # Створюємо токен
@@ -44,7 +32,6 @@ async def telegram_auth(
     # Формуємо відповідь
     return TokenResponse(
         access_token=access_token,
-        # OLD: user=UserResponse.model_validate(user)
         user=UserResponse.model_validate(user),
         is_new_user=is_new_user
     )
@@ -58,9 +45,7 @@ async def get_all_users(
         current_admin: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """
-    Отримання списку всіх користувачів (тільки для адміна)
-    """
+
     from sqlalchemy import select
 
     result = await db.execute(
@@ -80,9 +65,7 @@ async def toggle_admin_status(
         current_admin: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """
-    Зміна статусу адміністратора для користувача
-    """
+
     from sqlalchemy import select
 
     result = await db.execute(

@@ -1,6 +1,3 @@
-"""
-Моделі для товарів, категорій та системи перекладів
-"""
 from sqlalchemy import (
     Column, Integer, String, Text, Numeric, Boolean,
     ForeignKey, Table, DateTime, Enum, ARRAY, UniqueConstraint
@@ -12,7 +9,6 @@ from typing import List, Optional
 from app.core.database import Base
 
 
-# Enum для типів товарів
 class ProductType(str, enum.Enum):
     FREE = "free"
     PREMIUM = "premium"
@@ -64,7 +60,6 @@ class Category(Base):
         return f"<Category(slug={self.slug})>"
 
 
-# ДОДАНО: Нова модель для перекладів категорій
 class CategoryTranslation(Base):
     __tablename__ = "category_translations"
 
@@ -129,7 +124,7 @@ class Product(Base):
         "ProductTranslation",
         back_populates="product",
         cascade="all, delete-orphan",
-        lazy="selectin"  # Завжди завантажувати переклади
+        lazy="selectin"
     )
     # Зв'язок з колекціями (many-to-many)
     collections = relationship(
@@ -140,10 +135,7 @@ class Product(Base):
 
 
     def get_translation(self, language_code: str = 'uk'):
-        """
-        Отримати переклад для конкретної мови
-        Якщо переклад не знайдено - повертає українську версію
-        """
+
         # Шукаємо потрібний переклад
         for translation in self.translations:
             if translation.language_code == language_code:

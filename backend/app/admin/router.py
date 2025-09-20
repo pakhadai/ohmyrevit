@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 """
 Головний роутер адмін-панелі з повною функціональністю
 """
@@ -175,50 +176,6 @@ async def upload_archive(
         filename=unique_filename
     )
 
-
-# OLD: @router.get("/download/{product_id}")
-# OLD: async def download_product(
-# OLD:         product_id: int,
-# OLD:         current_user: User = Depends(get_current_user),
-# OLD:         db: AsyncSession = Depends(get_db)
-# OLD: ):
-# OLD:     """Генерує тимчасове посилання для завантаження товару"""
-# OLD:
-# OLD:     # Перевірка доступу
-# OLD:     has_access = await db.execute(
-# OLD:         select(UserProductAccess).where(
-# OLD:             UserProductAccess.user_id == current_user.id,
-# OLD:             UserProductAccess.product_id == product_id
-# OLD:         )
-# OLD:     )
-# OLD:
-# OLD:     if not has_access.scalar_one_or_none():
-# OLD:         # Перевірити підписку
-# OLD:         subscription = await check_active_subscription(current_user.id, db)
-# OLD:         if not subscription:
-# OLD:             raise HTTPException(403, "Немає доступу до цього товару")
-# OLD:
-# OLD:     product = await db.get(Product, product_id)
-# OLD:     if not product:
-# OLD:         raise HTTPException(404, "Товар не знайдено")
-# OLD:
-# OLD:     # Генеруємо підписане посилання
-# OLD:     import jwt
-# OLD:     from datetime import datetime, timedelta
-# OLD:
-# OLD:     token_data = {
-# OLD:         "user_id": current_user.id,
-# OLD:         "product_id": product_id,
-# OLD:         "exp": datetime.utcnow() + timedelta(hours=1)
-# OLD:     }
-# OLD:
-# OLD:     download_token = jwt.encode(token_data, settings.SECRET_KEY, algorithm="HS256")
-# OLD:
-# OLD:     return {
-# OLD:         "download_url": f"/api/v1/download/file/{download_token}",
-# OLD:         "expires_in": 3600
-# OLD:     }
-
 # ========== DASHBOARD ==========
 
 @router.get("/dashboard/stats", response_model=DashboardStats)
@@ -306,15 +263,25 @@ async def get_users(
 
     if search:
         search_term = f"%{search}%"
+        # OLD: query = query.where(
+        # OLD:     or_(
+        # OLD:         User.username.ilike(search_term),
+        # OLD:         User.first_name.ilike(search_term),
+        # OLD:         User.last_name.ilike(search_term),
+        # OLD:         User.email.ilike(search_term),
+        # OLD:         User.telegram_id.cast(String).ilike(search_term)
+        # OLD:     )
+        # OLD: )
         query = query.where(
             or_(
-                User.username.ilike(search_term),
-                User.first_name.ilike(search_term),
-                User.last_name.ilike(search_term),
-                User.email.ilike(search_term),
+                func.coalesce(User.username, '').ilike(search_term),
+                func.coalesce(User.first_name, '').ilike(search_term),
+                func.coalesce(User.last_name, '').ilike(search_term),
+                func.coalesce(User.email, '').ilike(search_term),
                 User.telegram_id.cast(String).ilike(search_term)
             )
         )
+
 
     # Підрахунок загальної кількості
     count_query = select(func.count()).select_from(query.subquery())
@@ -354,7 +321,6 @@ async def get_user_details(
     )
 
     result = await db.execute(query)
-    # OLD: user = result.scalar_one_or_none()
     user = result.unique().scalar_one_or_none()
 
     if not user:

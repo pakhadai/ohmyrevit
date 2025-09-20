@@ -1,4 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from fastapi import APIRouter, Depends, Header, HTTPException, status, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -217,7 +216,7 @@ def get_archive_media_type(filename: str) -> str:
         return 'application/vnd.rar'
     if filename.lower().endswith('.7z'):
         return 'application/x-7z-compressed'
-    return 'application/octet-stream'  # Загальний тип як запасний варіант
+    return 'application/octet-stream'
 
 
 @router.get("/download/{product_id}")
@@ -244,7 +243,6 @@ async def download_product_file(
 
     product.downloads_count += 1
     await db.commit()
-    # OLD: return FileResponse(str(file_path), filename=file_path.name, media_type='application/octet-stream')
     media_type = get_archive_media_type(file_path.name)
     return FileResponse(str(file_path), filename=file_path.name, media_type=media_type)
 
@@ -292,6 +290,5 @@ async def get_referral_info(
         referral_code=user.referral_code,
         total_referrals=total_referrals,
         total_bonuses_earned=total_bonuses_earned,
-        logs=formatted_logs,
-        referred_users=user.referrals
+        logs=formatted_logs
     )

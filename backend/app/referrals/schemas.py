@@ -1,10 +1,17 @@
-# backend/app/referrals/schemas.py
-"""
-Pydantic схеми для реферальної системи
-"""
 from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from datetime import datetime
+
+class ReferralUserResponse(BaseModel):
+    """Коротка інформація про запрошеного користувача."""
+    id: int
+    first_name: str
+    last_name: Optional[str] = None
+    username: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
 
 class ReferralLogItem(BaseModel):
     """Один запис в історії нарахувань."""
@@ -22,3 +29,5 @@ class ReferralInfoResponse(BaseModel):
     total_referrals: int
     total_bonuses_earned: int
     logs: List[ReferralLogItem]
+    # ДОДАНО: Поле для списку запрошених користувачів
+    referred_users: List[ReferralUserResponse] = []

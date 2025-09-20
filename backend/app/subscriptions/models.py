@@ -1,6 +1,3 @@
-"""
-Моделі для підписок та доступів
-"""
 from sqlalchemy import (
     Column, Integer, String, ForeignKey, DateTime, Enum, UniqueConstraint
 )
@@ -29,7 +26,6 @@ class Subscription(Base):
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     start_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     end_date = Column(DateTime(timezone=True), nullable=False)
-    # OLD: status = Column(Enum(SubscriptionStatus), default=SubscriptionStatus.ACTIVE)
     status = Column(Enum(SubscriptionStatus), default=SubscriptionStatus.PENDING)
     payment_id = Column(String(200), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -1,13 +1,11 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.users.dependencies import get_current_user  # ВИПРАВЛЕНО: правильний імпорт
-from app.users.models import User  # ДОДАНО: імпорт User
+from app.users.dependencies import get_current_user
+from app.users.models import User
 from app.subscriptions.service import SubscriptionService
 from app.payments.cryptomus import CryptomusClient
 from sqlalchemy import select
-# OLD: from datetime import datetime
 from datetime import datetime, timezone
 from app.subscriptions.models import Subscription
 from app.core.config import settings
@@ -18,16 +16,15 @@ router = APIRouter(tags=["subscriptions"])
 @router.post("/checkout")
 async def create_subscription_checkout(
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(get_current_user)  # ВИПРАВЛЕНО: правильна типізація
+        current_user: User = Depends(get_current_user)
 ):
-    """Створює замовлення на підписку"""
 
     service = SubscriptionService(db)
 
     try:
         # Створюємо підписку (поки що pending)
         subscription = await service.create_subscription(current_user.id)
-        subscription.status = "pending"  # Поки не оплачено
+        subscription.status = "pending"
         await db.commit()
 
         # Створюємо платіж
@@ -52,9 +49,8 @@ async def create_subscription_checkout(
 @router.get("/status")
 async def get_subscription_status(
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(get_current_user)  # ВИПРАВЛЕНО
+        current_user: User = Depends(get_current_user)
 ):
-    """Отримує статус підписки користувача"""
 
     subscription = await db.execute(
         select(Subscription).where(
@@ -75,7 +71,6 @@ async def get_subscription_status(
         "subscription": {
             "start_date": subscription.start_date,
             "end_date": subscription.end_date,
-# OLD:             "days_remaining": (subscription.end_date - datetime.utcnow()).days
             "days_remaining": (subscription.end_date - datetime.now(timezone.utc)).days
         }
     }

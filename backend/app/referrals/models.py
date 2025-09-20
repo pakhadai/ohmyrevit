@@ -1,7 +1,3 @@
-# backend/app/referrals/models.py
-"""
-Моделі для реферальної системи
-"""
 from sqlalchemy import (
     Column, Integer, String, ForeignKey, DateTime, Enum as SQLAlchemyEnum, Numeric
 )

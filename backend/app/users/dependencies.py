@@ -1,7 +1,3 @@
-# backend/app/users/dependencies.py
-"""
-Dependencies для авторизації
-"""
 from fastapi import Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,13 +13,11 @@ security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-        credentials: Optional[HTTPAuthorizationCredentials] = Depends(security), # Зробіть необов'язковим
-        token_from_query: Optional[str] = Query(None, alias="token"), # Додайте отримання токена з query
+        credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+        token_from_query: Optional[str] = Query(None, alias="token"),
         db: AsyncSession = Depends(get_db)
 ) -> User:
-    """
-    Отримання поточного користувача з токену (з заголовка або query-параметра)
-    """
+
     token = None
     if credentials:
         token = credentials.credentials
@@ -46,7 +40,6 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Отримуємо користувача з БД
     result = await db.execute(
         select(User).where(User.id == user_id)
     )
@@ -70,18 +63,7 @@ async def get_current_user(
 async def get_current_admin_user(
         current_user: User = Depends(get_current_user)
 ) -> User:
-    """
-    Перевірка чи користувач є адміністратором
 
-    Args:
-        current_user: Поточний користувач
-
-    Returns:
-        User: Об'єкт користувача-адміна
-
-    Raises:
-        HTTPException: Якщо користувач не адмін
-    """
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

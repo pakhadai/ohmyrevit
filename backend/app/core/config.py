@@ -1,3 +1,4 @@
+# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
 from functools import lru_cache
@@ -25,7 +26,7 @@ class Settings(BaseSettings):
     # DeepL API
     DEEPL_API_KEY: Optional[str] = None
     DEEPL_API_FREE: bool = True
-    DEEPL_TARGET_LANGUAGES: List[str] = ["EN", "RU"] # ДОДАНО
+    DEEPL_TARGET_LANGUAGES: List[str] = ["EN", "RU"]
 
     # Cryptomus
     CRYPTOMUS_API_KEY: str = ""
@@ -72,6 +73,7 @@ class Settings(BaseSettings):
     DAILY_BONUS_BASE: int = 10
     BONUS_TO_USD_RATE: int = 100  # 100 бонусів = $1
     MAX_BONUS_DISCOUNT_PERCENT: float = 0.5
+    REFERRAL_REGISTRATION_BONUS: int = 30 # ДОДАНО
 
     # Налаштування для файлів
     UPLOAD_DIR: str = "./uploads"

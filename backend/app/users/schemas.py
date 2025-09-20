@@ -1,15 +1,9 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
-# backend/app/users/schemas.py
-"""
-Pydantic схеми для валідації даних користувачів
-"""
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional
 from datetime import date, datetime
 
 
 class UserBase(BaseModel):
-    """Базова схема користувача"""
     telegram_id: int
     username: Optional[str] = None
     first_name: str
@@ -20,7 +14,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    """Схема для створення користувача"""
+
     pass
 
 
@@ -64,7 +58,7 @@ class UserResponse(BaseModel):
     bonus_balance: int
     bonus_streak: int
     created_at: datetime
-    referral_code: Optional[str] = None # Додано поле
+    referral_code: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -80,13 +74,11 @@ class TelegramAuthData(BaseModel):
     hash: str
     user: Optional[dict] = None
     query_id: Optional[str] = None
-    start_param: Optional[str] = None # Додано поле для реферального коду
+    start_param: Optional[str] = None
 
     language_code: Optional[str] = "uk"
     is_premium: Optional[bool] = False
 
-    # # OLD: class Config:
-    # # OLD:     extra = "allow"
     model_config = ConfigDict(extra="allow")
 
 
@@ -101,9 +93,6 @@ class TokenResponse(BaseModel):
 class BonusClaimResponse(BaseModel):
     """Схема відповіді для отримання бонусу"""
     success: bool
-    # OLD: bonus_amount: int
-    # OLD: new_balance: int
-    # OLD: new_streak: int
     bonus_amount: Optional[int] = None
     new_balance: Optional[int] = None
     new_streak: Optional[int] = None

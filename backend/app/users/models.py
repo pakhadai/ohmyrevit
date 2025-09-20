@@ -1,4 +1,3 @@
-# backend/app/users/models.py
 from sqlalchemy import (
     Column, Integer, BigInteger, String, Boolean,
     Date, DateTime, func, ForeignKey
