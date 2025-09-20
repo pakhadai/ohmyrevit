@@ -55,7 +55,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_PATH), name="uploads")
 
 @app.get("/")
@@ -80,6 +79,7 @@ from app.orders.router import router as orders_router
 from app.admin.router import router as admin_main_router
 from app.collections.router import router as collections_router
 from app.users.router import auth_router
+from app.bot.router import router as bot_webhook_router
 
 # Основні роутери API v1
 api_v1_router = APIRouter(prefix="/api/v1")
@@ -97,5 +97,5 @@ admin_router_v1.include_router(products_admin_router, prefix="/products")
 
 # Реєструємо всі роутери в додатку
 app.include_router(api_v1_router)
-# Додаємо префікс для всіх адмін-роутерів один раз тут
 app.include_router(admin_router_v1, prefix="/api/v1/admin")
+app.include_router(bot_webhook_router)
