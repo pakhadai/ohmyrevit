@@ -50,7 +50,9 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # =================================================================
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "https://dev.ohmyrevit.pp.ua", "https://t.me"]
+    # OLD: ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "https://dev.ohmyrevit.pp.ua", "https://t.me"]
+    # ВИПРАВЛЕНО: Забираємо жорстке кодування, щоб значення бралось тільки з .env файлу
+    ALLOWED_ORIGINS: List[str] = []
     ALLOWED_FILE_EXTENSIONS: List[str] = [".zip", ".rar", ".7z"]
     # =================================================================
 
