@@ -10,7 +10,7 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   lastLoginAt: number | null;
-  isNewUser: boolean | null; // ДОДАНО: Для відстеження онбордингу
+  isNewUser: boolean | null;
 
   login: (initData: object) => Promise<any>;
   logout: () => void;
@@ -27,7 +27,7 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       isAuthenticated: false,
       lastLoginAt: null,
-      isNewUser: null, // ДОДАНО
+      isNewUser: null,
 
       login: async (initData: object) => {
         set({ isLoading: true, isNewUser: null });
@@ -108,7 +108,7 @@ export const useAuthStore = create<AuthState>()(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
         lastLoginAt: state.lastLoginAt,
-        // Не зберігаємо isNewUser, це стан сесії
+        isNewUser: state.isNewUser,
       }),
     }
   )
