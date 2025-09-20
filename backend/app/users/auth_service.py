@@ -143,22 +143,27 @@ class AuthService:
                     referrer = referrer_result.scalar_one_or_none()
                     if referrer and referrer.id != user.id:
                         user.referrer_id = referrer.id
+                        # OLD: referrer.bonus_balance += 30
                         referrer.bonus_balance += settings.REFERRAL_REGISTRATION_BONUS
                         db.add(ReferralLog(
                             referrer_id=referrer.id,
                             referred_user_id=user.id,
                             bonus_type=ReferralBonusType.REGISTRATION,
+                            # OLD: bonus_amount=30
                             bonus_amount=settings.REFERRAL_REGISTRATION_BONUS
                         ))
+                        # OLD: logger.info(f"🎁 User {referrer.id} will receive 30 bonuses for inviting user {user.id}")
                         logger.info(f"🎁 User {referrer.id} will receive {settings.REFERRAL_REGISTRATION_BONUS} bonuses for inviting user {user.id}")
+                        # OLD: await telegram_service.send_message(
+                        # OLD:     chat_id=referrer.telegram_id,
+                        # OLD:     text=f"🎉 За вашим посиланням зареєструвався {user.first_name}! Вам нараховано 30 бонусів."
+                        # OLD: )
                         message = (
                             f"🎉 Вітаємо! За вашим посиланням зареєструвався новий користувач: *{user.first_name}*.\n"
                             f"Вам нараховано *+{settings.REFERRAL_REGISTRATION_BONUS}* бонусів. 💎\n\n"
                             f"Дякуємо, що ви з нами!"
                         )
                         await telegram_service.send_message(referrer.telegram_id, message)
-                    else:
-                        logger.warning(f"Referrer with code '{referrer_code}' not found or self-referral attempt.")
 
 
             else:
