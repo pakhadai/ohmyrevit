@@ -58,22 +58,33 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     const initializeTelegram = async () => {
       const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
-      const startParam = tg?.initDataUnsafe?.start_param;
 
-      // === ДІАГНОСТИКА ДЛЯ ТЕЛЕФОНУ ===
-      // Цей alert покаже вам, чи прийшов код.
-      // Якщо ви бачите "null" або "undefined", значить Бот не передав параметр.
+      let startParam = tg?.initDataUnsafe?.start_param;
+
+      if (!startParam) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlStartApp = urlParams.get('startapp');
+
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const hashStartApp = hashParams.get('tgWebAppStartParam');
+
+        startParam = urlStartApp || hashStartApp || null;
+      }
+
+      console.log('🔍 Start param source check:');
+      console.log('- initDataUnsafe.start_param:', tg?.initDataUnsafe?.start_param);
+      console.log('- URL search params:', new URLSearchParams(window.location.search).get('startapp'));
+      console.log('- Hash params:', new URLSearchParams(window.location.hash.substring(1)).get('tgWebAppStartParam'));
+      console.log('✅ Final startParam:', startParam);
+
       if (!authAttempted.current) {
           if (startParam) {
               alert(`✅ РЕФЕРАЛ ОТРИМАНО: ${startParam}\nЗараз спробуємо авторизуватись...`);
           } else {
-              // Розкоментуйте це, якщо хочете бачити помилку, коли коду немає
-              // alert('❌ Реферальний код відсутній в URL');
+              console.log('ℹ️ Немає реферального коду. Продовжуємо без нього.');
           }
       }
-      // ================================
 
-      // Якщо ми вже авторизовані і немає нового реферального коду - не робимо зайвих запитів
       if (authAttempted.current || (isAuthenticated && !startParam)) {
         setAppReady(true);
         if (isAuthenticated) fetchInitialData();
@@ -106,7 +117,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
               auth_date: initData.auth_date || Math.floor(Date.now() / 1000),
               hash: initData.hash || '',
               query_id: initData.query_id || '',
-              start_param: initData.start_param || null
+              start_param: startParam || null
             };
 
             try {
