@@ -4,78 +4,97 @@
 
 @layer base {
   :root {
-    /* --- Світла тема (Light Mode) --- */
-    /* Основний фон: дуже світлий сірий, не чисто білий, щоб очі не втомлювались */
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%; /* Майже чорний текст */
+    /* --- СВІТЛА ТЕМА --- */
 
-    /* Картки: чисто білі з легким бордером */
+    /* Фон: #F7F7FA -> 240 14% 97% */
+    --background: 240 14% 97%;
+    /* Текст: #1A1A1A -> 0 0% 10% */
+    --foreground: 0 0% 10%;
+
+    /* Картки: #FFFFFF -> 0 0% 100% */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 0 0% 10%;
 
-    /* Елементи інтерфейсу (кнопки, активні стани) */
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    /* Хедер: #FFFFFF -> 0 0% 100% */
+    --header: 0 0% 100%;
 
-    /* Головний акцентний колір (твій поточний Blue/Purple мікс) */
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary: #6C63FF -> 244 100% 69% */
+    --primary: 244 100% 69%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Вторинний колір (сірі плашки, неактивні кнопки) */
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary: #EDECFB -> 244 67% 96% */
+    --secondary: 244 67% 96%;
+    --secondary-foreground: 242 59% 55%; /* #4B47D1 */
 
-    /* Приглушений текст (описи, дати) */
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted: #F0F0F3 -> 240 10% 95% */
+    --muted: 240 10% 95%;
+    --muted-foreground: 0 0% 42%; /* #6B6B6B */
 
-    /* Акцент (ховери, виділення) */
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent: #EDECFB */
+    --accent: 244 67% 96%;
+    --accent-foreground: 242 59% 55%;
 
-    /* Помилки */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Destructive: #FF6B6B */
+    --destructive: 0 100% 71%;
+    --destructive-foreground: 0 0% 100%;
 
-    /* Рамки та інпути */
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    /* Border: #EAEAF0 -> 240 11% 93% */
+    --border: 240 11% 93%;
+    /* Input: #FFFFFF */
+    --input: 0 0% 100%;
+    /* Ring: #6C63FF */
+    --ring: 244 100% 69%;
 
-    --radius: 1rem; /* Закруглення 16px для всіх карток */
+    /* Custom Pink: #FFB4C8 -> 344 100% 85% */
+    --pink-soft: 344 100% 85%;
+
+    --radius: 1rem;
   }
 
   .dark {
-    /* --- Темна тема (Dark Mode) --- */
-    /* Фон: глибокий темний (Deep Slate), не чисто чорний */
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* --- ТЕМНА ТЕМА --- */
 
-    /* Картки: трохи світліші за фон */
-    --card: 222.2 84% 6.9%;
-    --card-foreground: 210 40% 98%;
+    /* Фон: #1A1A23 -> 240 15% 12% */
+    --background: 240 15% 12%;
+    /* Текст: #F2F2F5 -> 240 10% 95% */
+    --foreground: 240 10% 95%;
 
-    --popover: 222.2 84% 6.9%;
-    --popover-foreground: 210 40% 98%;
+    /* Картки: #262633 -> 240 15% 17% */
+    --card: 240 15% 17%;
+    --card-foreground: 240 10% 95%;
 
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Хедер: #1F1F2A -> 240 15% 14% */
+    --header: 240 15% 14%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    /* Primary: #918BFF -> 243 100% 77% */
+    --primary: 243 100% 77%;
+    --primary-foreground: 240 15% 12%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    /* Secondary: #2F2F3D -> 240 13% 21% */
+    --secondary: 240 13% 21%;
+    --secondary-foreground: 240 82% 90%; /* #CFCFFC */
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    /* Muted: #262633 -> 240 15% 17% */
+    --muted: 240 15% 17%;
+    --muted-foreground: 240 6% 67%; /* #A5A5B2 */
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    /* Accent */
+    --accent: 240 13% 21%;
+    --accent-foreground: 240 82% 90%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    /* Destructive */
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border: #2F2F3D -> 240 13% 21% */
+    --border: 240 13% 21%;
+    /* Input: #262633 -> 240 15% 17% */
+    --input: 240 15% 17%;
+    /* Ring: #918BFF */
+    --ring: 243 100% 77%;
+
+    /* Custom Pink: #FF99B2 -> 345 100% 80% */
+    --pink-soft: 345 100% 80%;
   }
 }
 
@@ -85,27 +104,22 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* Заборона еластичного скролу (pull-to-refresh), який ламає UI в Telegram */
-    overscroll-behavior-y: none;
   }
 }
 
-/* Утиліти для Telegram Safe Area (враховуємо "чубчик" iPhone) */
-@layer utilities {
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  .pt-safe {
-    padding-top: env(safe-area-inset-top);
+@layer components {
+  /* Картка з м'якою тінню */
+  .card-minimal {
+    @apply bg-card text-card-foreground rounded-2xl border border-border/50 shadow-[0_4px_20px_-12px_rgba(0,0,0,0.08)] dark:shadow-none transition-transform duration-200;
   }
 
-  /* Стандартна картка для всього додатку */
-  .app-card {
-    @apply bg-card text-card-foreground rounded-2xl border border-border shadow-sm transition-all duration-200;
+  /* Кнопка Primary */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground px-6 py-3.5 rounded-xl font-semibold shadow-lg shadow-primary/20 hover:brightness-105 active:scale-95 transition-all;
   }
 
-  /* Стандартний контейнер сторінки з відступами під хедер */
-  .page-container {
-    @apply container mx-auto px-4 py-6 pb-24;
+  /* Навігація */
+  .nav-blur {
+    @apply bg-header/90 backdrop-blur-xl border-t border-border dark:border-border/50;
   }
 }

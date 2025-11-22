@@ -1,4 +1,3 @@
-// frontend/app/profile/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Download, Heart, Users, HelpCircle,
   FileText, Gift, Mail, Save, Settings,
-  Shield, ChevronDown, ChevronUp, Globe, Moon, Sun
+  Shield, ChevronDown, ChevronUp, Globe, Moon, Sun, LogOut
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { profileAPI } from '@/lib/api';
@@ -19,19 +18,22 @@ import { useUIStore } from '@/store/uiStore';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, setUser } = useAuthStore();
-  const [email, setEmail] = useState(user?.email || '');
+  const { user, setUser, logout } = useAuthStore();
+  const [email, setEmail] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false); // Стейт для контролю гідратації
   const { t, i18n } = useTranslation();
 
-  // Стори для мови та теми
   const { setLanguage } = useLanguageStore();
   const { theme, setTheme } = useUIStore();
 
   useEffect(() => {
+    // Встановлюємо email тільки коли user завантажився
     if (user) {
       setEmail(user.email || '');
     }
+    // Позначаємо, що клієнт готовий до відображення
+    setIsHydrated(true);
   }, [user]);
 
   const handleEmailSave = async () => {
@@ -41,8 +43,12 @@ export default function ProfilePage() {
       toast.success(t('profilePages.main.toasts.emailSaved'));
     } catch (error) {
       toast.error(t('profilePages.main.toasts.emailError'));
-      console.error('Update email error:', error);
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.push('/');
   };
 
   const languages = [
@@ -60,56 +66,70 @@ export default function ProfilePage() {
     { href: '/profile/faq', label: t('profilePages.main.menu.faq'), icon: FileText }
   ];
 
-  return (
-    // ВИПРАВЛЕНО: Використовуємо py-6 для ідентичного відступу, як на Головній
-    <div className="container mx-auto px-4 py-6">
-      {/* Шапка профілю */}
-      <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 mb-6 text-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <img
-              src={user?.photo_url || `https://avatar.vercel.sh/${user?.username || user?.id}.png`}
-              alt="Profile"
-              className="w-24 h-24 rounded-full border-4 border-white/50 object-cover"
-            />
-            <div>
-              <h1 className="text-2xl font-bold">{user?.first_name} {user?.last_name}</h1>
-              <p className="opacity-90">@{user?.username || 'user'}</p>
-              {user?.is_admin && (
-                <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 bg-white/20 rounded-full text-xs">
-                  <Shield size={12} />
-                  {t('profilePages.main.adminBadge')}
-                </span>
-              )}
-            </div>
-          </div>
+  // Запобігає "стрибкам" контенту до завантаження даних користувача
+  if (!isHydrated) return null;
 
-          {user?.is_admin && (
+  return (
+    <div className="container mx-auto px-5 pt-14 pb-24 space-y-6">
+
+      {/* 1. Шапка профілю */}
+      {/* Додано animate-fade-in для плавної появи всього блоку без зміщення */}
+      <div className="flex flex-col items-center text-center pt-2 animate-fade-in">
+        <div className="relative mb-4">
+            <div className="w-24 h-24 rounded-full p-1 bg-background border-2 border-primary/20 shadow-lg shadow-primary/10">
+                <img
+                src={user?.photo_url || `https://avatar.vercel.sh/${user?.username || user?.id}.png`}
+                alt="Profile"
+                className="w-full h-full rounded-full object-cover"
+                />
+            </div>
+            {user?.is_admin && (
+                <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 px-2.5 py-0.5 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm border border-background">
+                    Admin
+                </div>
+            )}
+        </div>
+
+        <h1 className="text-2xl font-bold text-foreground">{user?.first_name} {user?.last_name}</h1>
+        <p className="text-sm text-muted-foreground font-medium">@{user?.username || 'user'}</p>
+
+        {/* Кнопки дій */}
+        <div className="flex items-center gap-3 mt-5">
+            {user?.is_admin && (
+                <button
+                onClick={() => router.push('/admin')}
+                className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-medium hover:border-primary/30 transition-colors shadow-sm"
+                >
+                <Shield size={16} className="text-primary" />
+                <span>{t('profilePages.main.adminPanel')}</span>
+                </button>
+            )}
             <button
-              onClick={() => router.push('/admin')}
-              className="px-4 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg hover:bg-white/30 transition-all flex items-center gap-2"
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-medium hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-colors shadow-sm"
             >
-              <Shield size={18} />
-              <span className="hidden sm:inline">{t('profilePages.main.adminPanel')}</span>
+                <LogOut size={16} />
+                <span>Вийти</span>
             </button>
-          )}
         </div>
       </div>
 
-      {/* Налаштування (згорнутий блок) */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl mb-6 shadow-sm overflow-hidden">
+      {/* 2. Налаштування */}
+      <div className="card-minimal overflow-hidden">
         <button
           onClick={() => setSettingsOpen(!settingsOpen)}
-          className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+          className="w-full p-5 flex items-center justify-between hover:bg-muted/30 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <Settings size={20} className="text-gray-600 dark:text-gray-400" />
-            <span className="font-semibold">{t('profilePages.main.settings.title')}</span>
+            <div className="p-2 bg-muted rounded-lg text-foreground">
+                <Settings size={20} />
+            </div>
+            <span className="font-semibold text-foreground">{t('profilePages.main.settings.title')}</span>
           </div>
           {settingsOpen ? (
-            <ChevronUp size={20} className="text-gray-400" />
+            <ChevronUp size={20} className="text-muted-foreground" />
           ) : (
-            <ChevronDown size={20} className="text-gray-400" />
+            <ChevronDown size={20} className="text-muted-foreground" />
           )}
         </button>
 
@@ -119,113 +139,120 @@ export default function ProfilePage() {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="border-t dark:border-slate-700"
+              transition={{ duration: 0.2 }}
+              className="border-t border-border"
             >
-              <div className="p-6 space-y-6">
-                {/* Блок Email */}
+              <div className="p-5 space-y-6">
+                {/* Email */}
                 <div>
-                    <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">
-                    {t('profilePages.main.settings.contactInfo')}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                    {t('profilePages.main.settings.emailDescription')}
-                    </p>
+                    <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+                        {t('profilePages.main.settings.contactInfo')}
+                    </label>
                     <div className="flex items-center gap-2">
                         <div className="relative flex-grow">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
                             <input
-                            type="email"
-                            name="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder={t('profilePages.main.settings.emailPlaceholder')}
-                            className="w-full pl-10 pr-4 py-2 border dark:border-slate-600 rounded-lg bg-transparent text-sm"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder={t('profilePages.main.settings.emailPlaceholder')}
+                                className="w-full pl-10 pr-4 py-2.5 bg-muted/50 border border-transparent focus:bg-background focus:border-primary/30 rounded-xl text-sm outline-none transition-all"
                             />
                         </div>
                         <button
                             onClick={handleEmailSave}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0 flex items-center gap-2 text-sm"
+                            className="p-2.5 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
                         >
-                            <Save size={16}/>
-                            <span>{t('common.save')}</span>
+                            <Save size={18} />
                         </button>
                     </div>
+                    <p className="text-[10px] text-muted-foreground mt-2 ml-1">
+                        {t('profilePages.main.settings.emailDescription')}
+                    </p>
                 </div>
 
-                <div className="h-px bg-gray-100 dark:bg-slate-700 my-2"></div>
+                <div className="h-px bg-border w-full"></div>
 
-                {/* Блок Мова та Тема */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Мова */}
+                {/* Мова та Тема */}
+                <div className="grid grid-cols-1 gap-4">
                     <div>
-                        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-2">
-                            <Globe size={16} /> Мова інтерфейсу
-                        </h3>
-                        <select
-                            value={i18n.language}
-                            onChange={(e) => setLanguage(e.target.value as any)}
-                            className="w-full px-3 py-2 rounded-lg border bg-white dark:bg-slate-700 dark:border-slate-600 text-sm focus:outline-none"
-                        >
-                            {languages.map(lang => (
-                                <option key={lang.code} value={lang.code}>
-                                {lang.label}
-                                </option>
-                            ))}
-                        </select>
+                        <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                            <Globe size={12} /> Мова
+                        </label>
+                        <div className="relative">
+                            <select
+                                value={i18n.language}
+                                onChange={(e) => setLanguage(e.target.value as any)}
+                                className="w-full appearance-none px-4 py-2.5 bg-muted/50 border border-transparent rounded-xl text-sm focus:bg-background focus:border-primary/30 outline-none cursor-pointer"
+                            >
+                                {languages.map(lang => (
+                                    <option key={lang.code} value={lang.code}>
+                                    {lang.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none w-4 h-4" />
+                        </div>
                     </div>
 
-                    {/* Тема */}
                     <div>
-                        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-2">
-                            {theme === 'light' ? <Sun size={16} /> : <Moon size={16} />}
-                            Тема оформлення
-                        </h3>
-                        <div className="flex bg-gray-100 dark:bg-slate-700 rounded-lg p-1">
+                        <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                            {theme === 'light' ? <Sun size={12} /> : <Moon size={12} />}
+                            Тема
+                        </label>
+                        <div className="flex bg-muted/50 p-1 rounded-xl">
                             <button
                                 onClick={() => setTheme('light')}
-                                className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-sm rounded-md transition-all ${theme === 'light' ? 'bg-white shadow text-blue-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-lg transition-all ${theme === 'light' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                             >
                                 <Sun size={14} /> Світла
                             </button>
                             <button
                                 onClick={() => setTheme('dark')}
-                                className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-sm rounded-md transition-all ${theme === 'dark' ? 'bg-slate-600 shadow text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-lg transition-all ${theme === 'dark' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                             >
                                 <Moon size={14} /> Темна
                             </button>
                         </div>
                     </div>
                 </div>
-
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Меню профілю */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {menuItems.map(item => {
-          const Icon = item.icon;
-          return (
-            <Link key={item.href} href={item.href}>
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="bg-white dark:bg-slate-800 rounded-lg p-5 flex items-center gap-4 cursor-pointer shadow-sm hover:shadow-md transition-all"
-              >
-                <div className="p-3 bg-gray-100 dark:bg-slate-700 rounded-lg">
-                  <Icon size={22} className="text-purple-500" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">{item.label}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('profilePages.main.menu.goToSection')}</p>
-                </div>
-              </motion.div>
-            </Link>
-          );
-        })}
+      {/* 3. Меню профілю */}
+      <div>
+        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">
+            {t('profilePages.main.menu.goToSection')}
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {menuItems.map((item, index) => {
+            const Icon = item.icon;
+            return (
+                <Link key={item.href} href={item.href}>
+                {/* ЗМІНЕНО: Прибрано animate={{ y: 0 }}, залишено тільки opacity для усунення мерехтіння */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    className="card-minimal p-4 flex items-center gap-4 cursor-pointer group hover:border-primary/30 transition-all"
+                >
+                    <div className="w-10 h-10 rounded-xl bg-secondary/50 flex items-center justify-center text-secondary-foreground group-hover:scale-110 transition-transform duration-200">
+                        <Icon size={20} />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="font-semibold text-foreground text-sm">{item.label}</h3>
+                    </div>
+                    <div className="text-muted-foreground group-hover:text-primary transition-colors">
+                        <ChevronDown size={16} className="-rotate-90" />
+                    </div>
+                </motion.div>
+                </Link>
+            );
+            })}
+        </div>
       </div>
     </div>
   );

@@ -1,12 +1,11 @@
-// frontend/app/profile/faq/page.tsx
 'use client';
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
+import { ChevronDown, HelpCircle, FileText, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-// Тимчасові дані (сюди ви вставите свої реальні питання)
+// Тимчасові дані
 const faqs = [
   {
     question: 'Як встановити завантажені сімейства в Revit?',
@@ -35,29 +34,39 @@ export default function FaqPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      {/* Заголовок та кнопка "Назад" видалені */}
+    <div className="container mx-auto px-5 pt-14 pb-24 space-y-6">
+
+      {/* Заголовок */}
+      <div className="flex items-center gap-4 pt-2">
+         <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-sm">
+            <FileText size={24} />
+         </div>
+         <div>
+            <h1 className="text-2xl font-bold text-foreground">{t('profilePages.faq.pageTitle')}</h1>
+            <p className="text-sm text-muted-foreground font-medium">Відповіді на популярні питання</p>
+         </div>
+      </div>
 
       {/* Список питань */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {faqs.map((faq, index) => (
           <motion.div
             key={index}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-sm"
+            className={`card-minimal overflow-hidden transition-all duration-300 ${openIndex === index ? 'ring-2 ring-primary/20' : ''}`}
           >
             <button
               onClick={() => setOpenIndex(openIndex === index ? null : index)}
-              className="w-full p-5 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors focus:outline-none"
+              className="w-full p-5 flex items-center justify-between text-left focus:outline-none group"
             >
-              <span className="font-semibold pr-4 text-gray-800 dark:text-gray-200">{faq.question}</span>
-              {openIndex === index ? (
-                <ChevronUp className="text-purple-500 flex-shrink-0 transition-transform" />
-              ) : (
-                <ChevronDown className="text-gray-400 flex-shrink-0 transition-transform" />
-              )}
+              <span className={`font-semibold pr-4 text-sm transition-colors ${openIndex === index ? 'text-primary' : 'text-foreground group-hover:text-primary/80'}`}>
+                {faq.question}
+              </span>
+              <div className={`p-1 rounded-full transition-all duration-300 ${openIndex === index ? 'bg-primary text-primary-foreground rotate-180' : 'bg-muted text-muted-foreground group-hover:bg-muted/80'}`}>
+                <ChevronDown size={16} />
+              </div>
             </button>
 
             <AnimatePresence>
@@ -66,10 +75,14 @@ export default function FaqPage() {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
                 >
-                  <div className="px-5 pb-5 pt-0 text-gray-600 dark:text-gray-400 text-sm leading-relaxed border-t border-gray-100 dark:border-slate-700 mt-2 pt-4">
-                    {faq.answer}
+                  <div className="px-5 pb-5 pt-0">
+                    <div className="pt-4 border-t border-border/50">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            {faq.answer}
+                        </p>
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -80,9 +93,12 @@ export default function FaqPage() {
 
       {/* Якщо список порожній */}
       {faqs.length === 0 && (
-         <div className="text-center py-12 text-gray-500">
-            <HelpCircle size={48} className="mx-auto mb-4 opacity-50" />
-            <p>{t('profilePages.faq.answersComingSoon')}</p>
+         <div className="text-center py-20 px-6 bg-muted/30 rounded-[24px] border border-dashed border-border">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <Sparkles size={32} className="text-muted-foreground opacity-50" />
+            </div>
+            <h2 className="text-lg font-semibold text-foreground mb-2">{t('profilePages.faq.answersComingSoon')}</h2>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto">{t('profilePages.faq.description')}</p>
          </div>
       )}
     </div>

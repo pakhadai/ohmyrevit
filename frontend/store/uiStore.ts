@@ -12,7 +12,7 @@ interface UIState {
 export const useUIStore = create<UIState>()(
   persist(
     (set, get) => ({
-      theme: 'light', // Тема за замовчуванням
+      theme: 'dark', // ЗМІНЕНО: Темна тема за замовчуванням
 
       setTheme: (theme) => {
         set({ theme });
@@ -29,7 +29,7 @@ export const useUIStore = create<UIState>()(
       },
     }),
     {
-      name: 'ui-storage', // Ключ для localStorage
+      name: 'ui-storage',
       partialize: (state) => ({
         theme: state.theme,
       }),

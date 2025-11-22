@@ -15,10 +15,11 @@ export default function BottomNav() {
   const cartItemsCount = useCartStore((state) => state.items.length);
   const { t } = useTranslation();
 
-  // Логіка приховування при скролі
+  // Логіка приховування при скролі (залишаємо, бо це зручно)
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
+      // Приховуємо тільки якщо скролимо вниз і прокрутили більше 100px
       if (currentScrollY > lastScrollY && currentScrollY > 100) {
         setIsVisible(false);
       } else {
@@ -39,52 +40,69 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className={`fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
-      <div className="container mx-auto px-4 py-3">
-        {/* ОНОВЛЕНО: Використовуємо bg-gray-300/90 та dark:bg-slate-950/90,
-            щоб відповідати стилю Header.
-        */}
-        <div className="relative bg-gray-300/90 dark:bg-slate-950/90 backdrop-blur-lg rounded-full shadow-lg">
-          <div className="flex justify-around items-center">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
+    <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none pb-6">
+      <motion.nav
+        initial={{ y: 100, opacity: 0 }}
+        animate={{
+          y: isVisible ? 0 : 100,
+          opacity: isVisible ? 1 : 0
+        }}
+        transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+        // Стиль "Floating Dock":
+        // - pointer-events-auto: щоб кнопки натискалися
+        // - backdrop-blur-xl: сильне розмиття як в iOS
+        // - bg-background/80: напівпрозорий фон теми
+        // - shadow-lg: виразна тінь
+        // - rounded-full: повне закруглення (пігулка)
+        className="pointer-events-auto relative flex items-center bg-[#1F1F2A]/80 dark:bg-[#1F1F2A]/80 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/20 rounded-[32px] px-2 py-2 gap-1 min-w-[320px]"
+      >
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href;
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="relative flex flex-col items-center justify-center w-full h-16 text-center transition-colors duration-300 z-10"
-                >
-                  {/* Індикатор активної вкладки з анімацією */}
-                  {isActive && (
-                    <motion.div
-                      layoutId="active-nav-indicator"
-                      // Трохи підлаштував колір індикатора для кращого контрасту на темнішому фоні
-                      className="absolute inset-0 bg-white/40 dark:bg-slate-700/80 rounded-full"
-                      initial={{ scale: 0.8 }}
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="relative flex-1 flex flex-col items-center justify-center h-12 min-w-[60px] cursor-pointer select-none"
+            >
+              {/* Активний фон (ковзаюча бульбашка) */}
+              {isActive && (
+                <motion.div
+                  layoutId="nav-pill"
+                  className="absolute inset-0 bg-primary rounded-[24px]"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+
+              {/* Контент кнопки */}
+              <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
+                <div className="relative">
+                  <Icon
+                    size={22}
+                    strokeWidth={2.5}
+                    // Анімація кольору іконки
+                    className={`transition-colors duration-300 ${
+                      isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'
+                    }`}
+                  />
+
+                  {/* Бейдж (лічильник) */}
+                  {item.badge > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                    />
+                      className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full border-2 border-[#1F1F2A]"
+                    >
+                      {item.badge}
+                    </motion.span>
                   )}
-
-                  <div className={`relative z-10 flex flex-col items-center transition-colors ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}`}>
-                    <div className="relative">
-                      <Icon className="w-6 h-6" />
-                      {item.badge > 0 && (
-                        <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-semibold rounded-full w-4 h-4 flex items-center justify-center border-2 border-transparent">
-                          {item.badge}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs mt-1 font-medium">{item.label}</span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </nav>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </motion.nav>
+    </div>
   );
 }

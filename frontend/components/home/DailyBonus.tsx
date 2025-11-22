@@ -1,19 +1,17 @@
-// frontend/components/home/DailyBonus.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Gift, Clock, ChevronRight } from 'lucide-react'; // Added ChevronRight
+import { Gift, ChevronRight } from 'lucide-react';
 import { profileAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import Link from 'next/link'; // Added Link
+import Link from 'next/link';
 
 export default function DailyBonus() {
   const { user, isAuthenticated, setUser } = useAuthStore();
   const [bonusInfo, setBonusInfo] = useState<any>(null);
-  const [timeLeft, setTimeLeft] = useState('');
   const { t } = useTranslation();
 
   const fetchBonusInfo = async () => {
@@ -26,137 +24,83 @@ export default function DailyBonus() {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchBonusInfo();
-    }
+    if (isAuthenticated) fetchBonusInfo();
   }, [isAuthenticated]);
 
-  useEffect(() => {
-    if (!bonusInfo) return;
+  const claimBonus = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!bonusInfo?.can_claim_today) return;
 
-    const timer = setInterval(() => {
-      if (bonusInfo.can_claim_today) {
-        setTimeLeft('');
-        return;
-      }
-
-      const now = new Date();
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
-
-      const diff = tomorrow.getTime() - now.getTime();
-      if (diff <= 0) {
-        fetchBonusInfo();
-        return;
-      }
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      setTimeLeft(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [bonusInfo]);
-
-  const claimBonus = async () => {
     try {
       const result = await profileAPI.claimDailyBonus();
       if (result.success) {
-        toast.success(`🎉 ${result.message}`);
+        toast.success(`🎉 +${result.bonus_amount} бонусів!`);
         if(user) {
             setUser({...user, bonus_balance: result.new_balance, bonus_streak: result.new_streak});
         }
         fetchBonusInfo();
-      } else {
-        toast.error(result.message || 'Не вдалося отримати бонус');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Помилка при отриманні бонусу');
+      toast.error('Помилка при отриманні бонусу');
     }
   };
 
-  if (!isAuthenticated || !bonusInfo) {
-    return null;
-  }
+  if (!isAuthenticated || !bonusInfo) return null;
+
+  // Розрахунок прогресу (1-7 днів)
+  const progress = bonusInfo.streak > 0 ? (bonusInfo.streak % 7) || 7 : 0;
+  const progressPercent = (progress / 7) * 100;
 
   return (
-      // ЗМІНЕНО: Білий фон, бурштиновий (amber) бордер
+    <Link href="/profile/bonuses">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-amber-100 dark:border-amber-900/30 relative overflow-hidden"
+        whileTap={{ scale: 0.98 }}
+        className="card-minimal p-4 relative overflow-hidden group"
       >
-        {/* Фоновий декор */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 dark:bg-amber-900/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
-
-        <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-            <Link href="/profile/bonuses" className="flex items-center gap-3 group">
-                <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 text-amber-500 rounded-xl group-hover:scale-105 transition-transform">
-                    <Gift size={22} />
+        {/* Верхня частина: Заголовок та Баланс */}
+        <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center text-orange-500">
+                    <Gift size={16} />
                 </div>
                 <div>
-                    <h3 className="text-base font-bold text-slate-800 dark:text-white flex items-center gap-1">
-                        {t('bonus.dailyBonus')}
-                        <ChevronRight size={14} className="text-slate-400" />
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <h3 className="font-bold text-sm text-foreground">{t('bonus.dailyBonus')}</h3>
+                    <p className="text-[10px] text-muted-foreground">
                         {bonusInfo.streak} {t('bonus.daysInARow')}
                     </p>
                 </div>
-            </Link>
+            </div>
             <div className="text-right">
-                <span className="text-xs text-slate-400 uppercase font-semibold tracking-wide">{t('bonus.yourBalance')}</span>
-                <p className="text-xl font-bold text-amber-500">{bonusInfo.balance} 💎</p>
-            </div>
-            </div>
-
-            <div className="space-y-3">
-            {/* Прогрес стріку */}
-            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700">
-                <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-2 font-medium">
-                    <span>{t('bonus.streakProgress')}</span>
-                    <span>{bonusInfo.streak > 0 ? bonusInfo.streak % 7 : 0}/7</span>
-                </div>
-                <div className="bg-slate-200 dark:bg-slate-600 rounded-full h-2 overflow-hidden">
-                <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(bonusInfo.streak > 0 ? bonusInfo.streak % 7 : 0) / 7 * 100}%` }}
-                    className="bg-gradient-to-r from-amber-400 to-orange-500 h-full rounded-full"
-                />
-                </div>
-                <p className="text-[10px] mt-1.5 text-slate-400 text-center">
-                {bonusInfo.streak > 0 && bonusInfo.streak % 7 === 0
-                    ? t('bonus.superBonusClaimed')
-                    : t('bonus.daysToSuperBonus', { count: 7 - (bonusInfo.streak > 0 ? bonusInfo.streak % 7 : 0) })
-                }
-                </p>
-            </div>
-
-            {/* Кнопка отримання */}
-            {bonusInfo.can_claim_today ? (
-                <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={claimBonus}
-                className="w-full bg-amber-500 text-white py-3 rounded-xl font-bold text-sm hover:bg-amber-600 transition-colors shadow-md shadow-amber-500/20"
-                >
-                {t('bonus.claimButton')}
-                </motion.button>
-            ) : (
-                <div className="bg-slate-100 dark:bg-slate-700/50 rounded-xl p-3 text-center border border-slate-200 dark:border-slate-600">
-                <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-300">
-                    <Clock size={14} />
-                    {t('bonus.nextBonusIn')}
-                </p>
-                <p className="text-lg font-bold text-slate-700 dark:text-white mt-0.5 font-mono">{timeLeft}</p>
-                </div>
-            )}
+                <p className="text-lg font-bold text-primary">{bonusInfo.balance} <span className="text-sm">💎</span></p>
             </div>
         </div>
+
+        {/* Прогрес бар або Кнопка */}
+        {bonusInfo.can_claim_today ? (
+            <button
+                onClick={claimBonus}
+                className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wide shadow-lg shadow-primary/20 animate-pulse"
+            >
+                {t('bonus.claimButton')}
+            </button>
+        ) : (
+            <div className="space-y-1.5">
+                <div className="flex justify-between text-[10px] font-medium text-muted-foreground">
+                    <span>Прогрес тижня</span>
+                    <span>{progress}/7</span>
+                </div>
+                <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progressPercent}%` }}
+                        className="h-full bg-gradient-to-r from-orange-400 to-primary rounded-full"
+                    />
+                </div>
+            </div>
+        )}
+
+        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" size={20} />
       </motion.div>
-    );
+    </Link>
+  );
 }

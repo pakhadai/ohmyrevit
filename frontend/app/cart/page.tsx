@@ -1,11 +1,10 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
 import { useCartStore } from '@/store/cartStore'
 import { useAuthStore } from '@/store/authStore'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trash2, Tag, Coins, AlertCircle } from 'lucide-react'
+import { Trash2, Tag, Coins, AlertCircle, ShoppingBag, ArrowRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ordersAPI } from '@/lib/api'
 import toast from 'react-hot-toast'
@@ -50,13 +49,9 @@ export default function CartPage() {
         use_bonus_points: bonuses > 0 ? bonuses : undefined
       });
 
-      console.log('Discount API Response:', response);
-
       if (response.success) {
         setDiscountAmount(response.discount_amount);
         setFinalTotal(response.final_total);
-        // OLD: if (promo) toast.success('Промокод застосовано!');
-        // OLD: if (bonuses > 0) toast.success('Бонуси застосовано!');
         if (promo) toast.success(t('toasts.promoApplied'));
         if (bonuses > 0) toast.success(t('toasts.bonusesApplied'));
       } else {
@@ -67,7 +62,6 @@ export default function CartPage() {
         if (bonuses > 0) setBonusPoints(0);
       }
     } catch (err: any) {
-      // OLD: toast.error('Помилка при розрахунку знижки');
       toast.error(t('toasts.discountCalculationError'));
       setDiscountAmount(0);
       setFinalTotal(subtotal);
@@ -96,21 +90,16 @@ export default function CartPage() {
         use_bonus_points: useBonusPoints > 0 ? useBonusPoints : null
       })
 
-      // OLD: toast.success(response.message || 'Створюємо замовлення...');
       if (response.payment_url) {
-        // OLD: window.location.href = response.payment_url;
         toast.success(t('toasts.redirectingToPayment'));
         window.location.href = response.payment_url;
       } else {
-        // OLD: clearCart();
-        // OLD: router.push('/profile');
         toast.success(t('toasts.orderSuccessNoPayment'));
         clearCart();
         router.push('/profile/downloads');
       }
 
     } catch (err: any) {
-      // OLD: toast.error(err.response?.data?.detail || 'Помилка при оформленні замовлення');
       toast.error(err.response?.data?.detail || t('toasts.checkoutError'));
     } finally {
       setIsProcessing(false)
@@ -145,166 +134,194 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-center p-4">
-        <h2 className="text-2xl font-bold mb-4">{t('cart.empty.title')}</h2>
-        <p className="text-gray-500 dark:text-gray-400 mb-6">{t('cart.empty.subtitle')}</p>
+      <div className="min-h-screen flex flex-col items-center justify-center text-center p-6 bg-background">
+        <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-6">
+            <ShoppingBag size={40} className="text-muted-foreground opacity-50" />
+        </div>
+        <h2 className="text-2xl font-bold mb-2 text-foreground">{t('cart.empty.title')}</h2>
+        <p className="text-muted-foreground mb-8 max-w-xs mx-auto">{t('cart.empty.subtitle')}</p>
         <button
           onClick={() => router.push('/marketplace')}
-          className="px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors"
+          className="btn-primary flex items-center gap-2"
         >
           {t('cart.empty.goToMarket')}
+          <ArrowRight size={18} />
         </button>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">{t('cart.title')}</h1>
+    <div className="container mx-auto px-5 pt-14 pb-24 min-h-screen">
+      <h1 className="text-2xl font-bold mb-6 text-foreground">{t('cart.title')}</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Items List */}
         <div className="lg:col-span-2 space-y-4">
-          <AnimatePresence>
+          <AnimatePresence mode="popLayout">
             {items.map((item) => (
               <motion.div
                 key={item.id}
                 layout
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -50, transition: { duration: 0.3 } }}
-                className="bg-white dark:bg-slate-800 rounded-lg p-4 flex items-center gap-4 shadow"
+                exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+                className="card-minimal p-4 flex gap-4 group"
               >
-                <img
-                  src={item.main_image_url}
-                  alt={item.title}
-                  className="w-20 h-20 object-cover rounded-md flex-shrink-0"
-                />
-
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold truncate">{item.title}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    {item.sale_price ? (
-                      <>
-                        <span className="text-red-500 font-bold">
-                          ${item.sale_price}
-                        </span>
-                        <span className="text-gray-400 line-through text-sm">
-                          ${item.price}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="font-bold">${item.price}</span>
-                    )}
-                  </div>
+                <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted flex-shrink-0">
+                    <img
+                    src={item.main_image_url}
+                    alt={item.title}
+                    className="w-full h-full object-cover"
+                    />
                 </div>
 
-                <button
-                  onClick={() => removeItem(item.id)}
-                  className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-full transition-colors"
-                >
-                  <Trash2 size={20} />
-                </button>
+                <div className="flex-1 min-w-0 py-1 flex flex-col justify-between">
+                  <div>
+                      <h3 className="font-semibold text-base text-foreground line-clamp-2 leading-tight">{item.title}</h3>
+                      {/* <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{item.description}</p> */}
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-2">
+                        {item.sale_price ? (
+                        <>
+                            <span className="text-primary font-bold text-lg">
+                            ${item.sale_price}
+                            </span>
+                            <span className="text-muted-foreground line-through text-sm">
+                            ${item.price}
+                            </span>
+                        </>
+                        ) : (
+                        <span className="font-bold text-lg text-foreground">${item.price}</span>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={() => removeItem(item.id)}
+                        className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                    >
+                        <Trash2 size={20} />
+                    </button>
+                  </div>
+                </div>
               </motion.div>
             ))}
           </AnimatePresence>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-lg p-6 h-fit shadow">
-          <h2 className="text-xl font-bold mb-4">{t('cart.summary.title')}</h2>
+        {/* Summary Block */}
+        <div className="h-fit space-y-6">
+            <div className="card-minimal p-6">
+                <h2 className="text-lg font-bold mb-5 text-foreground">{t('cart.summary.title')}</h2>
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">
-              <Tag size={16} className="inline mr-1" />
-              {t('cart.summary.promo')}
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={promoInput}
-                onChange={(e) => setPromoInput(e.target.value)}
-                placeholder={t('cart.summary.promoPlaceholder')}
-                disabled={useBonusPoints > 0 || isCalculating}
-                className="flex-1 px-3 py-2 border rounded-lg disabled:opacity-50 dark:bg-slate-700 dark:border-slate-600"
-              />
-              <button
-                onClick={applyPromoCode}
-                disabled={useBonusPoints > 0 || isCalculating}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:opacity-50"
-              >
-                {t('cart.summary.apply')}
-              </button>
+                {/* Promo Code */}
+                <div className="mb-4">
+                    <label className="block text-xs font-medium mb-2 text-muted-foreground flex items-center gap-1.5">
+                    <Tag size={14} />
+                    {t('cart.summary.promo')}
+                    </label>
+                    <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={promoInput}
+                        onChange={(e) => setPromoInput(e.target.value)}
+                        placeholder={t('cart.summary.promoPlaceholder')}
+                        disabled={useBonusPoints > 0 || isCalculating}
+                        className="flex-1 px-4 py-2.5 bg-muted text-foreground rounded-xl border-none focus:ring-2 focus:ring-primary/20 text-sm disabled:opacity-50"
+                    />
+                    <button
+                        onClick={applyPromoCode}
+                        disabled={useBonusPoints > 0 || isCalculating}
+                        className="px-4 py-2 bg-secondary text-secondary-foreground rounded-xl font-medium text-sm hover:brightness-95 disabled:opacity-50 transition-all"
+                    >
+                        {t('cart.summary.apply')}
+                    </button>
+                    </div>
+                </div>
+
+                <div className="relative text-center my-5">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-border"></div>
+                    </div>
+                    <span className="relative bg-card px-3 text-xs text-muted-foreground font-medium uppercase tracking-wider">{t('cart.summary.or')}</span>
+                </div>
+
+                {/* Bonuses */}
+                <div className="mb-6">
+                    <label className="block text-xs font-medium mb-2 text-muted-foreground flex items-center gap-1.5">
+                    <Coins size={14} />
+                    {t('cart.summary.useBonuses', { count: user?.bonus_balance || 0 })}
+                    </label>
+                    <div className="flex gap-2">
+                    <input
+                        type="number"
+                        value={bonusInput}
+                        onChange={(e) => setBonusInput(Number(e.target.value))}
+                        max={user?.bonus_balance || 0}
+                        disabled={!!promoCode || isCalculating}
+                        className="flex-1 px-4 py-2.5 bg-muted text-foreground rounded-xl border-none focus:ring-2 focus:ring-primary/20 text-sm disabled:opacity-50"
+                    />
+                    <button
+                        onClick={applyBonusPoints}
+                        disabled={!!promoCode || isCalculating}
+                        className="px-4 py-2 bg-secondary text-secondary-foreground rounded-xl font-medium text-sm hover:brightness-95 disabled:opacity-50 transition-all"
+                    >
+                        {t('cart.summary.apply')}
+                    </button>
+                    </div>
+                </div>
+
+                {discountMessage && (
+                    <div className="flex items-center gap-2 p-3 mb-4 text-xs font-medium text-yellow-700 bg-yellow-50 dark:text-yellow-200 dark:bg-yellow-900/20 rounded-xl border border-yellow-100 dark:border-yellow-900/30">
+                        <AlertCircle size={16} />
+                        <span>{discountMessage}</span>
+                    </div>
+                )}
+
+                {/* Totals */}
+                <div className="border-t border-border pt-5 space-y-3">
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>{t('cart.summary.subtotal')}</span>
+                    <span>${subtotal.toFixed(2)}</span>
+                    </div>
+                    {discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-green-500 font-medium">
+                        <span>{t('cart.summary.discount')}</span>
+                        <span>-${discountAmount.toFixed(2)}</span>
+                    </div>
+                    )}
+                    <div className="flex justify-between text-xl font-bold text-foreground pt-2">
+                    <span>{t('cart.summary.total')}</span>
+                    <span>${finalTotal.toFixed(2)}</span>
+                    </div>
+                </div>
+
+                <button
+                    onClick={handleCheckout}
+                    disabled={isProcessing || isCalculating || items.length === 0}
+                    className="w-full mt-6 btn-primary flex items-center justify-center gap-2 disabled:opacity-70 disabled:shadow-none"
+                >
+                    {isProcessing ? (
+                        <>
+                            <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                            <span>{t('common.processing')}</span>
+                        </>
+                    ) : (
+                        <span>{t('cart.summary.checkout')}</span>
+                    )}
+                </button>
+
+                {(promoCode || useBonusPoints > 0) && (
+                    <button
+                        onClick={clearDiscounts}
+                        className="w-full mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors text-center py-2"
+                    >
+                        {t('cart.summary.cancelDiscount')}
+                    </button>
+                )}
             </div>
-          </div>
-
-          <div className="relative text-center my-4">
-              <span className="absolute left-0 top-1/2 w-full h-px bg-gray-200 dark:bg-slate-700"></span>
-              <span className="relative bg-white dark:bg-slate-800 px-2 text-xs text-gray-500">{t('cart.summary.or')}</span>
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">
-              <Coins size={16} className="inline mr-1" />
-              {t('cart.summary.useBonuses', { count: user?.bonus_balance || 0 })}
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                value={bonusInput}
-                onChange={(e) => setBonusInput(Number(e.target.value))}
-                max={user?.bonus_balance || 0}
-                disabled={!!promoCode || isCalculating}
-                className="flex-1 px-3 py-2 border rounded-lg disabled:opacity-50 dark:bg-slate-700 dark:border-slate-600"
-              />
-              <button
-                onClick={applyBonusPoints}
-                disabled={!!promoCode || isCalculating}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:opacity-50"
-              >
-                {t('cart.summary.apply')}
-              </button>
-            </div>
-          </div>
-
-          {discountMessage && (
-              <div className="flex items-center gap-2 p-3 mb-4 text-sm text-yellow-800 bg-yellow-100 dark:text-yellow-200 dark:bg-yellow-500/20 rounded-lg">
-                  <AlertCircle size={18} />
-                  <span>{discountMessage}</span>
-              </div>
-          )}
-
-          <div className="border-t dark:border-slate-700 pt-4 space-y-2">
-            <div className="flex justify-between text-gray-600 dark:text-gray-300">
-              <span>{t('cart.summary.subtotal')}</span>
-              <span>${subtotal.toFixed(2)}</span>
-            </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-green-500">
-                <span>{t('cart.summary.discount')}</span>
-                <span>-${discountAmount.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-xl font-bold">
-              <span>{t('cart.summary.total')}</span>
-              <span>${finalTotal.toFixed(2)}</span>
-            </div>
-          </div>
-
-          <button
-            onClick={handleCheckout}
-            disabled={isProcessing || isCalculating || items.length === 0}
-            className="w-full mt-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-semibold disabled:opacity-50 hover:shadow-lg transition"
-          >
-            {isProcessing ? t('common.processing') : t('cart.summary.checkout')}
-          </button>
-
-          {(promoCode || useBonusPoints > 0) && (
-              <button
-                onClick={clearDiscounts}
-                className="w-full mt-2 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-              >
-                {t('cart.summary.cancelDiscount')}
-              </button>
-          )}
         </div>
       </div>
     </div>

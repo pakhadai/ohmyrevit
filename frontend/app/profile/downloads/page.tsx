@@ -1,13 +1,12 @@
-// frontend/app/profile/downloads/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { profileAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import { Download, Package, Crown, Loader } from 'lucide-react';
+import { Download, Package, Crown, Loader, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 
 interface DownloadableProduct {
@@ -45,28 +44,40 @@ function DownloadItem({ product }: { product: DownloadableProduct }) {
 
     return (
         <motion.div
-            className="bg-white dark:bg-slate-800 rounded-lg p-4 flex items-center gap-4 shadow-sm"
+            layout
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="card-minimal p-4 flex gap-4 group"
         >
-            <img src={fullImageUrl(product.main_image_url)} alt={product.title} className="w-20 h-20 object-cover rounded-md flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-                <h3 className="font-semibold truncate">{product.title}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">{product.description}</p>
+            <div className="w-20 h-20 rounded-xl overflow-hidden bg-muted flex-shrink-0">
+                <img
+                    src={fullImageUrl(product.main_image_url)}
+                    alt={product.title}
+                    className="w-full h-full object-cover"
+                />
             </div>
-            <button
-                onClick={handleDownload}
-                className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                title={t('productPage.download')}
-            >
-                <Download size={20} />
-            </button>
+            <div className="flex-1 min-w-0 py-1 flex flex-col justify-between">
+                <div>
+                    <h3 className="font-semibold text-base text-foreground line-clamp-1">{product.title}</h3>
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed">{product.description}</p>
+                </div>
+
+                <div className="flex justify-end mt-2">
+                    <button
+                        onClick={handleDownload}
+                        className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-xl text-xs font-bold uppercase tracking-wide hover:brightness-95 transition-all active:scale-95"
+                    >
+                        <Download size={14} />
+                        {t('productPage.download')}
+                    </button>
+                </div>
+            </div>
         </motion.div>
     );
 }
 
 export default function DownloadsPage() {
-  // Видалено router, оскільки кнопки "назад" більше немає
   const [activeTab, setActiveTab] = useState('premium');
   const [premiumProducts, setPremiumProducts] = useState<DownloadableProduct[]>([]);
   const [freeProducts, setFreeProducts] = useState<DownloadableProduct[]>([]);
@@ -91,49 +102,80 @@ export default function DownloadsPage() {
   }, [t]);
 
   const ProductList = ({ products }: { products: DownloadableProduct[] }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {products.map(product => <DownloadItem key={product.id} product={product} />)}
+    <div className="grid grid-cols-1 gap-4">
+        <AnimatePresence mode="popLayout">
+            {products.map(product => <DownloadItem key={product.id} product={product} />)}
+        </AnimatePresence>
     </div>
   );
 
   const EmptyState = ({ message, cta, ctaLabel }: { message: string, cta?: boolean, ctaLabel?: string }) => (
-      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-          <Package size={48} className="mx-auto mb-4 opacity-50" />
-          <h2 className="text-xl font-semibold mb-2">{message}</h2>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="text-center py-20 px-6 bg-muted/30 rounded-3xl border border-dashed border-border"
+      >
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <Package size={32} className="text-muted-foreground opacity-50" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground mb-2">{message}</h2>
           {cta && (
-              <Link href="/marketplace" className="mt-2 inline-block px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              <Link
+                href="/marketplace"
+                className="mt-4 inline-flex items-center gap-2 px-6 py-3 btn-primary text-sm"
+              >
                   {ctaLabel}
+                  <ArrowRight size={16} />
               </Link>
           )}
-      </div>
+      </motion.div>
   );
 
   return (
-    // Адаптуємо контейнер: -mt-4 для компенсації глобального відступу, pb-20 для скролу знизу
-    <div className="container mx-auto px-4 -mt-4 pb-20">
+    <div className="container mx-auto px-5 pt-14 pb-24 min-h-screen">
 
-      {/* Sticky Tabs - Вкладки тепер прилипають до верху */}
-      <div className="flex border-b dark:border-slate-700 mb-6 sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md pt-4 -mx-4 px-4 transition-all">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-foreground">{t('profilePages.downloads.pageTitle')}</h1>
+      </div>
+
+      {/* Нові Таби (Tabs) */}
+      <div className="flex p-1 bg-muted rounded-2xl mb-6 relative z-20">
         <button
             onClick={() => setActiveTab('premium')}
-            className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors border-b-2 -mb-[1px] ${activeTab === 'premium' ? 'border-purple-500 text-purple-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-200 ${
+                activeTab === 'premium'
+                ? 'bg-background text-primary shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
         >
-           <Crown size={18} /> {t('profilePages.downloads.premium')} ({premiumProducts.length})
+           <Crown size={16} className={activeTab === 'premium' ? 'text-yellow-500' : ''} />
+           {t('profilePages.downloads.premium')}
+           <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'premium' ? 'bg-primary/10' : 'bg-background/50'}`}>
+             {premiumProducts.length}
+           </span>
         </button>
         <button
             onClick={() => setActiveTab('free')}
-            className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors border-b-2 -mb-[1px] ${activeTab === 'free' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-200 ${
+                activeTab === 'free'
+                ? 'bg-background text-primary shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
         >
-          <Package size={18} /> {t('profilePages.downloads.free')} ({freeProducts.length})
+          <Package size={16} />
+          {t('profilePages.downloads.free')}
+          <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'free' ? 'bg-primary/10' : 'bg-background/50'}`}>
+             {freeProducts.length}
+           </span>
         </button>
       </div>
 
       {loading ? (
-        <div className="flex justify-center items-center h-40">
-            <Loader className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500" />
+        <div className="flex justify-center items-center h-60">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
         </div>
       ) : (
-        <div>
+        <div className="min-h-[300px]">
           {activeTab === 'premium' && (
             premiumProducts.length > 0
               ? <ProductList products={premiumProducts} />
