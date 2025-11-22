@@ -1,15 +1,13 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
-// frontend/app/profile/referrals/page.tsx
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { profileAPI } from '@/lib/api';
-import { ArrowLeft, Users, Gift, ShoppingCart, Copy, Share2, Loader, UserPlus } from 'lucide-react';
+import { ArrowLeft, Users, Gift, ShoppingCart, Copy, Share2, Loader, UserPlus, UserCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import { useTranslation } from 'react-i18next'; // ДОДАНО
+import { useTranslation } from 'react-i18next';
 
 interface ReferralLog {
   referred_user_name: string;
@@ -19,11 +17,18 @@ interface ReferralLog {
   created_at: string;
 }
 
+interface ReferrerInfo {
+    first_name: string;
+    last_name?: string;
+    username?: string;
+}
+
 interface ReferralInfo {
   referral_code: string;
   total_referrals: number;
   total_bonuses_earned: number;
   logs: ReferralLog[];
+  referrer?: ReferrerInfo; // Додано поле
 }
 
 export default function ReferralsPage() {
@@ -32,7 +37,7 @@ export default function ReferralsPage() {
   const [info, setInfo] = useState<ReferralInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [botUsername, setBotUsername] = useState('');
-  const { t } = useTranslation(); // ДОДАНО
+  const { t } = useTranslation();
 
   useEffect(() => {
     setBotUsername(process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'OhMyRevitBot');
@@ -41,7 +46,6 @@ export default function ReferralsPage() {
         const data = await profileAPI.getReferralInfo();
         setInfo(data);
       } catch (error) {
-        // OLD: toast.error("Не вдалося завантажити реферальну інформацію.");
         toast.error(t('profilePages.referrals.toasts.loadError'));
       } finally {
         setLoading(false);
@@ -65,10 +69,8 @@ export default function ReferralsPage() {
   const copyToClipboard = () => {
     if (!referralLink) return;
     navigator.clipboard.writeText(referralLink).then(() => {
-        // OLD: toast.success('Посилання скопійовано!');
         toast.success(t('toasts.linkCopied'));
     }).catch(() => {
-        // OLD: toast.error('Не вдалося скопіювати посилання.');
         toast.error(t('toasts.linkCopyError'));
     });
   };
@@ -81,7 +83,6 @@ export default function ReferralsPage() {
       const url = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
       window.Telegram.WebApp.openTelegramLink(url);
     } else {
-      // OLD: toast.error("Ця функція доступна тільки в додатку Telegram.");
       toast.error(t('toasts.telegramOnlyFeature'));
     }
   };
@@ -97,12 +98,9 @@ export default function ReferralsPage() {
   if (!user || !info) {
      return (
         <div className="container mx-auto px-4 py-6 text-center">
-            {/* OLD: <h2 className="text-xl font-semibold mt-10">Не вдалося завантажити дані</h2> */}
             <h2 className="text-xl font-semibold mt-10">{t('profilePages.referrals.loadError.title')}</h2>
-            {/* OLD: <p className="text-gray-500 mt-2">Будь ласка, спробуйте оновити сторінку.</p> */}
             <p className="text-gray-500 mt-2">{t('profilePages.referrals.loadError.subtitle')}</p>
              <button onClick={() => router.push('/profile')} className="mt-4 px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                {/* OLD: Повернутися до профілю */}
                 {t('profilePages.referrals.loadError.back')}
             </button>
         </div>
@@ -115,16 +113,33 @@ export default function ReferralsPage() {
         <button onClick={() => router.push('/profile')} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors">
           <ArrowLeft size={20} />
         </button>
-        {/* OLD: <h1 className="text-2xl font-bold">Реферальна програма</h1> */}
         <h1 className="text-2xl font-bold">{t('profilePages.referrals.pageTitle')}</h1>
       </div>
+
+      {/* НОВИЙ БЛОК: Хто запросив */}
+      {info.referrer && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-700 p-4 rounded-2xl flex items-center gap-4 border border-blue-100 dark:border-slate-600"
+          >
+              <div className="bg-blue-100 dark:bg-slate-600 p-2 rounded-full">
+                  <UserCheck className="text-blue-500 dark:text-blue-300" size={24} />
+              </div>
+              <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Вас запросив:</p>
+                  <p className="font-bold text-gray-800 dark:text-white">
+                      {info.referrer.first_name} {info.referrer.last_name || ''}
+                      {info.referrer.username && <span className="font-normal text-gray-500 ml-1">(@{info.referrer.username})</span>}
+                  </p>
+              </div>
+          </motion.div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm">
-            {/* OLD: <h2 className="text-lg font-semibold mb-3">Ваше посилання для запрошень</h2> */}
             <h2 className="text-lg font-semibold mb-3">{t('profilePages.referrals.yourLink')}</h2>
-            {/* OLD: <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Діліться цим посиланням. Ви отримаєте <b>30 бонусів</b> за кожного, хто зареєструється, та <b>5%</b> від суми їхніх покупок.</p> */}
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4" dangerouslySetInnerHTML={{ __html: t('profilePages.referrals.description') }} />
             <div className="flex flex-col sm:flex-row gap-2">
               <input type="text" readOnly value={loading ? t('common.loading') : referralLink} disabled={loading || !referralLink} className="flex-1 px-4 py-2 border rounded-lg bg-gray-50 dark:bg-slate-700 dark:border-slate-600 text-sm disabled:opacity-70" />
@@ -138,7 +153,6 @@ export default function ReferralsPage() {
           </div>
 
           <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm">
-            {/* OLD: <h2 className="text-lg font-semibold mb-4">Історія нарахувань</h2> */}
             <h2 className="text-lg font-semibold mb-4">{t('profilePages.referrals.history')}</h2>
             {info.logs.length > 0 ? (
               <ul className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
@@ -150,7 +164,6 @@ export default function ReferralsPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">
-                          {/* OLD: {log.bonus_type === 'registration' ? `Новий користувач: ${log.referred_user_name}` : `Покупка від ${log.referred_user_name}`} */}
                           {log.bonus_type === 'registration' ? t('profilePages.referrals.log.newUser', { name: log.referred_user_name}) : t('profilePages.referrals.log.purchase', { name: log.referred_user_name})}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(log.created_at).toLocaleString()}</p>
@@ -165,7 +178,6 @@ export default function ReferralsPage() {
               </ul>
             ) : (
               <div className="text-center text-gray-500 py-6">
-                {/* OLD: <p>Як тільки хтось зареєструється за вашим посиланням, це з'явиться тут.</p> */}
                 <p>{t('profilePages.referrals.emptyHistory')}</p>
               </div>
             )}
@@ -176,13 +188,11 @@ export default function ReferralsPage() {
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm text-center">
                 <Users className="mx-auto text-blue-500" size={32}/>
                 <p className="text-4xl font-bold mt-2">{info.total_referrals}</p>
-                {/* OLD: <p className="text-gray-500 dark:text-gray-400 mt-1">Запрошено</p> */}
                 <p className="text-gray-500 dark:text-gray-400 mt-1">{t('profilePages.referrals.invited')}</p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm text-center">
                 <Gift className="mx-auto text-yellow-500" size={32}/>
                 <p className="text-4xl font-bold mt-2">{info.total_bonuses_earned} 💎</p>
-                {/* OLD: <p className="text-gray-500 dark:text-gray-400 mt-1">Зароблено бонусів</p> */}
                 <p className="text-gray-500 dark:text-gray-400 mt-1">{t('profilePages.referrals.bonusesEarned')}</p>
             </div>
         </div>

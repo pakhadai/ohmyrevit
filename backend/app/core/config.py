@@ -56,16 +56,6 @@ class Settings(BaseSettings):
     ALLOWED_FILE_EXTENSIONS: List[str] = [".zip", ".rar", ".7z"]
     # =================================================================
 
-    # OLD: @field_validator("ALLOWED_ORIGINS", mode="before")
-    # OLD: @classmethod
-    # OLD: def _parse_comma_separated_list(cls, v: Any) -> Any:
-    # OLD:     """Перетворює рядок, розділений комами, на список рядків."""
-    # OLD:     if isinstance(v, str):
-    # OLD:         return [item.strip() for item in v.split(",") if item.strip()]
-    # OLD:     return v
-    # ВАЛІДАТОР ВИДАЛЕНО, оскільки він більше не потрібен
-
-
     # Files
     MAX_UPLOAD_SIZE_MB: int = 100
     UPLOAD_PATH: str = "/app/uploads"
@@ -82,6 +72,7 @@ class Settings(BaseSettings):
     SUBSCRIPTION_PRICE_USD: float = 5.0
 
     # Bonus system
+    REFERRAL_PURCHASE_PERCENT: float = 0.05  # 5%
     DAILY_BONUS_BASE: int = 10
     BONUS_TO_USD_RATE: int = 100  # 100 бонусів = $1
     MAX_BONUS_DISCOUNT_PERCENT: float = 0.5

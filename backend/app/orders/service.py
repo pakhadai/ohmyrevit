@@ -219,7 +219,7 @@ class OrderService:
         if buyer and buyer.referrer_id:
             referrer = buyer.referrer
             if referrer:
-                commission_amount = int(order.final_total * Decimal('0.05') * 100)
+                commission_amount = int(order.final_total * Decimal(str(settings.REFERRAL_PURCHASE_PERCENT)) * 100)
                 if commission_amount > 0:
                     referrer.bonus_balance += commission_amount
                     self.db.add(ReferralLog(

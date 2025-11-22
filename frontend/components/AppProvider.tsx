@@ -1,15 +1,14 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useAuthStore } from '@/store/authStore';
-import { useCollectionStore } from '@/store/collectionStore';
-import { useLanguageStore } from '@/store/languageStore';
+import { useAuthStore } from '../store/authStore';
+import { useCollectionStore } from '../store/collectionStore';
+import { useLanguageStore } from '../store/languageStore';
 import Onboarding from './Onboarding';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import i18n from '@/lib/i18n';
-import { useUIStore } from '@/store/uiStore';
+import i18n from '../lib/i18n';
+import { useUIStore } from '../store/uiStore';
 
 declare global {
   interface Window {
@@ -49,13 +48,22 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     }
 
     const initializeTelegram = async () => {
-      if (authAttempted.current || isAuthenticated) {
+      const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
+      // Перевіряємо наявність реферального коду
+      const startParam = tg?.initDataUnsafe?.start_param;
+      const hasStartParam = !!startParam;
+
+      // Логіка: Якщо ми вже пробували авторизуватися АБО (ми авторизовані І немає нового реферального коду), то пропускаємо
+      if (authAttempted.current || (isAuthenticated && !hasStartParam)) {
         setAppReady(true);
+        if (isAuthenticated) fetchInitialData();
         return;
       }
+
       console.log('🚀 Initializing Telegram Mini App...');
       let attempts = 0;
       const maxAttempts = 20;
+
       const checkTelegram = async () => {
         attempts++;
 
@@ -72,19 +80,10 @@ export default function AppProvider({ children }: { children: React.ReactNode })
           if (initData && initData.user) {
             console.log('👤 Telegram User:', initData.user);
 
-            // OLD: const authData = {
-            // OLD:   id: initData.user.id,
-            // OLD:   first_name: initData.user.first_name || t('common.userFallbackName'),
-            // OLD:   last_name: initData.user.last_name || '',
-            // OLD:   username: initData.user.username || '',
-            // OLD:   photo_url: initData.user.photo_url || '',
-            // OLD:   language_code: initData.user.language_code || 'uk',
-            // OLD:   is_premium: initData.user.is_premium || false,
-            // OLD:   auth_date: initData.auth_date || Math.floor(Date.now() / 1000),
-            // OLD:   hash: initData.hash || '',
-            // OLD:   query_id: initData.query_id || '',
-            // OLD:   start_param: initData.start_param || null
-            // OLD: };
+            if (initData.start_param) {
+                console.log('🎁 Found referral code:', initData.start_param);
+            }
+
             const authData = {
               id: initData.user.id,
               first_name: initData.user.first_name || t('common.userFallbackName'),
@@ -96,12 +95,12 @@ export default function AppProvider({ children }: { children: React.ReactNode })
               auth_date: initData.auth_date || Math.floor(Date.now() / 1000),
               hash: initData.hash || '',
               query_id: initData.query_id || '',
-              start_param: initData.start_param || null // ДОДАНО: Явна передача start_param
+              start_param: initData.start_param || null // Передаємо код на бекенд
             };
-
 
             try {
               authAttempted.current = true;
+              // Цей виклик відправить start_param на сервер
               const loginResponse = await login(authData);
               await fetchInitialData();
 
@@ -109,26 +108,13 @@ export default function AppProvider({ children }: { children: React.ReactNode })
                 setLanguage(authData.language_code as any);
               }
 
-              const userName = authData.first_name || t('common.userFallbackName');
-              if (!loginResponse.is_new_user) {
-                  toast.success(t('toasts.welcome', { userName }), {
-                    duration: 4000,
-                    position: 'top-center',
-                    style: {
-                      background: '#10B981',
-                      color: 'white',
-                      fontSize: '16px',
-                      padding: '16px',
-                      borderRadius: '12px'
-                    }
-                  });
+              // Показуємо тост, якщо реферал спрацював (можна перевірити в loginResponse, якщо бекенд повертає інфо)
+              if (hasStartParam) {
+                  console.log('Ref check sent');
               }
-
 
               console.log('✅ Authorization successful');
               setAppReady(true);
-
-              // Логіка онбордингу тепер буде в іншому useEffect
 
             } catch (error: any) {
               console.error('❌ Authorization error:', error);
@@ -153,21 +139,13 @@ export default function AppProvider({ children }: { children: React.ReactNode })
       checkTelegram();
     };
 
-    if (!authAttempted.current && !isAuthenticated) {
-      initializeTelegram();
-    } else {
-      if (isAuthenticated) {
-        fetchInitialData();
-      }
-      setAppReady(true);
-    }
+    initializeTelegram();
 
     return () => {
       i18n.off('initialized', handleInitialized);
     };
   }, [login, isAuthenticated, fetchInitialData, t, setTheme, setLanguage]);
 
-  // ДОДАНО: Окремий useEffect для управління онбордингом
   useEffect(() => {
     if (isAuthenticated && user && isNewUser) {
       const onboardingKey = `onboarding_${user.telegram_id}`;
@@ -178,10 +156,9 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     }
   }, [isAuthenticated, user, isNewUser]);
 
-
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
-    completeOnboarding(); // Викликаємо метод зі стору
+    completeOnboarding();
   };
 
   if (!appReady || isLoading || !isI18nReady) {
@@ -190,7 +167,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         <div className="text-center text-white">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-4"></div>
           <h2 className="text-2xl font-bold mb-2">OhMyRevit</h2>
-          {/* OLD: <p className="text-white/80">{t('common.loading')}</p> */}
           <p className="text-white/80">Завантаження...</p>
         </div>
       </div>

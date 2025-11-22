@@ -1,9 +1,7 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 import axios, { AxiosInstance } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 
-// ===== ІНТЕРФЕЙСИ =====
 export interface Category {
   id: number;
   name: string;
@@ -47,7 +45,21 @@ export interface ProductCreate {
 
 export interface ProductUpdate extends Partial<ProductCreate> {}
 
-// ===== API CLIENT =====
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+
 const createAPIClient = (): AxiosInstance => {
   const instance = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://dev.ohmyrevit.pp.ua/api/v1',
@@ -66,23 +78,23 @@ const createAPIClient = (): AxiosInstance => {
       try {
         const languageStorage = localStorage.getItem('language-storage');
         if (languageStorage) {
-            let lang: string | undefined;
-            try {
-                const persistedState = JSON.parse(languageStorage);
-                lang = persistedState?.state?.language;
-            } catch (jsonError) {
-                const rawValue = languageStorage.replace(/"/g, '');
-                if (['uk', 'en', 'ru'].includes(rawValue)) {
-                    lang = rawValue;
-                }
+          let lang: string | undefined;
+          try {
+            const persistedState = JSON.parse(languageStorage);
+            lang = persistedState?.state?.language;
+          } catch (jsonError) {
+            const rawValue = languageStorage.replace(/"/g, '');
+            if (['uk', 'en', 'ru'].includes(rawValue)) {
+              lang = rawValue;
             }
+          }
 
-            if (lang) {
-                config.headers['Accept-Language'] = lang;
-            }
+          if (lang) {
+            config.headers['Accept-Language'] = lang;
+          }
         }
       } catch (e) {
-          console.error("Could not determine language from localStorage", e);
+        console.error('Could not determine language from localStorage', e);
       }
       return config;
     },
@@ -93,19 +105,85 @@ const createAPIClient = (): AxiosInstance => {
 
   instance.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
+      const originalRequest = error.config;
+
       if (axios.isCancel(error)) {
         console.log('Request canceled:', error.message);
         return Promise.reject(error);
       }
-      if (error.response?.status === 401) {
-        useAuthStore.getState().logout();
-        toast.error('Сесія закінчилась. Будь ласка, увійдіть знову.');
+
+      // Обробка 401 (Unauthorized) з автоматичним оновленням
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initData) {
+          if (isRefreshing) {
+            return new Promise(function (resolve, reject) {
+              failedQueue.push({ resolve, reject });
+            })
+              .then((token) => {
+                originalRequest.headers['Authorization'] = 'Bearer ' + token;
+                return instance(originalRequest);
+              })
+              .catch((err) => {
+                return Promise.reject(err);
+              });
+          }
+
+          originalRequest._retry = true;
+          isRefreshing = true;
+
+          try {
+            const tgData = window.Telegram.WebApp.initDataUnsafe;
+            const authData = {
+              id: tgData.user?.id,
+              first_name: tgData.user?.first_name,
+              last_name: tgData.user?.last_name,
+              username: tgData.user?.username,
+              photo_url: tgData.user?.photo_url,
+              language_code: tgData.user?.language_code,
+              auth_date: tgData.auth_date,
+              hash: tgData.hash,
+              query_id: tgData.query_id,
+              start_param: tgData.start_param || null,
+            };
+
+            // Використовуємо axios напряму, щоб уникнути циклів
+            const { data } = await axios.post(
+              `${process.env.NEXT_PUBLIC_API_URL || 'https://dev.ohmyrevit.pp.ua/api/v1'}/auth/telegram`,
+              authData
+            );
+
+            if (data.access_token) {
+              useAuthStore.getState().login(authData);
+
+              // Оновлюємо заголовок для майбутніх запитів
+              instance.defaults.headers.common['Authorization'] = 'Bearer ' + data.access_token;
+              originalRequest.headers['Authorization'] = 'Bearer ' + data.access_token;
+
+              processQueue(null, data.access_token);
+              return instance(originalRequest);
+            }
+          } catch (refreshError) {
+            processQueue(refreshError, null);
+            useAuthStore.getState().logout();
+            toast.error('Сесія закінчилась. Будь ласка, увійдіть знову.');
+          } finally {
+            isRefreshing = false;
+          }
+        } else {
+          // Якщо це не Telegram або немає initData
+          useAuthStore.getState().logout();
+          toast.error('Сесія закінчилась. Будь ласка, увійдіть знову.');
+        }
       } else if (error.response?.status === 403) {
         toast.error('У вас немає доступу до цієї дії');
       } else if (error.response?.status === 500) {
-        toast.error('Помилка сервера. Спробуйте пізніше.');
+        // Не показуємо тост, якщо це помилка оновлення токена
+        if (!originalRequest.url?.includes('/auth/telegram')) {
+           toast.error('Помилка сервера. Спробуйте пізніше.');
+        }
       }
+
       return Promise.reject(error);
     }
   );
@@ -236,7 +314,6 @@ export const adminAPI = {
   getUsers: async (params?: { search?: string; skip?: number; limit?: number }) => {
     return getData(await api.get('/admin/users', { params }));
   },
-  // ДОДАНО: Метод для отримання деталей користувача
   getUserDetails: async (id: number) => {
     return getData(await api.get(`/admin/users/${id}`));
   },
@@ -316,14 +393,12 @@ export const adminAPI = {
   getPromoCodes: async () => {
     return getData(await api.get('/admin/promo-codes'));
   },
-  // ДОДАНО: Метод для отримання деталей промокоду
   getPromoCodeDetails: async (id: number) => {
     return getData(await api.get(`/admin/promo-codes/${id}`));
   },
   createPromoCode: async (data: any) => {
     return getData(await api.post('/admin/promo-codes', data));
   },
-  // ДОДАНО: Метод для оновлення промокоду
   updatePromoCode: async (id: number, data: any) => {
     return getData(await api.put(`/admin/promo-codes/${id}`, data));
   },
@@ -337,7 +412,6 @@ export const adminAPI = {
   getOrders: async (params?: { skip?: number; limit?: number; status?: string }) => {
     return getData(await api.get('/admin/orders', { params }));
   },
-  // ДОДАНО: Метод для отримання деталей замовлення
   getOrderDetail: async (id: number) => {
     return getData(await api.get(`/admin/orders/${id}`));
   },

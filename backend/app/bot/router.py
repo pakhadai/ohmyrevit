@@ -87,13 +87,18 @@ async def telegram_webhook(update: Update):
         if len(parts) > 1:
             start_param = parts[1]
             logger.info(f"Found start_param in message: {start_param}")
-            # ДОДАНО: Обробляємо реферала відразу тут
             async with AsyncSessionLocal() as db:
                 await process_referral(db, user_data, start_param)
 
         lang = user_data.language_code if user_data.language_code in WELCOME_MESSAGES else 'en'
         welcome_text = WELCOME_MESSAGES[lang]
 
+        # OLD: web_app_button = {
+        # OLD:     "text": "🚀 Відкрити маркет",
+        # OLD:     "web_app": {"url": settings.FRONTEND_URL}
+        # OLD: }
+        # ВИПРАВЛЕНО: Завжди використовуємо URL фронтенду.
+        # Логіка рефералів тепер обробляється виключно на бекенді при отриманні команди /start.
         web_app_button = {
             "text": "🚀 Відкрити маркет",
             "web_app": {"url": settings.FRONTEND_URL}
@@ -137,25 +142,32 @@ async def process_referral(db: AsyncSession, invited_user_data: TelegramUser, re
             language_code=invited_user_data.language_code
         )
         db.add(invited_user)
-        await db.flush()  # Потрібно, щоб отримати invited_user.id
+        await db.flush()
 
-    # 3. Перевіряємо, чи користувач не намагається активувати власний код
-    # і чи не був він вже кимось запрошений
-    if invited_user.id == referrer.id or invited_user.referrer_id is not None:
-        logger.info(f"User {invited_user.id} already has a referrer or is the referrer themselves.")
-        await db.commit()  # Зберігаємо нового користувача, якщо він був створений
+    if invited_user.id == referrer.id:
+        logger.warning(f"User {invited_user.id} tried to use their own referral code.")
         return
 
-    # 4. Встановлюємо зв'язок і нараховуємо бонус
-    invited_user.referrer_id = referrer.id
-    referrer.bonus_balance += settings.REFERRAL_REGISTRATION_BONUS
+    # OLD: # 3. Перевіряємо, чи користувач не намагається активувати власний код
+    # OLD: # і чи не був він вже кимось запрошений
+    # OLD: if invited_user.id == referrer.id or invited_user.referrer_id is not None:
+    # OLD:     logger.info(f"User {invited_user.id} already has a referrer or is the referrer themselves.")
+    # OLD:     await db.commit()  # Зберігаємо нового користувача, якщо він був створений
+    # OLD:     return
+    # ВИПРАВЛЕНО: Обробляємо тільки якщо користувач новий і ще не має реферера
+    if is_new_user and invited_user.referrer_id is None:
+        invited_user.referrer_id = referrer.id
+        referrer.bonus_balance += settings.REFERRAL_REGISTRATION_BONUS
 
-    db.add(ReferralLog(
-        referrer_id=referrer.id,
-        referred_user_id=invited_user.id,
-        bonus_type=ReferralBonusType.REGISTRATION,
-        bonus_amount=settings.REFERRAL_REGISTRATION_BONUS
-    ))
+        db.add(ReferralLog(
+            referrer_id=referrer.id,
+            referred_user_id=invited_user.id,
+            bonus_type=ReferralBonusType.REGISTRATION,
+            bonus_amount=settings.REFERRAL_REGISTRATION_BONUS
+        ))
 
-    logger.info(f"Referral successful: User {referrer.id} invited {invited_user.id}. Bonus added.")
-    await db.commit()
+        logger.info(f"Referral successful: User {referrer.id} invited {invited_user.id}. Bonus added.")
+        await db.commit()
+    else:
+        logger.info(f"User {invited_user.id} is not new or already has a referrer. No bonus will be added.")
+        await db.commit()  # Все одно зберігаємо нового користувача, якщо він був створений

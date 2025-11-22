@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 
+
 class ReferralUserResponse(BaseModel):
     """Коротка інформація про запрошеного користувача."""
     id: int
@@ -11,6 +12,13 @@ class ReferralUserResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ReferrerInfo(BaseModel):
+    """Інформація про того, хто запросив."""
+    first_name: str
+    last_name: Optional[str] = None
+    username: Optional[str] = None
 
 
 class ReferralLogItem(BaseModel):
@@ -23,11 +31,14 @@ class ReferralLogItem(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class ReferralInfoResponse(BaseModel):
     """Відповідь для сторінки реферальної програми."""
     referral_code: Optional[str]
     total_referrals: int
     total_bonuses_earned: int
     logs: List[ReferralLogItem]
-    # ДОДАНО: Поле для списку запрошених користувачів
-    referred_users: List[ReferralUserResponse] = []
+    # Хто запросив поточного користувача
+    referrer: Optional[ReferrerInfo] = None
+
+    model_config = ConfigDict(from_attributes=True)

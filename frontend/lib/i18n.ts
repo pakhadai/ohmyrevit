@@ -4,8 +4,18 @@ import HttpApi from 'i18next-http-backend';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { settings } from '@/lib/settings';
 
+// Перевіряємо, чи ми в браузері
+const isBrowser = typeof window !== 'undefined';
+
 i18n
-  .use(HttpApi)
+  // Використовуємо бекенд тільки в браузері
+  .use(isBrowser ? HttpApi : {
+      type: 'backend',
+      read: (language: string, namespace: string, callback: (err: any, data: any) => void) => {
+          // На сервері повертаємо пустий об'єкт, щоб не було помилок
+          callback(null, {});
+      }
+  })
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
@@ -15,25 +25,22 @@ i18n
     // Вмикаємо логування в режимі розробки
     debug: process.env.NODE_ENV === 'development',
 
-    // Налаштування для завантаження перекладів
+    // Налаштування для завантаження перекладів (працюватиме тільки в браузері завдяки умові вище)
     backend: {
-      loadPath: '/locales/{{lng}}.json', // Шлях до файлів перекладу
+      loadPath: '/locales/{{lng}}.json',
     },
 
     // Налаштування для визначення мови
     detection: {
       order: ['localStorage', 'navigator', 'htmlTag'],
       caches: ['localStorage'],
-      lookupLocalStorage: 'language-storage', // Ключ, що використовується в Zustand
+      lookupLocalStorage: 'language-storage',
 
       // Кастомна функція для парсингу стану Zustand з localStorage
       parse: (languages: readonly string[]): string | undefined => {
+        if (!isBrowser) return undefined;
+
         try {
-          // # OLD: const persistedState = JSON.parse(localStorage.getItem('language-storage') || '{}');
-          // # OLD: const lang = persistedState?.state?.language;
-          // # OLD: if (lang && languages.includes(lang)) {
-          // # OLD:   return lang;
-          // # OLD: }
           const languageStorage = localStorage.getItem('language-storage');
           if (!languageStorage) return undefined;
 
@@ -44,8 +51,8 @@ i18n
             const persistedState = JSON.parse(languageStorage);
             lang = persistedState?.state?.language;
           } catch (e) {
-            // Спроба 2: Обробити як простий рядок (може бути збережено i18next-detector)
-            const rawValue = languageStorage.replace(/"/g, ''); // Видаляємо лапки на випадок '"uk"'
+            // Спроба 2: Обробити як простий рядок
+            const rawValue = languageStorage.replace(/"/g, '');
             if (languages.includes(rawValue)) {
               lang = rawValue;
             }
@@ -66,7 +73,7 @@ i18n
     },
 
     react: {
-      useSuspense: false, // Рекомендується для App Router, щоб уникнути проблем з рендерингом
+      useSuspense: false, // Рекомендується для App Router
     },
   });
 

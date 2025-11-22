@@ -183,30 +183,6 @@ export default function ProfilePage() {
           );
         })}
       </div>
-
-      {/* Швидка статистика */}
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-800 rounded-lg p-4 text-center shadow-sm">
-          <p className="text-2xl font-bold text-purple-500">{user?.bonus_balance || 0}</p>
-          {/* OLD: <p className="text-sm text-gray-500 dark:text-gray-400">Бонусів</p> */}
-          <p className="text-sm text-gray-500 dark:text-gray-400">{t('profilePages.main.stats.bonuses')}</p>
-        </div>
-        <div className="bg-white dark:bg-slate-800 rounded-lg p-4 text-center shadow-sm">
-          <p className="text-2xl font-bold text-blue-500">{user?.bonus_streak || 0}</p>
-          {/* OLD: <p className="text-sm text-gray-500 dark:text-gray-400">Днів стріку</p> */}
-          <p className="text-sm text-gray-500 dark:text-gray-400">{t('profilePages.main.stats.streakDays')}</p>
-        </div>
-        <div className="bg-white dark:bg-slate-800 rounded-lg p-4 text-center shadow-sm">
-          <p className="text-2xl font-bold text-green-500">0</p>
-          {/* OLD: <p className="text-sm text-gray-500 dark:text-gray-400">Завантажень</p> */}
-          <p className="text-sm text-gray-500 dark:text-gray-400">{t('profilePages.main.stats.downloads')}</p>
-        </div>
-        <div className="bg-white dark:bg-slate-800 rounded-lg p-4 text-center shadow-sm">
-          <p className="text-2xl font-bold text-pink-500">0</p>
-          {/* OLD: <p className="text-sm text-gray-500 dark:text-gray-400">Рефералів</p> */}
-          <p className="text-sm text-gray-500 dark:text-gray-400">{t('profilePages.main.stats.referrals')}</p>
-        </div>
-      </div>
     </div>
   );
 }

@@ -1,4 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 import hashlib
 import hmac
 import time
@@ -25,10 +24,8 @@ logger = logging.getLogger(__name__)
 
 class AuthService:
 
-
     @staticmethod
     def verify_telegram_auth(auth_data: dict) -> bool:
-
         if settings.DEBUG:
             logger.info("🔧 Debug mode: skipping Telegram auth verification")
             return True
@@ -65,7 +62,6 @@ class AuthService:
 
     @staticmethod
     def create_access_token(user_id: int) -> str:
-
         expire = datetime.now(timezone.utc) + timedelta(hours=settings.JWT_EXPIRATION_HOURS)
         payload = {"sub": str(user_id), "exp": expire, "iat": datetime.now(timezone.utc)}
         token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
@@ -74,7 +70,6 @@ class AuthService:
 
     @staticmethod
     def verify_token(token: str) -> Optional[int]:
-
         try:
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
             user_id = int(payload.get("sub"))
@@ -87,6 +82,54 @@ class AuthService:
     def _generate_referral_code(length: int = 8) -> str:
         alphabet = string.ascii_uppercase + string.digits
         return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+    @staticmethod
+    async def process_referral_link(db: AsyncSession, user: User, start_param: str):
+        """
+        Єдина логіка обробки реферального коду для нових та існуючих юзерів.
+        """
+        # 1. Якщо у користувача вже є реферер або він намагається ввести свій код - виходимо
+        if user.referrer_id is not None:
+            logger.info(f"User {user.id} already has a referrer {user.referrer_id}")
+            return
+
+        if user.referral_code == start_param:
+            logger.warning(f"User {user.id} tried to use their own referral code")
+            return
+
+        # 2. Шукаємо реферера
+        referrer_res = await db.execute(select(User).where(User.referral_code == start_param))
+        referrer = referrer_res.scalar_one_or_none()
+
+        if not referrer or referrer.id == user.id:
+            logger.warning(f"Referral code '{start_param}' is invalid or belongs to self.")
+            return
+
+        # 3. Прив'язуємо та нараховуємо бонус
+        logger.info(f"🎁 Linking user {user.id} to referrer {referrer.id}")
+
+        user.referrer_id = referrer.id
+        referrer.bonus_balance += settings.REFERRAL_REGISTRATION_BONUS
+
+        db.add(ReferralLog(
+            referrer_id=referrer.id,
+            referred_user_id=user.id,
+            bonus_type=ReferralBonusType.REGISTRATION,
+            bonus_amount=settings.REFERRAL_REGISTRATION_BONUS
+        ))
+
+        logger.info(
+            f"🎁 User {referrer.id} received {settings.REFERRAL_REGISTRATION_BONUS} bonuses for inviting user {user.id}")
+
+        # Сповіщення рефереру
+        try:
+            message = (
+                f"🎉 Вітаємо! За вашим посиланням приєднався новий користувач: *{user.first_name}*.\n"
+                f"Вам нараховано *+{settings.REFERRAL_REGISTRATION_BONUS}* бонусів. 💎"
+            )
+            await telegram_service.send_message(referrer.telegram_id, message)
+        except Exception as e:
+            logger.error(f"Failed to send referral notification: {e}")
 
     @staticmethod
     async def authenticate_telegram_user(
@@ -137,35 +180,6 @@ class AuthService:
                 if users_count_res.scalar_one() == 1:
                     user.is_admin = True
                     logger.info("👑 First user - setting as admin")
-                if auth_data.start_param:
-                    logger.info(f"Received start_param (referral_code): {auth_data.start_param}")
-                    referrer_code = auth_data.start_param.strip()
-                    referrer_result = await db.execute(select(User).where(User.referral_code == referrer_code))
-                    referrer = referrer_result.scalar_one_or_none()
-                    if referrer and referrer.id != user.id:
-                        user.referrer_id = referrer.id
-                        # OLD: referrer.bonus_balance += 30
-                        referrer.bonus_balance += settings.REFERRAL_REGISTRATION_BONUS
-                        db.add(ReferralLog(
-                            referrer_id=referrer.id,
-                            referred_user_id=user.id,
-                            bonus_type=ReferralBonusType.REGISTRATION,
-                            # OLD: bonus_amount=30
-                            bonus_amount=settings.REFERRAL_REGISTRATION_BONUS
-                        ))
-                        # OLD: logger.info(f"🎁 User {referrer.id} will receive 30 bonuses for inviting user {user.id}")
-                        logger.info(f"🎁 User {referrer.id} will receive {settings.REFERRAL_REGISTRATION_BONUS} bonuses for inviting user {user.id}")
-                        # OLD: await telegram_service.send_message(
-                        # OLD:     chat_id=referrer.telegram_id,
-                        # OLD:     text=f"🎉 За вашим посиланням зареєструвався {user.first_name}! Вам нараховано 30 бонусів."
-                        # OLD: )
-                        message = (
-                            f"🎉 Вітаємо! За вашим посиланням зареєструвався новий користувач: *{user.first_name}*.\n"
-                            f"Вам нараховано *+{settings.REFERRAL_REGISTRATION_BONUS}* бонусів. 💎\n\n"
-                            f"Дякуємо, що ви з нами!"
-                        )
-                        await telegram_service.send_message(referrer.telegram_id, message)
-
 
             else:
                 logger.info(f"📝 Updating existing user {user.id}")
@@ -186,20 +200,22 @@ class AuthService:
                         except IntegrityError:
                             await db.rollback()
                             db.add(user)
-                            logger.warning(f"Referral code collision for existing user {user.id}, retrying...")
-                    else:
-                        logger.error(f"Failed to generate referral code for user {user.id}")
 
-            await db.flush()
+            # === ВАЖЛИВО: Обробка реферала ЗА межами is_new_user ===
+            if auth_data.start_param:
+                logger.info(f"Received start_param (referral_code): {auth_data.start_param}")
+                await AuthService.process_referral_link(db, user, auth_data.start_param.strip())
+
+            await db.commit()
             await db.refresh(user)
             logger.info(f"✅ User {user.id} authenticated successfully.")
             return user, is_new_user
 
         except IntegrityError as e:
-             await db.rollback()
-             logger.error(f"Database integrity error during auth for user {auth_data.id}: {e}", exc_info=True)
-             raise HTTPException(status_code=500, detail="Database conflict occurred")
+            await db.rollback()
+            logger.error(f"Database integrity error: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Database conflict occurred")
         except Exception as e:
             await db.rollback()
-            logger.error(f"❌ Database error during auth: {e}", exc_info=True)
+            logger.error(f"❌ Auth error: {e}", exc_info=True)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to process user data")

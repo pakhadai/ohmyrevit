@@ -108,7 +108,7 @@ export const useAuthStore = create<AuthState>()(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
         lastLoginAt: state.lastLoginAt,
-        isNewUser: state.isNewUser,
+        isNewUser: state.isNewUser, // ДОДАНО: Зберігаємо isNewUser у localStorage
       }),
     }
   )

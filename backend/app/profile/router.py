@@ -19,7 +19,7 @@ from app.users.auth_service import AuthService
 from app.core.config import settings
 from app.bonuses.service import BonusService
 from app.referrals.models import ReferralLog
-from app.referrals.schemas import ReferralInfoResponse, ReferralLogItem
+from app.referrals.schemas import ReferralInfoResponse, ReferralLogItem, ReferrerInfo
 
 router = APIRouter(tags=["Profile"])
 logger = logging.getLogger(__name__)
@@ -252,16 +252,18 @@ async def get_referral_info(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
+    # Завантажуємо користувача разом з рефералами ТА ТИМ, ХТО ЙОГО ЗАПРОСИВ (referrer)
+    user_query = select(User).options(
+        selectinload(User.referrals),
+        selectinload(User.referrer)  # <--- Додано
+    ).where(User.id == current_user.id)
 
-    user_with_referrals = await db.execute(
-        select(User).options(selectinload(User.referrals)).where(User.id == current_user.id)
-    )
-    user = user_with_referrals.scalar_one_or_none()
+    user_res = await db.execute(user_query)
+    user = user_res.scalar_one_or_none()
+
     if not user:
-         raise HTTPException(status_code=404, detail="Користувача не знайдено")
+        raise HTTPException(status_code=404, detail="User not found")
 
-
-    # Отримуємо логування з жадібним завантаженням
     logs_query = await db.execute(
         select(ReferralLog)
         .options(selectinload(ReferralLog.referred_user))
@@ -269,11 +271,6 @@ async def get_referral_info(
         .order_by(ReferralLog.created_at.desc())
     )
     logs = logs_query.scalars().unique().all()
-
-
-    total_referrals = len(user.referrals)
-    total_bonuses_earned = sum(log.bonus_amount for log in logs)
-
 
     formatted_logs = [
         ReferralLogItem(
@@ -286,9 +283,21 @@ async def get_referral_info(
         for log in logs
     ]
 
+    total_bonuses = sum(log.bonus_amount for log in logs)
+
+    # Формуємо інформацію про того, хто запросив
+    referrer_info = None
+    if user.referrer:
+        referrer_info = ReferrerInfo(
+            first_name=user.referrer.first_name,
+            last_name=user.referrer.last_name,
+            username=user.referrer.username
+        )
+
     return ReferralInfoResponse(
         referral_code=user.referral_code,
-        total_referrals=total_referrals,
-        total_bonuses_earned=total_bonuses_earned,
-        logs=formatted_logs
+        total_referrals=len(user.referrals),
+        total_bonuses_earned=total_bonuses,
+        logs=formatted_logs,
+        referrer=referrer_info  # <--- Передаємо на фронт
     )
