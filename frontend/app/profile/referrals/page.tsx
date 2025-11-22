@@ -60,7 +60,7 @@ export default function ReferralsPage() {
 
   const referralLink = useMemo(() => {
     if (botUsername && info?.referral_code) {
-      return `https://t.me/${botUsername}/app?startapp=${info.referral_code}`;
+      return `https://t.me/${botUsername}?startapp=${info.referral_code}`;
     }
     return '';
   }, [botUsername, info]);

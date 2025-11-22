@@ -9,6 +9,8 @@ import Onboarding from './Onboarding';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
+// ДОДАНО: імпорти для навігації
+import { usePathname, useRouter } from 'next/navigation';
 
 declare global {
   interface Window {
@@ -29,6 +31,10 @@ export default function AppProvider({ children }: { children: React.ReactNode })
 
   const authAttempted = useRef(false);
   const { t } = useTranslation();
+
+  // ДОДАНО: Хуки для керування кнопкою "Назад"
+  const pathname = usePathname();
+  const router = useRouter();
 
   // Ініціалізація теми та мови
   useEffect(() => {
@@ -54,6 +60,31 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     };
   }, [setTheme]);
 
+  // ДОДАНО: Логіка для кнопки "Назад" в Telegram
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      const backButton = tg.BackButton;
+
+      const handleBack = () => {
+        router.back();
+      };
+
+      // Якщо ми не на головній сторінці - показуємо кнопку "Назад"
+      if (pathname !== '/') {
+        backButton.show();
+        backButton.onClick(handleBack);
+      } else {
+        backButton.hide();
+      }
+
+      // Прибираємо обробник при зміні шляху або розмонтуванні
+      return () => {
+        backButton.offClick(handleBack);
+      };
+    }
+  }, [pathname, router]);
+
   // Головна логіка Telegram
   useEffect(() => {
     const initializeTelegram = async () => {
@@ -71,15 +102,10 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         startParam = urlStartApp || hashStartApp || null;
       }
 
-      console.log('🔍 Start param source check:');
-      console.log('- initDataUnsafe.start_param:', tg?.initDataUnsafe?.start_param);
-      console.log('- URL search params:', new URLSearchParams(window.location.search).get('startapp'));
-      console.log('- Hash params:', new URLSearchParams(window.location.hash.substring(1)).get('tgWebAppStartParam'));
-      console.log('✅ Final startParam:', startParam);
-
       if (!authAttempted.current) {
           if (startParam) {
-              alert(`✅ РЕФЕРАЛ ОТРИМАНО: ${startParam}\nЗараз спробуємо авторизуватись...`);
+              // Можна розкоментувати для дебагу
+              // alert(`✅ РЕФЕРАЛ ОТРИМАНО: ${startParam}`);
           } else {
               console.log('ℹ️ Немає реферального коду. Продовжуємо без нього.');
           }
@@ -102,6 +128,10 @@ export default function AppProvider({ children }: { children: React.ReactNode })
           const tg = window.Telegram.WebApp;
           tg.ready();
           tg.expand();
+
+          // ДОДАНО: Увімкнення підтвердження закриття
+          // Це запобігає випадковому закриттю свайпом (користувач побачить діалог підтвердження)
+          tg.enableClosingConfirmation();
 
           const initData = tg.initDataUnsafe;
 

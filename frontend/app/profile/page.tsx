@@ -1,5 +1,3 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
-// frontend/app/profile/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,21 +5,27 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Download, Heart, Users, HelpCircle,
   FileText, Gift, Mail, Save, Settings,
-  Shield, ChevronDown, ChevronUp
+  Shield, ChevronDown, ChevronUp, Globe, Moon, Sun
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { profileAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useTranslation } from 'react-i18next'; // ДОДАНО
+import { useTranslation } from 'react-i18next';
+import { useLanguageStore } from '@/store/languageStore';
+import { useUIStore } from '@/store/uiStore';
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, setUser } = useAuthStore();
   const [email, setEmail] = useState(user?.email || '');
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { t } = useTranslation(); // ДОДАНО
+  const { t, i18n } = useTranslation();
+
+  // Стори для мови та теми
+  const { setLanguage } = useLanguageStore();
+  const { theme, setTheme } = useUIStore();
 
   useEffect(() => {
     if (user) {
@@ -33,22 +37,20 @@ export default function ProfilePage() {
     try {
       const updatedUser = await profileAPI.updateProfile({ email });
       setUser(updatedUser);
-      // OLD: toast.success('Email успішно збережено!');
       toast.success(t('profilePages.main.toasts.emailSaved'));
     } catch (error) {
-      // OLD: toast.error('Помилка при збереженні email.');
       toast.error(t('profilePages.main.toasts.emailError'));
       console.error('Update email error:', error);
     }
   };
 
+  const languages = [
+    { code: 'uk', label: '🇺🇦 Українська' },
+    { code: 'en', label: '🇬🇧 English' },
+    { code: 'ru', label: '🇷🇺 Русский' },
+  ];
+
   const menuItems = [
-    // OLD: { href: '/profile/downloads', label: 'Завантаження', icon: Download },
-    // OLD: { href: '/profile/collections', label: 'Мої колекції', icon: Heart },
-    // OLD: { href: '/profile/bonuses', label: 'Бонуси', icon: Gift },
-    // OLD: { href: '/profile/referrals', label: 'Реферали', icon: Users },
-    // OLD: { href: '/profile/support', label: 'Підтримка', icon: HelpCircle },
-    // OLD: { href: '/profile/faq', label: 'FAQ', icon: FileText }
     { href: '/profile/downloads', label: t('profilePages.main.menu.downloads'), icon: Download },
     { href: '/profile/collections', label: t('profilePages.main.menu.collections'), icon: Heart },
     { href: '/profile/bonuses', label: t('profilePages.main.menu.bonuses'), icon: Gift },
@@ -58,7 +60,7 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto px-4 py-2">
       {/* Шапка профілю */}
       <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 mb-6 text-white">
         <div className="flex items-center justify-between">
@@ -74,21 +76,18 @@ export default function ProfilePage() {
               {user?.is_admin && (
                 <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 bg-white/20 rounded-full text-xs">
                   <Shield size={12} />
-                  {/* OLD: Адміністратор */}
                   {t('profilePages.main.adminBadge')}
                 </span>
               )}
             </div>
           </div>
 
-          {/* Кнопка адмін-панелі для адміністраторів */}
           {user?.is_admin && (
             <button
               onClick={() => router.push('/admin')}
               className="px-4 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg hover:bg-white/30 transition-all flex items-center gap-2"
             >
               <Shield size={18} />
-              {/* OLD: <span className="hidden sm:inline">Адмін-панель</span> */}
               <span className="hidden sm:inline">{t('profilePages.main.adminPanel')}</span>
             </button>
           )}
@@ -103,7 +102,6 @@ export default function ProfilePage() {
         >
           <div className="flex items-center gap-3">
             <Settings size={20} className="text-gray-600 dark:text-gray-400" />
-            {/* OLD: <span className="font-semibold">Налаштування</span> */}
             <span className="font-semibold">{t('profilePages.main.settings.title')}</span>
           </div>
           {settingsOpen ? (
@@ -122,37 +120,82 @@ export default function ProfilePage() {
               transition={{ duration: 0.3 }}
               className="border-t dark:border-slate-700"
             >
-              <div className="p-6">
-                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">
-                  {/* OLD: Контактна інформація */}
-                  {t('profilePages.main.settings.contactInfo')}
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  {/* OLD: Ваш email використовуватиметься для важливих сповіщень та відновлення доступу. */}
-                  {t('profilePages.main.settings.emailDescription')}
-                </p>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-grow">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input
-                      type="email"
-                      name="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      // OLD: placeholder="Ваш Email"
-                      placeholder={t('profilePages.main.settings.emailPlaceholder')}
-                      className="w-full pl-10 pr-4 py-2 border dark:border-slate-600 rounded-lg bg-transparent text-sm"
-                    />
-                  </div>
-                  <button
-                    onClick={handleEmailSave}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0 flex items-center gap-2 text-sm"
-                  >
-                    <Save size={16}/>
-                    {/* OLD: <span>Зберегти</span> */}
-                    <span>{t('common.save')}</span>
-                  </button>
+              <div className="p-6 space-y-6">
+                {/* Блок Email */}
+                <div>
+                    <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">
+                    {t('profilePages.main.settings.contactInfo')}
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    {t('profilePages.main.settings.emailDescription')}
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <div className="relative flex-grow">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input
+                            type="email"
+                            name="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder={t('profilePages.main.settings.emailPlaceholder')}
+                            className="w-full pl-10 pr-4 py-2 border dark:border-slate-600 rounded-lg bg-transparent text-sm"
+                            />
+                        </div>
+                        <button
+                            onClick={handleEmailSave}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex-shrink-0 flex items-center gap-2 text-sm"
+                        >
+                            <Save size={16}/>
+                            <span>{t('common.save')}</span>
+                        </button>
+                    </div>
                 </div>
+
+                <div className="h-px bg-gray-100 dark:bg-slate-700 my-2"></div>
+
+                {/* Блок Мова та Тема */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Мова */}
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-2">
+                            <Globe size={16} /> Мова інтерфейсу
+                        </h3>
+                        <select
+                            value={i18n.language}
+                            onChange={(e) => setLanguage(e.target.value as any)}
+                            className="w-full px-3 py-2 rounded-lg border bg-white dark:bg-slate-700 dark:border-slate-600 text-sm focus:outline-none"
+                        >
+                            {languages.map(lang => (
+                                <option key={lang.code} value={lang.code}>
+                                {lang.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Тема */}
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-2">
+                            {theme === 'light' ? <Sun size={16} /> : <Moon size={16} />}
+                            Тема оформлення
+                        </h3>
+                        <div className="flex bg-gray-100 dark:bg-slate-700 rounded-lg p-1">
+                            <button
+                                onClick={() => setTheme('light')}
+                                className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-sm rounded-md transition-all ${theme === 'light' ? 'bg-white shadow text-blue-600' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
+                            >
+                                <Sun size={14} /> Світла
+                            </button>
+                            <button
+                                onClick={() => setTheme('dark')}
+                                className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-sm rounded-md transition-all ${theme === 'dark' ? 'bg-slate-600 shadow text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
+                            >
+                                <Moon size={14} /> Темна
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
               </div>
             </motion.div>
           )}
@@ -175,7 +218,6 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <h3 className="font-semibold">{item.label}</h3>
-                  {/* OLD: <p className="text-sm text-gray-500 dark:text-gray-400">Перейти до розділу</p> */}
                   <p className="text-sm text-gray-500 dark:text-gray-400">{t('profilePages.main.menu.goToSection')}</p>
                 </div>
               </motion.div>

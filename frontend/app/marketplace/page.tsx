@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { productsAPI } from '@/lib/api';
 import { Product } from '@/types';
 import ProductCard from '@/components/product/ProductCard';
-import { Filter, Grid3x3, List } from 'lucide-react';
+import { Filter, Grid3x3, List, Search, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAccessStore } from '@/store/accessStore';
 import { useAuthStore } from '@/store/authStore';
@@ -16,6 +16,10 @@ export default function MarketplacePage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('newest');
   const [filterOpen, setFilterOpen] = useState(false);
+
+  // Стан для пошуку
+  const [searchQuery, setSearchQuery] = useState('');
+
   const { t } = useTranslation();
 
   const { fetchAccessStatus } = useAccessStore();
@@ -44,6 +48,16 @@ export default function MarketplacePage() {
     }
   }, [products, isAuthenticated, fetchAccessStatus]);
 
+  // Логіка фільтрації на клієнті (пошук)
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery) return products;
+    const lowerQuery = searchQuery.toLowerCase();
+    return products.filter(p =>
+      p.title.toLowerCase().includes(lowerQuery) ||
+      p.description.toLowerCase().includes(lowerQuery)
+    );
+  }, [products, searchQuery]);
+
   const sortOptions = [
     { value: 'newest', label: t('marketplace.sort.newest') },
     { value: 'price_asc', label: t('marketplace.sort.priceAsc') },
@@ -52,10 +66,30 @@ export default function MarketplacePage() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      {/* Заголовок та фільтри */}
+    <div className="container mx-auto px-4 py-2">
+      {/* Заголовок та Пошук */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-4">{t('nav.market')}</h1>
+
+        {/* Рядок пошуку */}
+        <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('search.placeholder')}
+              className="w-full pl-10 pr-10 py-3 rounded-xl bg-gray-100 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            />
+            {searchQuery && (
+                <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                    <X size={18} />
+                </button>
+            )}
+        </div>
 
         <div className="flex flex-col md:flex-row items-center justify-between mb-4 gap-4">
           <button
@@ -121,9 +155,15 @@ export default function MarketplacePage() {
             ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-5'
             : 'grid-cols-1'
         }`}>
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+          {filteredProducts.length > 0 ? (
+              filteredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))
+          ) : (
+              <div className="col-span-full text-center py-10 text-gray-500">
+                  Нічого не знайдено за запитом "{searchQuery}"
+              </div>
+          )}
         </div>
       )}
     </div>

@@ -27,9 +27,12 @@ export default function RootLayout({
           <AppProvider>
             <div className={`${inter.className} min-h-screen grid grid-rows-[auto_1fr] bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100`}>
               <Header />
-              <main className="overflow-y-auto pb-20">
+
+              {/* ДОДАНО: pt-4 для додаткового відступу зверху на всіх сторінках */}
+              <main className="overflow-y-auto pb-20 pt-4">
                 {children}
               </main>
+
               <BottomNav />
               <Toaster position="top-center" />
             </div>

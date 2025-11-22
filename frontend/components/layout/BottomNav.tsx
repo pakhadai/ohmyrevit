@@ -1,4 +1,3 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import { Home, ShoppingBag, ShoppingCart, User } from 'lucide-react';
@@ -7,14 +6,14 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useCartStore } from '@/store/cartStore';
 import { motion } from 'framer-motion';
-import { useTranslation } from 'react-i18next'; // ДОДАНО
+import { useTranslation } from 'react-i18next';
 
 export default function BottomNav() {
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const cartItemsCount = useCartStore((state) => state.items.length);
-  const { t } = useTranslation(); // ДОДАНО
+  const { t } = useTranslation();
 
   // Логіка приховування при скролі
   useEffect(() => {
@@ -33,10 +32,6 @@ export default function BottomNav() {
   }, [lastScrollY]);
 
   const navItems = [
-    // OLD: { href: '/', icon: Home, label: 'Головна' },
-    // OLD: { href: '/marketplace', icon: ShoppingBag, label: 'Маркет' },
-    // OLD: { href: '/cart', icon: ShoppingCart, label: 'Кошик', badge: cartItemsCount },
-    // OLD: { href: '/profile', icon: User, label: 'Профіль' },
     { href: '/', icon: Home, label: t('nav.home'), badge: 0 },
     { href: '/marketplace', icon: ShoppingBag, label: t('nav.market'), badge: 0 },
     { href: '/cart', icon: ShoppingCart, label: t('nav.cart'), badge: cartItemsCount },
@@ -46,8 +41,10 @@ export default function BottomNav() {
   return (
     <nav className={`fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
       <div className="container mx-auto px-4 py-3">
-        {/* Обгортка для напівпрозорого фону */}
-        <div className="relative bg-white/70 dark:bg-slate-900/70 backdrop-blur-lg rounded-full shadow-lg">
+        {/* ОНОВЛЕНО: Використовуємо bg-gray-300/90 та dark:bg-slate-950/90,
+            щоб відповідати стилю Header.
+        */}
+        <div className="relative bg-gray-300/90 dark:bg-slate-950/90 backdrop-blur-lg rounded-full shadow-lg">
           <div className="flex justify-around items-center">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -63,18 +60,19 @@ export default function BottomNav() {
                   {isActive && (
                     <motion.div
                       layoutId="active-nav-indicator"
-                      className="absolute inset-0 bg-gray-200/80 dark:bg-slate-700/80 rounded-full"
+                      // Трохи підлаштував колір індикатора для кращого контрасту на темнішому фоні
+                      className="absolute inset-0 bg-white/40 dark:bg-slate-700/80 rounded-full"
                       initial={{ scale: 0.8 }}
                       animate={{ scale: 1 }}
                       transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                     />
                   )}
 
-                  <div className={`relative z-10 flex flex-col items-center transition-colors ${isActive ? 'text-blue-500' : 'text-gray-500 dark:text-gray-400'}`}>
+                  <div className={`relative z-10 flex flex-col items-center transition-colors ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}`}>
                     <div className="relative">
                       <Icon className="w-6 h-6" />
                       {item.badge > 0 && (
-                        <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-semibold rounded-full w-4 h-4 flex items-center justify-center border-2 border-white dark:border-slate-800">
+                        <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-semibold rounded-full w-4 h-4 flex items-center justify-center border-2 border-transparent">
                           {item.badge}
                         </span>
                       )}

@@ -80,32 +80,46 @@ class AuthService:
 
     @staticmethod
     async def process_referral_link(db: AsyncSession, user: User, start_param: str):
+        # 🔍 ДІАГНОСТИКА
+        logger.info(f"🎯 PROCESS REFERRAL LINK CALLED")
+        logger.info(f"- Current user ID: {user.id}")
+        logger.info(f"- Current user referrer_id: {user.referrer_id}")
+        logger.info(f"- Start param: '{start_param}'")
+
         # Очистка коду від зайвих пробілів
         start_param = start_param.strip()
 
         # 1. Перевірки
         if user.referrer_id is not None:
+            logger.info(f"⚠️ User {user.id} already has referrer_id={user.referrer_id}")
             return
 
         if user.referral_code == start_param:
+            logger.info(f"⚠️ User trying to use their own referral code")
             return
 
         # 2. Шукаємо реферера
+        logger.info(f"🔍 Looking for referrer with code: {start_param}")
         referrer_res = await db.execute(select(User).where(User.referral_code == start_param))
         referrer = referrer_res.scalar_one_or_none()
 
         if not referrer:
-            logger.warning(f"Referral code '{start_param}' not found.")
+            logger.warning(f"❌ Referral code '{start_param}' not found in database.")
             return
 
+        logger.info(f"✅ Found referrer: ID={referrer.id}, username={referrer.username}")
+
         if referrer.id == user.id:
+            logger.info(f"⚠️ Referrer and user are the same person")
             return
 
         # 3. Прив'язуємо та нараховуємо бонус
         user.referrer_id = referrer.id
+        logger.info(f"✅ Set user.referrer_id = {referrer.id}")
 
         bonus_amount = settings.REFERRAL_REGISTRATION_BONUS
         referrer.bonus_balance += bonus_amount
+        logger.info(f"💰 Added {bonus_amount} bonuses to referrer {referrer.id}")
 
         # Логуємо подію
         log_entry = ReferralLog(
@@ -115,8 +129,9 @@ class AuthService:
             bonus_amount=bonus_amount
         )
         db.add(log_entry)
+        logger.info(f"📝 Created ReferralLog entry")
 
-        logger.info(f"🎁 Referral success: User {referrer.id} invited {user.id}. +{bonus_amount} bonuses.")
+        logger.info(f"🎉 Referral success: User {referrer.id} invited {user.id}. +{bonus_amount} bonuses.")
 
         # 4. Сповіщення рефереру
         try:
@@ -126,14 +141,24 @@ class AuthService:
                 f"Вам нараховано *+{bonus_amount}* бонусів! 💎"
             )
             await telegram_service.send_message(referrer.telegram_id, message)
+            logger.info(f"✅ Sent notification to referrer")
         except Exception as e:
-            logger.error(f"Failed to send referral notification: {e}")
+            logger.error(f"❌ Failed to send referral notification: {e}")
 
     @staticmethod
     async def authenticate_telegram_user(
             db: AsyncSession,
             auth_data: TelegramAuthData
     ) -> Tuple[User, bool]:
+
+        # 🔍 ДІАГНОСТИКА: Що прийшло від frontend
+        logger.info(f"=" * 60)
+        logger.info(f"📥 AUTHENTICATE TELEGRAM USER")
+        logger.info(f"- User ID: {auth_data.id}")
+        logger.info(f"- Username: {auth_data.username}")
+        logger.info(f"- First name: {auth_data.first_name}")
+        logger.info(f"- Start param received: {auth_data.start_param}")
+        logger.info(f"=" * 60)
 
         auth_data_dict = auth_data.model_dump(exclude_none=True)
 
