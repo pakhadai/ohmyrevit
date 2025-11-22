@@ -1,9 +1,10 @@
+// frontend/app/profile/referrals/page.tsx
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { profileAPI } from '@/lib/api';
-import { ArrowLeft, Users, Gift, ShoppingCart, Copy, Share2, Loader, UserPlus, UserCheck } from 'lucide-react';
+import { Users, Gift, ShoppingCart, Copy, Share2, Loader, UserPlus, UserCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
@@ -28,7 +29,7 @@ interface ReferralInfo {
   total_referrals: number;
   total_bonuses_earned: number;
   logs: ReferralLog[];
-  referrer?: ReferrerInfo; // Додано поле
+  referrer?: ReferrerInfo;
 }
 
 export default function ReferralsPage() {
@@ -109,14 +110,10 @@ export default function ReferralsPage() {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => router.push('/profile')} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors">
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="text-2xl font-bold">{t('profilePages.referrals.pageTitle')}</h1>
-      </div>
 
-      {/* НОВИЙ БЛОК: Хто запросив */}
+      {/* Заголовок та кнопка "Назад" видалені */}
+
+      {/* БЛОК: Хто запросив */}
       {info.referrer && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}

@@ -18,7 +18,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { id: 'dashboard', label: t('admin.sidebar.dashboard'), icon: TrendingUp, href: '/admin' },
     { id: 'users', label: t('admin.sidebar.users'), icon: Users, href: '/admin/users' },
     { id: 'products', label: t('admin.sidebar.products'), icon: Package, href: '/admin/products' },
-    // ДОДАНО: Новий пункт меню для категорій
     { id: 'categories', label: t('admin.sidebar.categories'), icon: LayoutList, href: '/admin/categories' },
     { id: 'orders', label: t('admin.sidebar.orders'), icon: ShoppingCart, href: '/admin/orders' },
     { id: 'promo-codes', label: t('admin.sidebar.promoCodes'), icon: Tag, href: '/admin/promo-codes' },
@@ -44,7 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </button>
       )
     }
-    return <div className="w-8 h-8"></div>; // Пустий спейсер
+    return <div className="w-8 h-8"></div>;
   };
 
   return (

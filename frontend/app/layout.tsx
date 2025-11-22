@@ -1,3 +1,4 @@
+// frontend/app/layout.tsx
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
@@ -25,10 +26,14 @@ export default function RootLayout({
       <body>
         <TelegramProvider>
           <AppProvider>
-            <div className={`${inter.className} min-h-screen grid grid-rows-[auto_1fr] bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100`}>
+            {/* ВИПРАВЛЕНО:
+                - Замінено "bg-white dark:bg-slate-900" на "bg-background"
+                - Замінено "text-gray-900 dark:text-gray-100" на "text-foreground"
+                Тепер кольори беруться з globals.css
+            */}
+            <div className={`${inter.className} min-h-screen grid grid-rows-[auto_1fr] bg-background text-foreground`}>
               <Header />
 
-              {/* ДОДАНО: pt-4 для додаткового відступу зверху на всіх сторінках */}
               <main className="overflow-y-auto pb-20 pt-4">
                 {children}
               </main>

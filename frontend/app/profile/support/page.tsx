@@ -1,14 +1,13 @@
+// frontend/app/profile/support/page.tsx
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, MessageCircle, Mail, Copy, Check, Clock, ExternalLink } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { MessageCircle, Mail, Copy, Check, Clock, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
 export default function SupportPage() {
-  const router = useRouter();
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
@@ -34,14 +33,8 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-2">
-      {/* Заголовок */}
-      <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => router.back()} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors">
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="text-2xl font-bold">{t('profilePages.support.pageTitle')}</h1>
-      </div>
+    <div className="container mx-auto px-4 py-6">
+      {/* Заголовок та кнопка "Назад" видалені */}
 
       <div className="space-y-6">
         {/* Інформаційний блок */}

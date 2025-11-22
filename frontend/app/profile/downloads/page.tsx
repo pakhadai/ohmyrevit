@@ -1,11 +1,11 @@
+// frontend/app/profile/downloads/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { profileAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import { Download, Package, Crown, Loader, ArrowLeft } from 'lucide-react';
+import { Download, Package, Crown, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +18,6 @@ interface DownloadableProduct {
   zip_file_path: string;
 }
 
-// Компонент для картки продукту
 function DownloadItem({ product }: { product: DownloadableProduct }) {
     const { token } = useAuthStore.getState();
     const { t } = useTranslation();
@@ -67,7 +66,7 @@ function DownloadItem({ product }: { product: DownloadableProduct }) {
 }
 
 export default function DownloadsPage() {
-  const router = useRouter();
+  // Видалено router, оскільки кнопки "назад" більше немає
   const [activeTab, setActiveTab] = useState('premium');
   const [premiumProducts, setPremiumProducts] = useState<DownloadableProduct[]>([]);
   const [freeProducts, setFreeProducts] = useState<DownloadableProduct[]>([]);
@@ -110,23 +109,21 @@ export default function DownloadsPage() {
   );
 
   return (
-    <div className="container mx-auto px-4 py-6">
-        <div className="flex items-center gap-4 mb-6">
-            <button
-                onClick={() => router.push('/profile')}
-                className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-                <ArrowLeft size={20} />
-            </button>
-            <h1 className="text-2xl font-bold">{t('profilePages.downloads.pageTitle')}</h1>
-        </div>
+    // Адаптуємо контейнер: -mt-4 для компенсації глобального відступу, pb-20 для скролу знизу
+    <div className="container mx-auto px-4 -mt-4 pb-20">
 
-      {/* Вкладки */}
-      <div className="flex border-b dark:border-slate-700 mb-6">
-        <button onClick={() => setActiveTab('premium')} className={`flex items-center gap-2 px-4 py-2 font-semibold transition-colors ${activeTab === 'premium' ? 'border-b-2 border-purple-500 text-purple-500' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+      {/* Sticky Tabs - Вкладки тепер прилипають до верху */}
+      <div className="flex border-b dark:border-slate-700 mb-6 sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md pt-4 -mx-4 px-4 transition-all">
+        <button
+            onClick={() => setActiveTab('premium')}
+            className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors border-b-2 -mb-[1px] ${activeTab === 'premium' ? 'border-purple-500 text-purple-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+        >
            <Crown size={18} /> {t('profilePages.downloads.premium')} ({premiumProducts.length})
         </button>
-        <button onClick={() => setActiveTab('free')} className={`flex items-center gap-2 px-4 py-2 font-semibold transition-colors ${activeTab === 'free' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+        <button
+            onClick={() => setActiveTab('free')}
+            className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors border-b-2 -mb-[1px] ${activeTab === 'free' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+        >
           <Package size={18} /> {t('profilePages.downloads.free')} ({freeProducts.length})
         </button>
       </div>

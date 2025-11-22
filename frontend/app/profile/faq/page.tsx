@@ -1,9 +1,9 @@
+// frontend/app/profile/faq/page.tsx
 'use client';
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, ArrowLeft, HelpCircle } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 // Тимчасові дані (сюди ви вставите свої реальні питання)
@@ -31,22 +31,12 @@ const faqs = [
 ];
 
 export default function FaqPage() {
-  const router = useRouter();
   const { t } = useTranslation();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <div className="container mx-auto px-4 py-2">
-      {/* Заголовок з кнопкою назад */}
-      <div className="flex items-center gap-4 mb-6">
-        <button
-          onClick={() => router.back()}
-          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="text-2xl font-bold">{t('profilePages.faq.pageTitle')}</h1>
-      </div>
+    <div className="container mx-auto px-4 py-6">
+      {/* Заголовок та кнопка "Назад" видалені */}
 
       {/* Список питань */}
       <div className="space-y-4">

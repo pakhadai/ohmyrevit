@@ -1,47 +1,84 @@
+/* frontend/app/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 255 255 255;
-    --foreground: 0 0 0;
-    --primary: 59 130 246;
-    --secondary: 156 163 175;
-    --accent: 16 185 129;
-    --destructive: 239 68 68;
-    --border: 229 231 235;
-    --radius: 0.5rem;
+    /* Світла тема (Light Mode) - Soft & Premium */
+    /* ЗМІНЕНО: Фон тепер не білий, а м'який сіро-блакитний (Cool Gray 50/100 mix) */
+    --background: 220 14% 96%;
+
+    /* Текст - темний сіро-синій для м'якого контрасту */
+    --foreground: 222.2 47.4% 11.2%;
+
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+
+    /* ВАЖЛИВО: Вторинний колір (для карток) залишаємо чисто білим, щоб вони виділялися */
+    --secondary: 0 0% 100%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 13% 91%; /* Трохи темніший бордер для нового фону */
+    --input: 220 13% 91%;
+    --ring: 221.2 83.2% 53.3%;
+
+    --radius: 1rem; /* Сучасні скруглення (16px) */
   }
 
   .dark {
-    --background: 15 23 42;
-    --foreground: 248 250 252;
-    --primary: 59 130 246;
-    --secondary: 71 85 105;
-    --accent: 16 185 129;
-    --destructive: 239 68 68;
-    --border: 30 41 59;
+    /* Темна тема (Dark Mode) - Deep Slate (Залишаємо без змін, вона гарна) */
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
   }
-  
-  /* ВИРІШЕННЯ ПРОБЛЕМИ OVERSCROLL: Забороняємо "відтягування" сторінки */
+
+  /* Запобігає "відтягуванню" сторінки на мобільних */
   html, body {
     @apply overscroll-y-none;
   }
 }
 
 @layer components {
+  /* Оновлений блюр для навігації, щоб пасував до нового фону */
   .nav-blur {
-    /* Прибираємо рамку і додаємо ледь помітну тінь зверху для глибини */
-    @apply backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] dark:shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.2)];
+    @apply backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_10px_-2px_rgba(0,0,0,0.2)];
   }
 
   .card-hover {
-    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-xl;
+    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-lg;
   }
 
+
   .btn-primary {
-    @apply bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors;
+    @apply bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:opacity-90 transition-colors;
   }
 }
 

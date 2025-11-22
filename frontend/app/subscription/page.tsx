@@ -2,11 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { subscriptionsAPI } from '@/lib/api';
 import { motion } from 'framer-motion';
-import { Crown, CheckCircle, Loader, ArrowLeft, Calendar, Sparkles } from 'lucide-react';
+import { Crown, CheckCircle, Loader, Calendar, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 
@@ -20,7 +19,6 @@ interface SubscriptionStatus {
 }
 
 export default function SubscriptionPage() {
-  const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,7 +61,7 @@ export default function SubscriptionPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
+      <div className="flex justify-center items-center h-screen">
         <Loader className="w-12 h-12 animate-spin text-purple-500" />
       </div>
     );
@@ -71,10 +69,7 @@ export default function SubscriptionPage() {
 
   return (
     <div className="container mx-auto px-4 py-6">
-       <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-500 mb-6">
-          <ArrowLeft size={20} />
-          <span>{t('common.back')}</span>
-        </button>
+      {/* Кнопку "Назад" видалено */}
 
       {status?.has_active_subscription ? (
         <motion.div

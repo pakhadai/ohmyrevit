@@ -3,10 +3,8 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Users, Package, ShoppingCart, CreditCard, TrendingUp, Tag, Loader, DollarSign,
-  PlusCircle, UserPlus
+  Users, Package, CreditCard, DollarSign
 } from 'lucide-react';
-// OLD: import { adminApi } from '@/lib/api/admin';
 import { adminAPI } from '@/lib/api';
 import { LoadingSpinner } from '@/components/admin/Shared';
 import { useTranslation } from 'react-i18next';
@@ -17,7 +15,7 @@ function DashboardView({ stats }: { stats: any }) {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6">{t('admin.dashboard.title')}</h2>
+      {/* Статистика (верхній ряд) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
           <div className="flex items-center justify-between">
@@ -58,7 +56,9 @@ function DashboardView({ stats }: { stats: any }) {
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+      {/* Нижній ряд: Огляд замовлень (на всю ширину, оскільки Швидкі дії видалено) */}
+      <div className="grid grid-cols-1 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
           <h3 className="font-semibold mb-4">{t('admin.dashboard.ordersOverview')}</h3>
           <div className="space-y-3">
@@ -76,23 +76,8 @@ function DashboardView({ stats }: { stats: any }) {
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
-          <h3 className="font-semibold mb-4">{t('admin.dashboard.quickActions')}</h3>
-          <div className="space-y-2">
-            <button className="w-full text-left px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
-              <PlusCircle size={18} className="inline mr-2" />
-              {t('admin.dashboard.addNewProduct')}
-            </button>
-            <button className="w-full text-left px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-              <Tag size={18} className="inline mr-2" />
-              {t('admin.dashboard.createPromoCode')}
-            </button>
-            <button className="w-full text-left px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-              <UserPlus size={18} className="inline mr-2" />
-              {t('admin.dashboard.addAdmin')}
-            </button>
-          </div>
-        </div>
+
+        {/* Блок "Швидкі дії" видалено */}
       </div>
     </div>
   );
@@ -104,7 +89,6 @@ export default function AdminDashboardPage() {
   const { t } = useTranslation();
 
   useEffect(() => {
-// OLD:     adminApi.getDashboardStats()
     adminAPI.getDashboardStats()
       .then(setStats)
       .catch(error => {

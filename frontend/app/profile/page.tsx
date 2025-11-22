@@ -1,3 +1,4 @@
+// frontend/app/profile/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -60,7 +61,8 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-2">
+    // ВИПРАВЛЕНО: Використовуємо py-6 для ідентичного відступу, як на Головній
+    <div className="container mx-auto px-4 py-6">
       {/* Шапка профілю */}
       <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 mb-6 text-white">
         <div className="flex items-center justify-between">
