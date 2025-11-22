@@ -128,10 +128,14 @@ export default function AppProvider({ children }: { children: React.ReactNode })
           const tg = window.Telegram.WebApp;
           tg.ready();
           tg.expand();
-
-          // ДОДАНО: Увімкнення підтвердження закриття
-          // Це запобігає випадковому закриттю свайпом (користувач побачить діалог підтвердження)
           tg.enableClosingConfirmation();
+
+          try {
+            tg.setHeaderColor('bg_color');
+            tg.setBackgroundColor('bg_color');
+          } catch (e) {
+            console.error("Error setting header color", e);
+          }
 
           const initData = tg.initDataUnsafe;
 

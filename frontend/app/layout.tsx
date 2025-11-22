@@ -1,4 +1,3 @@
-// frontend/app/layout.tsx
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
@@ -12,8 +11,8 @@ import Script from 'next/script';
 const inter = Inter({ subsets: ['latin', 'cyrillic'] });
 
 export const metadata: Metadata = {
-  title: 'OhMyRevit - Маркетплейс Revit контенту',
-  description: 'Преміум контент для Autodesk Revit',
+  title: 'OhMyRevit',
+  description: 'Revit Content Marketplace',
 };
 
 export default function RootLayout({
@@ -23,23 +22,31 @@ export default function RootLayout({
 }) {
   return (
     <html lang="uk" suppressHydrationWarning>
-      <body>
+      <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
         <TelegramProvider>
           <AppProvider>
-            {/* ВИПРАВЛЕНО:
-                - Замінено "bg-white dark:bg-slate-900" на "bg-background"
-                - Замінено "text-gray-900 dark:text-gray-100" на "text-foreground"
-                Тепер кольори беруться з globals.css
-            */}
-            <div className={`${inter.className} min-h-screen grid grid-rows-[auto_1fr] bg-background text-foreground`}>
+            <div className="flex flex-col min-h-screen relative">
+              {/* Хедер для відступу зверху (кнопки Telegram) */}
               <Header />
 
-              <main className="overflow-y-auto pb-20 pt-4">
+              {/* Основний контент з автоматичним відступом */}
+              <main className="flex-1 w-full">
                 {children}
               </main>
 
+              {/* Навігація знизу */}
               <BottomNav />
-              <Toaster position="top-center" />
+
+              <Toaster
+                position="top-center"
+                toastOptions={{
+                  style: {
+                    background: 'hsl(var(--card))',
+                    color: 'hsl(var(--card-foreground))',
+                    border: '1px solid hsl(var(--border))',
+                  },
+                }}
+              />
             </div>
           </AppProvider>
         </TelegramProvider>

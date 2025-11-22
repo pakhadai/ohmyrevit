@@ -1,44 +1,62 @@
-/* frontend/app/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* Світла тема (Light Mode) - Soft & Premium */
-    /* ЗМІНЕНО: Фон тепер не білий, а м'який сіро-блакитний (Cool Gray 50/100 mix) */
-    --background: 220 14% 96%;
+    /* --- Світла тема (Light Mode) --- */
+    /* Основний фон: дуже світлий сірий, не чисто білий, щоб очі не втомлювались */
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%; /* Майже чорний текст */
 
-    /* Текст - темний сіро-синій для м'якого контрасту */
-    --foreground: 222.2 47.4% 11.2%;
+    /* Картки: чисто білі з легким бордером */
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
 
+    /* Елементи інтерфейсу (кнопки, активні стани) */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    /* Головний акцентний колір (твій поточний Blue/Purple мікс) */
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
 
-    /* ВАЖЛИВО: Вторинний колір (для карток) залишаємо чисто білим, щоб вони виділялися */
-    --secondary: 0 0% 100%;
+    /* Вторинний колір (сірі плашки, неактивні кнопки) */
+    --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
+    /* Приглушений текст (описи, дати) */
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
+    /* Акцент (ховери, виділення) */
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
+    /* Помилки */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 220 13% 91%; /* Трохи темніший бордер для нового фону */
-    --input: 220 13% 91%;
+    /* Рамки та інпути */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
 
-    --radius: 1rem; /* Сучасні скруглення (16px) */
+    --radius: 1rem; /* Закруглення 16px для всіх карток */
   }
 
   .dark {
-    /* Темна тема (Dark Mode) - Deep Slate (Залишаємо без змін, вона гарна) */
+    /* --- Темна тема (Dark Mode) --- */
+    /* Фон: глибокий темний (Deep Slate), не чисто чорний */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
+
+    /* Картки: трохи світліші за фон */
+    --card: 222.2 84% 6.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 6.9%;
+    --popover-foreground: 210 40% 98%;
 
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
@@ -57,56 +75,37 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-  }
-
-  /* Запобігає "відтягуванню" сторінки на мобільних */
-  html, body {
-    @apply overscroll-y-none;
+    --ring: 212.7 26.8% 83.9%;
   }
 }
 
-@layer components {
-  /* Оновлений блюр для навігації, щоб пасував до нового фону */
-  .nav-blur {
-    @apply backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_10px_-2px_rgba(0,0,0,0.2)];
+@layer base {
+  * {
+    @apply border-border;
   }
-
-  .card-hover {
-    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-lg;
-  }
-
-
-  .btn-primary {
-    @apply bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:opacity-90 transition-colors;
+  body {
+    @apply bg-background text-foreground;
+    /* Заборона еластичного скролу (pull-to-refresh), який ламає UI в Telegram */
+    overscroll-behavior-y: none;
   }
 }
 
-/* Анімація для навігації */
-.nav-hide {
-  transform: translateY(100%);
-  transition: transform 0.3s ease-in-out;
-}
+/* Утиліти для Telegram Safe Area (враховуємо "чубчик" iPhone) */
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
 
-.nav-show {
-  transform: translateY(0);
-  transition: transform 0.3s ease-in-out;
-}
+  /* Стандартна картка для всього додатку */
+  .app-card {
+    @apply bg-card text-card-foreground rounded-2xl border border-border shadow-sm transition-all duration-200;
+  }
 
-/* Scrollbar стилі */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  @apply bg-gray-100 dark:bg-slate-800;
-}
-
-::-webkit-scrollbar-thumb {
-  @apply bg-gray-400 dark:bg-slate-600 rounded;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500 dark:bg-slate-500;
+  /* Стандартний контейнер сторінки з відступами під хедер */
+  .page-container {
+    @apply container mx-auto px-4 py-6 pb-24;
+  }
 }
