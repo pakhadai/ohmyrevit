@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useAuthStore } from '../store/authStore';
-import { useCollectionStore } from '../store/collectionStore';
-import { useLanguageStore } from '../store/languageStore';
+import { useAuthStore } from '@/store/authStore';
+import { useCollectionStore } from '@/store/collectionStore';
+import { useLanguageStore } from '@/store/languageStore';
+import { useUIStore } from '@/store/uiStore';
 import Onboarding from './Onboarding';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import i18n from '../lib/i18n';
-import { useUIStore } from '../store/uiStore';
+import i18n from '@/lib/i18n';
 
 declare global {
   interface Window {
@@ -21,19 +21,21 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   const { fetchInitialData } = useCollectionStore();
   const { setLanguage } = useLanguageStore();
   const { setTheme } = useUIStore();
+
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [appReady, setAppReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const authAttempted = useRef(false);
-  const { t } = useTranslation();
   const [isI18nReady, setIsI18nReady] = useState(false);
 
+  const authAttempted = useRef(false);
+  const { t } = useTranslation();
+
+  // Ініціалізація теми та мови
   useEffect(() => {
     const storedTheme = useUIStore.getState().theme;
     setTheme(storedTheme);
 
     const handleInitialized = () => {
-      console.log('🌍 i18next has been initialized.');
       const storedLanguage = useLanguageStore.getState().language;
       if (i18n.language !== storedLanguage) {
         i18n.changeLanguage(storedLanguage);
@@ -47,14 +49,32 @@ export default function AppProvider({ children }: { children: React.ReactNode })
       i18n.on('initialized', handleInitialized);
     }
 
+    return () => {
+      i18n.off('initialized', handleInitialized);
+    };
+  }, [setTheme]);
+
+  // Головна логіка Telegram
+  useEffect(() => {
     const initializeTelegram = async () => {
       const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
-      // Перевіряємо наявність реферального коду
       const startParam = tg?.initDataUnsafe?.start_param;
-      const hasStartParam = !!startParam;
 
-      // Логіка: Якщо ми вже пробували авторизуватися АБО (ми авторизовані І немає нового реферального коду), то пропускаємо
-      if (authAttempted.current || (isAuthenticated && !hasStartParam)) {
+      // === ДІАГНОСТИКА ДЛЯ ТЕЛЕФОНУ ===
+      // Цей alert покаже вам, чи прийшов код.
+      // Якщо ви бачите "null" або "undefined", значить Бот не передав параметр.
+      if (!authAttempted.current) {
+          if (startParam) {
+              alert(`✅ РЕФЕРАЛ ОТРИМАНО: ${startParam}\nЗараз спробуємо авторизуватись...`);
+          } else {
+              // Розкоментуйте це, якщо хочете бачити помилку, коли коду немає
+              // alert('❌ Реферальний код відсутній в URL');
+          }
+      }
+      // ================================
+
+      // Якщо ми вже авторизовані і немає нового реферального коду - не робимо зайвих запитів
+      if (authAttempted.current || (isAuthenticated && !startParam)) {
         setAppReady(true);
         if (isAuthenticated) fetchInitialData();
         return;
@@ -69,21 +89,12 @@ export default function AppProvider({ children }: { children: React.ReactNode })
 
         if (window.Telegram?.WebApp) {
           const tg = window.Telegram.WebApp;
-
           tg.ready();
           tg.expand();
-
-          console.log('📱 Telegram WebApp found');
 
           const initData = tg.initDataUnsafe;
 
           if (initData && initData.user) {
-            console.log('👤 Telegram User:', initData.user);
-
-            if (initData.start_param) {
-                console.log('🎁 Found referral code:', initData.start_param);
-            }
-
             const authData = {
               id: initData.user.id,
               first_name: initData.user.first_name || t('common.userFallbackName'),
@@ -95,12 +106,11 @@ export default function AppProvider({ children }: { children: React.ReactNode })
               auth_date: initData.auth_date || Math.floor(Date.now() / 1000),
               hash: initData.hash || '',
               query_id: initData.query_id || '',
-              start_param: initData.start_param || null // Передаємо код на бекенд
+              start_param: initData.start_param || null
             };
 
             try {
               authAttempted.current = true;
-              // Цей виклик відправить start_param на сервер
               const loginResponse = await login(authData);
               await fetchInitialData();
 
@@ -108,27 +118,21 @@ export default function AppProvider({ children }: { children: React.ReactNode })
                 setLanguage(authData.language_code as any);
               }
 
-              // Показуємо тост, якщо реферал спрацював (можна перевірити в loginResponse, якщо бекенд повертає інфо)
-              if (hasStartParam) {
-                  console.log('Ref check sent');
+              if (loginResponse.is_new_user && authData.start_param) {
+                  toast.success(t('toasts.welcome'), { duration: 4000 });
               }
 
-              console.log('✅ Authorization successful');
               setAppReady(true);
 
             } catch (error: any) {
               console.error('❌ Authorization error:', error);
               setAuthError(t('appProvider.loginError'));
-              toast.error(t('toasts.authError'), {
-                duration: 5000
-              });
+              toast.error(t('toasts.authError'));
             }
           } else {
-            console.warn('⚠️ No user data from Telegram');
             setAuthError(t('appProvider.telegramOnlyError'));
           }
         } else if (attempts >= maxAttempts) {
-          console.error('❌ Telegram WebApp did not load');
           setAuthError(t('appProvider.telegramConnectionError'));
           setAppReady(true);
         } else {
@@ -140,12 +144,9 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     };
 
     initializeTelegram();
+  }, [login, isAuthenticated, fetchInitialData, t, setLanguage]);
 
-    return () => {
-      i18n.off('initialized', handleInitialized);
-    };
-  }, [login, isAuthenticated, fetchInitialData, t, setTheme, setLanguage]);
-
+  // Onboarding логіка
   useEffect(() => {
     if (isAuthenticated && user && isNewUser) {
       const onboardingKey = `onboarding_${user.telegram_id}`;
@@ -167,7 +168,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         <div className="text-center text-white">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-4"></div>
           <h2 className="text-2xl font-bold mb-2">OhMyRevit</h2>
-          <p className="text-white/80">Завантаження...</p>
         </div>
       </div>
     );
@@ -177,13 +177,9 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-red-500 to-pink-600 p-4">
         <div className="bg-white rounded-2xl p-8 max-w-md text-center shadow-2xl">
-          <div className="text-6xl mb-4">😕</div>
           <h2 className="text-2xl font-bold mb-4 text-gray-800">{t('common.oops')}</h2>
           <p className="text-gray-600 mb-6">{authError}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition"
-          >
+          <button onClick={() => window.location.reload()} className="px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition">
             {t('common.tryAgain')}
           </button>
         </div>
