@@ -15,11 +15,10 @@ export default function BottomNav() {
   const cartItemsCount = useCartStore((state) => state.items.length);
   const { t } = useTranslation();
 
-  // Логіка приховування при скролі (залишаємо, бо це зручно)
+  // Логіка приховування при скролі
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      // Приховуємо тільки якщо скролимо вниз і прокрутили більше 100px
       if (currentScrollY > lastScrollY && currentScrollY > 100) {
         setIsVisible(false);
       } else {
@@ -48,13 +47,15 @@ export default function BottomNav() {
           opacity: isVisible ? 1 : 0
         }}
         transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-        // Стиль "Floating Dock":
-        // - pointer-events-auto: щоб кнопки натискалися
-        // - backdrop-blur-xl: сильне розмиття як в iOS
-        // - bg-background/80: напівпрозорий фон теми
-        // - shadow-lg: виразна тінь
-        // - rounded-full: повне закруглення (пігулка)
-        className="pointer-events-auto relative flex items-center bg-[#1F1F2A]/80 dark:bg-[#1F1F2A]/80 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/20 rounded-[32px] px-2 py-2 gap-1 min-w-[320px]"
+        // ЗМІНИ ТУТ:
+        // bg-header/70 -> Адаптивний фон (білий/темний) з високою прозорістю
+        // border-black/5 dark:border-white/10 -> Тонкі адаптивні рамки
+        // shadow-black/5 dark:shadow-black/20 -> М'які тіні під тему
+        className="pointer-events-auto relative flex items-center
+                   bg-header/70 backdrop-blur-2xl
+                   border border-black/5 dark:border-white/10
+                   shadow-2xl shadow-black/5 dark:shadow-black/40
+                   rounded-[32px] px-2 py-2 gap-1 min-w-[320px]"
       >
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -64,7 +65,7 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className="relative flex-1 flex flex-col items-center justify-center h-12 min-w-[60px] cursor-pointer select-none"
+              className="relative flex-1 flex flex-col items-center justify-center h-12 min-w-[60px] cursor-pointer select-none group"
             >
               {/* Активний фон (ковзаюча бульбашка) */}
               {isActive && (
@@ -81,9 +82,13 @@ export default function BottomNav() {
                   <Icon
                     size={22}
                     strokeWidth={2.5}
-                    // Анімація кольору іконки
+                    // Анімація кольору іконки:
+                    // Active: text-primary-foreground (зазвичай білий на кнопці)
+                    // Inactive: text-muted-foreground (сірий) -> hover:text-foreground (чорний/білий)
                     className={`transition-colors duration-300 ${
-                      isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'
+                      isActive
+                        ? 'text-primary-foreground'
+                        : 'text-muted-foreground group-hover:text-foreground'
                     }`}
                   />
 
@@ -92,7 +97,7 @@ export default function BottomNav() {
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full border-2 border-[#1F1F2A]"
+                      className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full border-2 border-white dark:border-[#1F1F2A]"
                     >
                       {item.badge}
                     </motion.span>

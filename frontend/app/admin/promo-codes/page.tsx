@@ -1,10 +1,8 @@
-// frontend/app/admin/promo-codes/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Tag, PlusCircle, ChevronRight } from 'lucide-react';
-// OLD: import { adminApi } from '@/lib/api/admin';
+import { Tag, ChevronRight, Calendar, Hash, Percent, DollarSign } from 'lucide-react';
 import { adminAPI } from '@/lib/api';
 import { LoadingSpinner, EmptyState } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
@@ -35,41 +33,78 @@ export default function PromoCodesManagementPage() {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div>
-      <div className="hidden lg:flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold">{t('admin.promo.pageTitle')}</h2>
-        <button onClick={() => router.push('/admin/promo-codes/new')} className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-          <PlusCircle size={18} />
-          {t('admin.promo.new')}
-        </button>
-      </div>
+    <div className="space-y-6">
+
+      {/* Заголовок та кнопку видалено, оскільки вони є в Layout */}
 
       {promoCodes.length === 0 ? (
         <EmptyState message={t('admin.promo.empty')} icon={Tag} />
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+        <div className="card-minimal overflow-hidden">
+          <ul className="divide-y divide-border/50">
             {promoCodes.map((promo) => (
               <li
                 key={promo.id}
                 onClick={() => router.push(`/admin/promo-codes/${promo.id}`)}
-                className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-muted/30 transition-colors cursor-pointer group gap-4"
               >
-                <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
-                    <div className="font-mono font-bold">{promo.code}</div>
-                    <div>
-                        {promo.discount_type === 'percentage'
-                          ? `${promo.value}%`
-                          : `$${parseFloat(promo.value).toFixed(2)}`}
+                <div className="flex items-center gap-4">
+                    {/* Іконка типу знижки */}
+                    <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-500">
+                        {promo.discount_type === 'percentage' ? <Percent size={20} /> : <DollarSign size={20} />}
                     </div>
-                    <div>{t('admin.promo.used', { current: promo.current_uses, max: promo.max_uses || t('admin.promo.unlimited') })}</div>
+
                     <div>
-                      <span className={`px-2 py-1 text-xs rounded ${promo.is_active ? 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'}`}>
-                        {promo.is_active ? t('admin.promo.active') : t('admin.promo.inactive')}
-                      </span>
+                        <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-lg text-foreground tracking-wider bg-muted/50 px-2 py-0.5 rounded-lg border border-border/50">
+                                {promo.code}
+                            </span>
+                            {!promo.is_active && (
+                                <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] uppercase font-bold tracking-wide">
+                                    Inactive
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1.5">
+                            <span className="flex items-center gap-1">
+                                <span className="font-bold text-primary">
+                                    {promo.discount_type === 'percentage' ? `${promo.value}%` : `$${parseFloat(promo.value).toFixed(2)}`}
+                                </span>
+                                знижки
+                            </span>
+                            {promo.expires_at && (
+                                <>
+                                    <span className="w-1 h-1 rounded-full bg-muted-foreground/50"></span>
+                                    <span className="flex items-center gap-1">
+                                        <Calendar size={10} />
+                                        {new Date(promo.expires_at).toLocaleDateString()}
+                                    </span>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
-                <ChevronRight className="text-gray-400 ml-4" />
+
+                <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto pl-16 sm:pl-0">
+                    <div className="flex flex-col items-end">
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider flex items-center gap-1">
+                            <Hash size={10} /> Використано
+                        </span>
+                        <div className="text-sm font-medium text-foreground">
+                            {promo.current_uses} <span className="text-muted-foreground">/ {promo.max_uses || '∞'}</span>
+                        </div>
+                    </div>
+
+                    <div className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full border ${
+                        promo.is_active
+                        ? 'bg-green-500/10 text-green-600 border-green-500/20'
+                        : 'bg-muted text-muted-foreground border-border'
+                    }`}>
+                        {promo.is_active ? t('admin.promo.active') : t('admin.promo.inactive')}
+                    </div>
+
+                    <ChevronRight className="text-muted-foreground/50 group-hover:text-primary transition-colors hidden sm:block" size={20} />
+                </div>
               </li>
             ))}
           </ul>

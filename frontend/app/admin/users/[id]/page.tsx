@@ -1,17 +1,16 @@
-// frontend/app/admin/users/[id]/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-// OLD: import { adminApi } from '@/lib/api/admin';
 import { adminAPI } from '@/lib/api';
 import { LoadingSpinner } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
 import {
     ArrowLeft, User, Mail, Phone, Clock, Gift, CreditCard, Shield,
-    CheckCircle, XCircle, UserPlus, ShoppingCart
+    CheckCircle, XCircle, UserPlus, ShoppingCart, Ban, Unlock, Calendar
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface UserDetail {
     id: number;
@@ -115,107 +114,276 @@ export default function UserDetailPage() {
         }
     };
 
+    // Стиль інпутів
+    const inputClass = "w-full px-4 py-3 bg-muted/50 border border-transparent rounded-xl text-foreground text-sm placeholder:text-muted-foreground focus:bg-background focus:border-primary/30 focus:ring-0 outline-none transition-all";
+
     if (loading || !user) {
         return <LoadingSpinner />;
     }
 
     return (
-        <div>
-            <div className="flex items-center gap-4 mb-6">
-                <button onClick={() => router.push('/admin/users')} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">
-                    <ArrowLeft size={20} />
+        <div className="space-y-6 max-w-6xl mx-auto">
+            <div className="flex items-center gap-4">
+                <button onClick={() => router.push('/admin/users')} className="p-2 hover:bg-muted rounded-xl transition-colors">
+                    <ArrowLeft size={24} className="text-muted-foreground" />
                 </button>
-                <h2 className="text-xl font-bold">{t('admin.users.pageTitle')}</h2>
+                <h2 className="text-2xl font-bold text-foreground">{t('admin.users.profileTitle')}</h2>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                {/* Ліва колонка: Профіль та Дії */}
                 <div className="lg:col-span-1 space-y-6">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center">
-                        <img src={user.photo_url || `https://avatar.vercel.sh/${user.id}.png`} alt="avatar" className="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-gray-200 dark:border-gray-700" />
-                        <h3 className="text-lg font-bold">{user.first_name} {user.last_name}</h3>
-                        <p className="text-sm text-gray-500">@{user.username || 'N/A'}</p>
-                        <div className="mt-2 flex justify-center gap-2">
-                           {user.is_admin && <span className="px-2 py-1 text-xs bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400 rounded">{t('profilePages.main.adminBadge')}</span>}
-                           {user.is_active ? <span className="px-2 py-1 text-xs bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400 rounded">{t('admin.promo.active')}</span> : <span className="px-2 py-1 text-xs bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400 rounded">{t('admin.promo.inactive')}</span>}
+                    <div className="card-minimal p-6 text-center relative overflow-hidden">
+                        <div className="relative inline-block mb-4">
+                            <img
+                                src={user.photo_url || `https://avatar.vercel.sh/${user.id}.png`}
+                                alt="avatar"
+                                className="w-28 h-28 rounded-full object-cover border-4 border-card shadow-lg"
+                            />
+                            {user.is_admin && (
+                                <div className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-1.5 rounded-full border-2 border-card shadow-sm" title="Admin">
+                                    <Shield size={16} fill="currentColor" />
+                                </div>
+                            )}
                         </div>
-                    </div>
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-3">
-                        <h4 className="font-semibold mb-2">{t('admin.users.mainActions')}</h4>
-                        <button onClick={() => setShowBonusModal(true)} className="w-full flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"><Gift size={16}/> {t('admin.users.addBonus')}</button>
-                        <button onClick={() => setShowSubscriptionModal(true)} className="w-full flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"><CreditCard size={16}/> {t('admin.users.giveSubscription')}</button>
-                        <button onClick={handleToggleAdmin} className="w-full flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"><Shield size={16}/> {user.is_admin ? t('admin.users.revokeAdmin') : t('admin.users.makeAdmin')}</button>
-                        <button onClick={handleToggleActive} className="w-full flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">{user.is_active ? <XCircle size={16}/> : <CheckCircle size={16}/>} {user.is_active ? t('admin.users.block') : t('admin.users.unblock')}</button>
+
+                        <h3 className="text-xl font-bold text-foreground">{user.first_name} {user.last_name}</h3>
+                        <p className="text-sm text-muted-foreground mb-4">@{user.username || 'N/A'}</p>
+
+                        <div className="flex justify-center gap-2 mb-6">
+                           <span className={`px-3 py-1 text-xs font-bold rounded-full border ${user.is_active ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'}`}>
+                                {user.is_active ? 'ACTIVE' : 'BLOCKED'}
+                           </span>
+                           <span className="px-3 py-1 text-xs font-bold rounded-full bg-muted text-muted-foreground border border-border">
+                                ID: {user.telegram_id}
+                           </span>
+                        </div>
+
+                        <div className="space-y-3">
+                            <button onClick={() => setShowBonusModal(true)} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 rounded-xl font-medium hover:bg-yellow-500/20 transition-colors">
+                                <Gift size={18} /> {t('admin.users.addBonus')}
+                            </button>
+                            <button onClick={() => setShowSubscriptionModal(true)} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-500/10 text-blue-600 dark:text-blue-500 rounded-xl font-medium hover:bg-blue-500/20 transition-colors">
+                                <CreditCard size={18} /> {t('admin.users.giveSubscription')}
+                            </button>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button onClick={handleToggleAdmin} className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-medium text-xs transition-colors ${user.is_admin ? 'bg-muted text-muted-foreground hover:text-foreground' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}>
+                                    <Shield size={16} /> {user.is_admin ? t('admin.users.revokeAdmin') : t('admin.users.makeAdmin')}
+                                </button>
+                                <button onClick={handleToggleActive} className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-medium text-xs transition-colors ${user.is_active ? 'bg-destructive/10 text-destructive hover:bg-destructive/20' : 'bg-green-500/10 text-green-600 hover:bg-green-500/20'}`}>
+                                    {user.is_active ? <Ban size={16} /> : <Unlock size={16} />} {user.is_active ? t('admin.users.block') : t('admin.users.unblock')}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                {/* Права колонка: Інформація та Списки */}
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <h4 className="font-semibold mb-4">{t('admin.users.details')}</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                           <div className="flex items-center gap-2"><User size={16} className="text-gray-400"/> <strong>{t('admin.users.id')}</strong> {user.telegram_id}</div>
-                           <div className="flex items-center gap-2"><Mail size={16} className="text-gray-400"/> <strong>{t('admin.users.email')}</strong> {user.email || t('admin.users.notSpecified')}</div>
-                           <div className="flex items-center gap-2"><Phone size={16} className="text-gray-400"/> <strong>{t('admin.users.phone')}</strong> {user.phone || t('admin.users.notSpecified')}</div>
-                           <div className="flex items-center gap-2"><Gift size={16} className="text-gray-400"/> <strong>{t('admin.users.bonuses')}</strong> {user.bonus_balance} 💎</div>
-                           <div className="flex items-center gap-2 col-span-2"><Clock size={16} className="text-gray-400"/> <strong>{t('admin.users.registration')}</strong> {new Date(user.created_at).toLocaleString()}</div>
-                           <div className="flex items-center gap-2 col-span-2"><Clock size={16} className="text-gray-400"/> <strong>{t('admin.users.lastVisit')}</strong> {user.last_login_at ? new Date(user.last_login_at).toLocaleString() : t('admin.users.wasNot')}</div>
+
+                    {/* Деталі */}
+                    <div className="card-minimal p-6">
+                        <h4 className="font-bold text-foreground mb-5 flex items-center gap-2">
+                            <User size={20} className="text-primary" />
+                            {t('admin.users.details')}
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
+                           <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">{t('admin.users.email')}</span>
+                               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                   <Mail size={16} className="text-muted-foreground" />
+                                   {user.email || <span className="text-muted-foreground italic">{t('admin.users.notSpecified')}</span>}
+                               </div>
+                           </div>
+                           <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">{t('admin.users.phone')}</span>
+                               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                   <Phone size={16} className="text-muted-foreground" />
+                                   {user.phone || <span className="text-muted-foreground italic">{t('admin.users.notSpecified')}</span>}
+                               </div>
+                           </div>
+                           <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">{t('admin.users.bonuses')}</span>
+                               <div className="flex items-center gap-2 text-lg font-bold text-foreground">
+                                   <Gift size={18} className="text-yellow-500" />
+                                   {user.bonus_balance} 💎
+                               </div>
+                           </div>
+                           <div className="flex flex-col">
+                               <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">{t('admin.users.registration')}</span>
+                               <div className="flex items-center gap-2 text-sm text-foreground">
+                                   <Calendar size={16} className="text-muted-foreground" />
+                                   {new Date(user.created_at).toLocaleString()}
+                               </div>
+                           </div>
+                           <div className="flex flex-col sm:col-span-2 border-t border-border/50 pt-4 mt-2">
+                               <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">{t('admin.users.lastVisit')}</span>
+                               <div className="flex items-center gap-2 text-sm text-foreground">
+                                   <Clock size={16} className="text-muted-foreground" />
+                                   {user.last_login_at ? new Date(user.last_login_at).toLocaleString() : t('admin.users.wasNot')}
+                               </div>
+                           </div>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                       <h4 className="font-semibold mb-4 flex items-center gap-2"><CreditCard size={18}/> {t('admin.users.subscriptions', {count: user.subscriptions.length})}</h4>
+
+                    {/* Підписки */}
+                    <div className="card-minimal p-6">
+                       <div className="flex items-center justify-between mb-4">
+                           <h4 className="font-bold text-foreground flex items-center gap-2">
+                               <CreditCard size={20} className="text-blue-500" />
+                               {t('admin.users.subscriptions', {count: user.subscriptions.length})}
+                           </h4>
+                       </div>
+
                        {user.subscriptions.length > 0 ? (
-                           <ul className="text-sm space-y-2">
-                               {user.subscriptions.map(s => <li key={s.id} className="flex justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded"><span>{t('admin.orders.status')} <strong>{s.status}</strong></span><span>{t('subscription.activeUntil')} {new Date(s.end_date).toLocaleDateString()}</span></li>)}
-                           </ul>
-                       ) : <p className="text-sm text-gray-500">{t('admin.users.noSubscriptions')}</p>}
+                           <div className="space-y-2">
+                               {user.subscriptions.map(s => (
+                                   <div key={s.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-border/50">
+                                       <div className="flex items-center gap-3">
+                                           <div className={`w-2 h-2 rounded-full ${s.status === 'active' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                                           <span className="text-sm font-medium capitalize">{s.status}</span>
+                                       </div>
+                                       <div className="text-xs text-muted-foreground">
+                                           {t('subscription.activeUntil')} <span className="font-medium text-foreground">{new Date(s.end_date).toLocaleDateString()}</span>
+                                       </div>
+                                   </div>
+                               ))}
+                           </div>
+                       ) : (
+                           <p className="text-sm text-muted-foreground italic py-2">{t('admin.users.noSubscriptions')}</p>
+                       )}
                     </div>
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                       <h4 className="font-semibold mb-4 flex items-center gap-2"><ShoppingCart size={18}/> {t('admin.users.orders', {count: user.orders.length})}</h4>
+
+                    {/* Замовлення */}
+                    <div className="card-minimal p-6">
+                       <h4 className="font-bold text-foreground mb-4 flex items-center gap-2">
+                           <ShoppingCart size={20} className="text-purple-500" />
+                           {t('admin.users.orders', {count: user.orders.length})}
+                       </h4>
                        {user.orders.length > 0 ? (
-                           <ul className="text-sm space-y-2">
-                               {user.orders.map(o => <li key={o.id} className="flex justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded"><span>#{o.id} на <strong>${o.final_total.toFixed(2)}</strong></span><span>{new Date(o.created_at).toLocaleDateString()}</span></li>)}
-                           </ul>
-                       ) : <p className="text-sm text-gray-500">{t('admin.users.noOrders')}</p>}
+                           <div className="overflow-x-auto">
+                               <table className="w-full text-sm text-left">
+                                   <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
+                                       <tr>
+                                           <th className="px-3 py-2 rounded-l-lg">ID</th>
+                                           <th className="px-3 py-2">Сума</th>
+                                           <th className="px-3 py-2">Статус</th>
+                                           <th className="px-3 py-2 rounded-r-lg text-right">Дата</th>
+                                       </tr>
+                                   </thead>
+                                   <tbody className="divide-y divide-border/50">
+                                       {user.orders.map(o => (
+                                           <tr key={o.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => router.push(`/admin/orders/${o.id}`)}>
+                                               <td className="px-3 py-3 font-medium">#{o.id}</td>
+                                               <td className="px-3 py-3 font-bold">${o.final_total.toFixed(2)}</td>
+                                               <td className="px-3 py-3">
+                                                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                                       o.status === 'paid' ? 'bg-green-500/10 text-green-600' :
+                                                       o.status === 'pending' ? 'bg-yellow-500/10 text-yellow-600' :
+                                                       'bg-red-500/10 text-red-600'
+                                                   }`}>
+                                                       {o.status}
+                                                   </span>
+                                               </td>
+                                               <td className="px-3 py-3 text-right text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</td>
+                                           </tr>
+                                       ))}
+                                   </tbody>
+                               </table>
+                           </div>
+                       ) : <p className="text-sm text-muted-foreground italic py-2">{t('admin.users.noOrders')}</p>}
                     </div>
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                       <h4 className="font-semibold mb-4 flex items-center gap-2"><UserPlus size={18}/> {t('admin.users.referrals', {count: user.referrals.length})}</h4>
+
+                    {/* Реферали */}
+                    <div className="card-minimal p-6">
+                       <h4 className="font-bold text-foreground mb-4 flex items-center gap-2">
+                           <UserPlus size={20} className="text-orange-500" />
+                           {t('admin.users.referrals', {count: user.referrals.length})}
+                       </h4>
                        {user.referrals.length > 0 ? (
-                           <ul className="text-sm space-y-2">
-                               {user.referrals.map(r => <li key={r.id} className="p-2 bg-gray-50 dark:bg-gray-700 rounded">{r.first_name} {r.last_name || ''} (@{r.username})</li>)}
-                           </ul>
-                       ) : <p className="text-sm text-gray-500">{t('admin.users.noReferrals')}</p>}
+                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                               {user.referrals.map(r => (
+                                   <div key={r.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border/50">
+                                       <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
+                                           <User size={14} />
+                                       </div>
+                                       <div className="min-w-0">
+                                           <p className="text-sm font-medium truncate">{r.first_name} {r.last_name}</p>
+                                           <p className="text-xs text-muted-foreground">@{r.username || 'N/A'}</p>
+                                       </div>
+                                   </div>
+                               ))}
+                           </div>
+                       ) : <p className="text-sm text-muted-foreground italic py-2">{t('admin.users.noReferrals')}</p>}
                     </div>
                 </div>
             </div>
 
-            {showBonusModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-sm">
-                    <h3 className="text-lg font-semibold mb-4">{t('admin.users.modals.addBonusTitle', {name: user?.first_name})}</h3>
-                    <input type="number" placeholder={t('admin.users.modals.bonusAmount')} value={bonusAmount} onChange={(e) => setBonusAmount(Number(e.target.value))} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 mb-3" />
-                    <input type="text" placeholder={t('admin.users.modals.bonusReason')} value={bonusReason} onChange={(e) => setBonusReason(e.target.value)} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 mb-4" />
-                    <div className="flex gap-2">
-                      <button onClick={handleAddBonus} className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">{t('admin.users.modals.add')}</button>
-                      <button onClick={() => setShowBonusModal(false)} className="flex-1 px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400">{t('common.cancel')}</button>
-                    </div>
-                  </div>
-                </div>
-            )}
-            {showSubscriptionModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-sm">
-                    <h3 className="text-lg font-semibold mb-4">{t('admin.users.modals.giveSubscriptionTitle', {name: user?.first_name})}</h3>
-                    <select value={subscriptionDays} onChange={(e) => setSubscriptionDays(Number(e.target.value))} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 mb-4">
-                      <option value={7}>{t('admin.users.modals.days.7')}</option>
-                      <option value={30}>{t('admin.users.modals.days.30')}</option>
-                      <option value={90}>{t('admin.users.modals.days.90')}</option>
-                      <option value={365}>{t('admin.users.modals.days.365')}</option>
-                    </select>
-                    <div className="flex gap-2">
-                      <button onClick={handleGiveSubscription} className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">{t('admin.users.modals.give')}</button>
-                      <button onClick={() => setShowSubscriptionModal(false)} className="flex-1 px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400">{t('common.cancel')}</button>
-                    </div>
-                  </div>
-                </div>
-            )}
+            {/* Модальні вікна */}
+            <AnimatePresence>
+                {showBonusModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50 p-4"
+                        onClick={() => setShowBonusModal(false)}
+                    >
+                    <motion.div
+                        initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+                        className="bg-card rounded-[24px] p-6 w-full max-w-xs shadow-2xl border border-border"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="text-center mb-6">
+                            <div className="w-12 h-12 bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-3 text-yellow-500">
+                                <Gift size={24} />
+                            </div>
+                            <h3 className="text-lg font-bold text-foreground">{t('admin.users.modals.addBonusTitle', {name: user?.first_name})}</h3>
+                        </div>
+                        <div className="space-y-4 mb-6">
+                            <input type="number" placeholder={t('admin.users.modals.bonusAmount')} value={bonusAmount} onChange={(e) => setBonusAmount(Number(e.target.value))} className={inputClass} />
+                            <input type="text" placeholder={t('admin.users.modals.bonusReason')} value={bonusReason} onChange={(e) => setBonusReason(e.target.value)} className={inputClass} />
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => setShowBonusModal(false)} className="flex-1 px-4 py-2.5 bg-muted text-muted-foreground rounded-xl font-medium hover:bg-muted/80 transition-colors">{t('common.cancel')}</button>
+                            <button onClick={handleAddBonus} className="flex-1 btn-primary py-2.5 text-sm">{t('admin.users.modals.add')}</button>
+                        </div>
+                    </motion.div>
+                    </motion.div>
+                )}
+                {showSubscriptionModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50 p-4"
+                        onClick={() => setShowSubscriptionModal(false)}
+                    >
+                    <motion.div
+                        initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+                        className="bg-card rounded-[24px] p-6 w-full max-w-xs shadow-2xl border border-border"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="text-center mb-6">
+                            <div className="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-3 text-blue-500">
+                                <CreditCard size={24} />
+                            </div>
+                            <h3 className="text-lg font-bold text-foreground">{t('admin.users.modals.giveSubscriptionTitle', {name: user?.first_name})}</h3>
+                        </div>
+                        <div className="mb-6 relative">
+                            <select value={subscriptionDays} onChange={(e) => setSubscriptionDays(Number(e.target.value))} className={`${inputClass} appearance-none cursor-pointer`}>
+                                <option value={7}>{t('admin.users.modals.days.7')}</option>
+                                <option value={30}>{t('admin.users.modals.days.30')}</option>
+                                <option value={90}>{t('admin.users.modals.days.90')}</option>
+                                <option value={365}>{t('admin.users.modals.days.365')}</option>
+                            </select>
+                            <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground rotate-90 pointer-events-none" size={16} />
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => setShowSubscriptionModal(false)} className="flex-1 px-4 py-2.5 bg-muted text-muted-foreground rounded-xl font-medium hover:bg-muted/80 transition-colors">{t('common.cancel')}</button>
+                            <button onClick={handleGiveSubscription} className="flex-1 btn-primary py-2.5 text-sm">{t('admin.users.modals.give')}</button>
+                        </div>
+                    </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

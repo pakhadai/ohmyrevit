@@ -1,18 +1,19 @@
-// frontend/app/product/[id]/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { productsAPI } from '@/lib/api';
 import { Product } from '@/types';
-import { ArrowLeft, ShoppingCart, CheckCircle, Info, Loader, Download } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, CheckCircle2, Info, Loader, Download, Heart, Share2 } from 'lucide-react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useCartStore } from '@/store/cartStore';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useAccessStore } from '@/store/accessStore';
+import { useCollectionStore } from '@/store/collectionStore';
 import { useTranslation } from 'react-i18next';
+import AddToCollectionModal from '@/components/collections/AddToCollectionModal';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -24,10 +25,12 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string>('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const addItemToCart = useCartStore((state) => state.addItem);
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, token } = useAuthStore();
   const { checkAccess, fetchAccessStatus } = useAccessStore();
+  const { favoritedProductIds } = useCollectionStore();
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -56,19 +59,39 @@ export default function ProductDetailPage() {
   const handleAddToCart = () => {
     if (product) {
       addItemToCart(product);
-      toast.success(`'${product.title}' додано до кошика!`);
+      toast.success(t('toasts.addedToCart', { title: product.title }));
     }
   };
 
   const handleDownload = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    const token = useAuthStore.getState().token;
     if (product && token) {
-      const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL}/profile/download/${product.id}?token=${token}`;
+      const downloadUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL || ''}/api/v1/profile/download/${product.id}?token=${token}`;
       window.location.href = downloadUrl;
-      toast.success(t('toasts.downloadStarted'));
+      toast.success(t('toasts.downloadStarted', { title: product.title }));
     } else {
       toast.error(t('toasts.loginToDownload'));
+    }
+  };
+
+  const handleFavoriteClick = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleShare = async () => {
+    if (navigator.share && product) {
+      try {
+        await navigator.share({
+          title: product.title,
+          text: product.description,
+          url: window.location.href,
+        });
+      } catch (error) {
+        console.log('Error sharing:', error);
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success(t('toasts.linkCopied'));
     }
   };
 
@@ -78,26 +101,27 @@ export default function ProductDetailPage() {
     if (path.startsWith('http')) {
       return path;
     }
-    return `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}/${path.startsWith('/') ? path.slice(1) : path}`;
+    return `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
   };
 
   const hasAccess = product ? checkAccess(product.id) || product.product_type === 'free' : false;
+  const isFavorited = product ? favoritedProductIds.has(product.id) : false;
 
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <Loader className="w-12 h-12 animate-spin text-purple-500" />
+        <Loader className="w-10 h-10 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (error) {
+  if (error || !product) {
     return (
-      <div className="text-center py-20">
-        <h2 className="text-xl font-semibold text-red-500">{error}</h2>
+      <div className="text-center py-20 px-5">
+        <h2 className="text-xl font-semibold text-destructive mb-4">{error || t('productPage.loadError')}</h2>
         <button
           onClick={() => router.push('/marketplace')}
-          className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          className="btn-primary"
         >
           {t('cart.empty.goToMarket')}
         </button>
@@ -105,113 +129,143 @@ export default function ProductDetailPage() {
     );
   }
 
-  if (!product) {
-    return null;
-  }
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        {/* Кнопка "Назад" */}
+    <div className="container mx-auto px-5 pt-14 pb-24 space-y-6">
+      <AnimatePresence>
+        {isModalOpen && <AddToCollectionModal product={product} onClose={() => setIsModalOpen(false)} />}
+      </AnimatePresence>
+
+      {/* Header Navigation */}
+      <div className="flex items-center justify-between">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-500 mb-6"
+          className="p-2.5 bg-muted text-muted-foreground hover:text-foreground rounded-xl transition-colors"
         >
           <ArrowLeft size={20} />
-          <span>{t('productPage.backToProducts')}</span>
         </button>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Галерея зображень */}
-          <div>
-            <motion.div
-              key={selectedImage}
-              initial={{ opacity: 0.8 }}
-              animate={{ opacity: 1 }}
-              className="relative aspect-square rounded-2xl overflow-hidden shadow-lg"
+        <div className="flex gap-2">
+            <button
+                onClick={handleShare}
+                className="p-2.5 bg-muted text-muted-foreground hover:text-foreground rounded-xl transition-colors"
             >
+                <Share2 size={20} />
+            </button>
+            <button
+                onClick={handleFavoriteClick}
+                className={`p-2.5 rounded-xl transition-colors ${
+                    isFavorited
+                    ? 'bg-pink-soft/20 text-destructive'
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+            >
+                <Heart size={20} className={isFavorited ? 'fill-current' : ''} />
+            </button>
+        </div>
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-6"
+      >
+        {/* Image Gallery */}
+        <div className="space-y-3">
+            <div className="relative aspect-square w-full overflow-hidden rounded-[24px] bg-muted border border-border/50 shadow-sm">
               <Image
                 src={fullImageUrl(selectedImage)}
                 alt={product.title}
                 fill
                 className="object-cover"
+                priority
               />
-            </motion.div>
-            <div className="flex gap-2 mt-4">
-              {[product.main_image_url, ...product.gallery_image_urls].map((img, idx) => (
-                <div
-                  key={idx}
-                  className={`w-20 h-20 rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${selectedImage === img ? 'border-blue-500 scale-105' : 'border-transparent'}`}
-                  onClick={() => setSelectedImage(img)}
-                >
-                  <Image
-                    src={fullImageUrl(img)}
-                    alt={`${product.title} preview ${idx + 1}`}
-                    width={80}
-                    height={80}
-                    className="object-cover w-full h-full"
-                  />
-                </div>
-              ))}
+              {product.is_on_sale && (
+                  <div className="absolute top-4 left-4 px-3 py-1 bg-destructive text-white text-xs font-bold rounded-full shadow-md">
+                      SALE
+                  </div>
+              )}
             </div>
-          </div>
 
-          {/* Інформація про товар */}
-          <div className="flex flex-col">
-            <h1 className="text-3xl font-bold mb-4">{product.title}</h1>
+            {/* Thumbnails */}
+            {product.gallery_image_urls.length > 0 && (
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                    {[product.main_image_url, ...product.gallery_image_urls].map((img, idx) => (
+                        <div
+                        key={idx}
+                        className={`relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${
+                            selectedImage === img
+                            ? 'border-primary shadow-md scale-105'
+                            : 'border-transparent opacity-70 hover:opacity-100'
+                        }`}
+                        onClick={() => setSelectedImage(img)}
+                        >
+                        <Image
+                            src={fullImageUrl(img)}
+                            alt={`preview ${idx}`}
+                            fill
+                            className="object-cover"
+                        />
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
 
-            <div className="flex items-baseline gap-4 mb-6">
+        {/* Product Info Card */}
+        <div className="card-minimal p-6">
+            <div className="flex justify-between items-start gap-4 mb-2">
+                <h1 className="text-2xl font-bold text-foreground leading-tight">{product.title}</h1>
+            </div>
+
+            <div className="flex items-center gap-3 mb-6">
               {product.is_on_sale && product.sale_price ? (
                 <>
-                  <span className="text-4xl font-bold text-blue-500">${product.sale_price.toFixed(2)}</span>
-                  <span className="text-2xl line-through text-gray-400">${product.price.toFixed(2)}</span>
+                  <span className="text-3xl font-bold text-primary">${product.sale_price.toFixed(2)}</span>
+                  <span className="text-lg text-muted-foreground line-through decoration-2">${product.price.toFixed(2)}</span>
                 </>
               ) : (
-                <span className="text-4xl font-bold">
-                  {product.price === 0 ? t('productPage.free') : `$${product.price.toFixed(2)}`}
+                <span className="text-3xl font-bold text-foreground">
+                  {product.price === 0 ? <span className="text-green-500">FREE</span> : `$${product.price.toFixed(2)}`}
                 </span>
               )}
             </div>
 
-            <p className="text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
-              {product.description}
-            </p>
-
-            <div className="mt-auto pt-6 border-t dark:border-gray-700">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <CheckCircle size={18} className="text-green-500" />
-                  <span>{t('productPage.compatibility')} <strong>{product.compatibility}</strong></span>
+            <div className="flex flex-wrap gap-2 mb-6">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-lg text-xs font-medium text-muted-foreground">
+                    <CheckCircle2 size={14} className="text-green-500" />
+                    {product.compatibility || 'Revit 2021+'}
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <Info size={18} className="text-blue-500" />
-                  <span>{t('productPage.size')} <strong>{product.file_size_mb} MB</strong></span>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-lg text-xs font-medium text-muted-foreground">
+                    <Info size={14} className="text-blue-500" />
+                    {product.file_size_mb} MB
                 </div>
-              </div>
-
-              {hasAccess ? (
-                <button
-                  onClick={handleDownload}
-                  className="w-full py-4 bg-green-500 text-white rounded-xl font-bold text-lg hover:bg-green-600 transition-transform hover:scale-[1.02]"
-                >
-                  <div className="flex items-center justify-center gap-3">
-                    <Download size={24} />
-                    <span>{t('productPage.download')}</span>
-                  </div>
-                </button>
-              ) : (
-                <button
-                  onClick={handleAddToCart}
-                  className="w-full py-4 bg-blue-500 text-white rounded-xl font-bold text-lg hover:bg-blue-600 transition-transform hover:scale-[1.02]"
-                >
-                  <div className="flex items-center justify-center gap-3">
-                    <ShoppingCart size={24} />
-                    <span>{t('product.addToCart')}</span>
-                  </div>
-                </button>
-              )}
             </div>
-          </div>
+
+            <div className="prose prose-sm dark:prose-invert text-muted-foreground leading-relaxed">
+              <p>{product.description}</p>
+            </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="fixed bottom-24 left-0 right-0 px-5 z-20 pointer-events-none">
+            <div className="pointer-events-auto shadow-2xl shadow-black/10 rounded-2xl">
+                {hasAccess ? (
+                    <button
+                    onClick={handleDownload}
+                    className="w-full py-4 bg-green-500 text-white rounded-2xl font-bold text-base hover:bg-green-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/30"
+                    >
+                    <Download size={20} />
+                    <span>{t('productPage.download')}</span>
+                    </button>
+                ) : (
+                    <button
+                    onClick={handleAddToCart}
+                    className="btn-primary w-full py-4 rounded-2xl text-base flex items-center justify-center gap-2"
+                    >
+                    <ShoppingCart size={20} />
+                    <span>{t('product.addToCart')}</span>
+                    </button>
+                )}
+            </div>
         </div>
       </motion.div>
     </div>
