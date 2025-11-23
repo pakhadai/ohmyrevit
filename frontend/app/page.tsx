@@ -3,24 +3,35 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Sparkles, ArrowRight, Crown, Send, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Crown, Send, ExternalLink, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import DailyBonus from '@/components/home/DailyBonus';
 import { useAuthStore } from '@/store/authStore';
+import { useAccessStore } from '@/store/accessStore'; // ОПТИМІЗАЦІЯ
 import { productsAPI } from '@/lib/api';
 import ProductCard from '@/components/product/ProductCard';
 import { useTranslation } from 'react-i18next';
+import { Product } from '@/types'; // Додано імпорт типу
 
 export default function HomePage() {
   const router = useRouter();
   const { isAuthenticated, user } = useAuthStore();
-  const [newProducts, setNewProducts] = useState([]);
+  const { fetchAccessStatus } = useAccessStore(); // ОПТИМІЗАЦІЯ
+  const [newProducts, setNewProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const { t } = useTranslation();
 
   useEffect(() => {
     fetchNewProducts();
   }, []);
+
+  // ОПТИМІЗАЦІЯ: Перевіряємо доступи для всіх завантажених товарів одним масивом
+  useEffect(() => {
+    if (isAuthenticated && newProducts.length > 0) {
+      const productIds = newProducts.map(p => p.id);
+      fetchAccessStatus(productIds);
+    }
+  }, [newProducts, isAuthenticated, fetchAccessStatus]);
 
   const fetchNewProducts = async () => {
     try {
@@ -46,10 +57,9 @@ export default function HomePage() {
   };
 
   return (
-    // ДОДАНО pt-14: Великий відступ зверху, щоб не перекривати кнопку "Назад" в Telegram
     <div className="container mx-auto px-5 space-y-8 pt-14 pb-20">
 
-      {/* 1. Привітання (Відновлено) */}
+      {/* 1. Привітання */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -72,14 +82,12 @@ export default function HomePage() {
          </div>
       </motion.div>
 
-      {/* 2. Premium Banner (Виправлено: Додано текст та корону) */}
+      {/* 2. Premium Banner */}
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        // Темний фон (#1A1A23), як ви хотіли
         className="relative overflow-hidden bg-[#1A1A23] rounded-[24px] p-6 text-white shadow-xl shadow-slate-300/20 dark:shadow-none border border-white/5"
       >
-        {/* Фоновий ефект */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/20 rounded-full blur-[40px] -mr-10 -mt-10 pointer-events-none"></div>
 
         <div className="relative z-10">
@@ -96,11 +104,9 @@ export default function HomePage() {
                         {t('subscription.pageSubtitle')}
                     </p>
                 </div>
-                {/* Велика корона */}
                 <Crown size={48} className="text-yellow-400/20 rotate-12 absolute right-0 top-2" strokeWidth={1.5} />
             </div>
 
-            {/* Список переваг (Повернуто) */}
             <ul className="space-y-3 mb-6">
                 <li className="flex items-start gap-3">
                     <CheckCircle2 size={18} className="text-green-400 mt-0.5 flex-shrink-0" />
@@ -168,7 +174,7 @@ export default function HomePage() {
             </div>
           ) : newProducts.length > 0 ? (
             <div className="grid grid-cols-2 gap-3">
-              {newProducts.slice(0, 6).map((product: any) => (
+              {newProducts.slice(0, 6).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>

@@ -1,4 +1,3 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,13 +7,17 @@ import { CollectionDetail, ProductInCollection } from '@/types';
 import { ArrowLeft, Loader, Download, Trash2, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
-import { useTranslation } from 'react-i18next'; // ДОДАНО
+import { useTranslation } from 'react-i18next';
+import { useAccessStore } from '@/store/accessStore'; // ОПТИМІЗАЦІЯ
+import { useAuthStore } from '@/store/authStore'; // ОПТИМІЗАЦІЯ
 
 export default function CollectionDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
-  const { t } = useTranslation(); // ДОДАНО
+  const { t } = useTranslation();
+  const { isAuthenticated } = useAuthStore();
+  const { checkAccess, fetchAccessStatus } = useAccessStore();
 
   const [collection, setCollection] = useState<CollectionDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,13 +28,20 @@ export default function CollectionDetailPage() {
     }
   }, [id]);
 
+  // ОПТИМІЗАЦІЯ: Групове завантаження статусів доступу для колекції
+  useEffect(() => {
+    if (isAuthenticated && collection?.products && collection.products.length > 0) {
+      const productIds = collection.products.map(p => p.id);
+      fetchAccessStatus(productIds);
+    }
+  }, [collection, isAuthenticated, fetchAccessStatus]);
+
   const fetchCollectionDetails = async () => {
     setLoading(true);
     try {
       const data = await profileAPI.getCollectionDetails(Number(id));
       setCollection(data);
     } catch (error) {
-      // OLD: toast.error('Не вдалося завантажити деталі колекції.');
       toast.error(t('profilePages.collections.toasts.detailsError'));
       router.push('/profile/collections');
     } finally {
@@ -43,24 +53,29 @@ export default function CollectionDetailPage() {
     if (!collection) return;
     try {
         await profileAPI.removeProductFromCollection(collection.id, productId);
-        // OLD: toast.success('Товар видалено з колекції');
         toast.success(t('profilePages.collections.toasts.productRemoved'));
-        // Оновлюємо список товарів локально
         setCollection(prev => prev ? ({
             ...prev,
             products: prev.products.filter(p => p.id !== productId),
             products_count: prev.products_count - 1
         }) : null);
     } catch (error) {
-        // OLD: toast.error('Помилка видалення товару з колекції.');
         toast.error(t('profilePages.collections.toasts.productRemoveError'));
     }
   };
 
   const handleDownload = (product: ProductInCollection) => {
-    console.log("Download:", product.title);
-    // OLD: toast.success(`Завантаження ${product.title} почнеться...`);
-    toast.success(t('toasts.downloadStarting', { title: product.title }));
+    const token = useAuthStore.getState().token;
+    // Перевірка доступу через глобальний стор
+    const hasAccess = checkAccess(product.id) || product.product_type === 'free';
+
+    if (hasAccess && token) {
+        const url = `${process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '')}/api/v1/profile/download/${product.id}?token=${token}`;
+        window.location.href = url;
+        toast.success(t('toasts.downloadStarted', { title: product.title }));
+    } else {
+        toast.error(t('toasts.loginToDownload'));
+    }
   };
 
   if (loading) {
@@ -72,7 +87,6 @@ export default function CollectionDetailPage() {
   }
 
   if (!collection) {
-    // OLD: return <div>Колекцію не знайдено.</div>;
     return <div>{t('profilePages.collections.detail.notFound')}</div>;
   }
 
@@ -88,10 +102,8 @@ export default function CollectionDetailPage() {
       {collection.products.length === 0 ? (
          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
           <Package size={48} className="mx-auto mb-4 opacity-50" />
-          {/* OLD: <h2 className="text-xl font-semibold mb-2">Ця колекція порожня</h2> */}
           <h2 className="text-xl font-semibold mb-2">{t('profilePages.collections.detail.empty.title')}</h2>
           <Link href="/marketplace" className="mt-2 inline-block px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-              {/* OLD: Додати товари */}
               {t('profilePages.collections.detail.empty.cta')}
           </Link>
         </div>

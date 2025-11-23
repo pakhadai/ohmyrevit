@@ -11,7 +11,7 @@ import { useAccessStore } from '@/store/accessStore';
 import { useAuthStore } from '@/store/authStore';
 import { useCollectionStore } from '@/store/collectionStore';
 import toast from 'react-hot-toast';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import AddToCollectionModal from '@/components/collections/AddToCollectionModal';
 
 interface ProductCardProps {
@@ -21,25 +21,17 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const addToCart = useCartStore((state) => state.addItem);
   const { t } = useTranslation();
-  const { isAuthenticated } = useAuthStore();
-  const { checkAccess, fetchAccessStatus } = useAccessStore();
+  const { checkAccess } = useAccessStore();
   const { favoritedProductIds } = useCollectionStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const hasAccess = checkAccess(product.id);
   const isFavorited = favoritedProductIds.has(product.id);
 
-  useEffect(() => {
-    if (isAuthenticated && !hasAccess) {
-      fetchAccessStatus([product.id]);
-    }
-  }, [product.id, hasAccess, fetchAccessStatus, isAuthenticated]);
-
-
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     addToCart(product);
-    toast.success(`'${product.title}' додано до кошика!`);
+    toast.success(t('toasts.addedToCart', { title: product.title }));
   };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
@@ -52,10 +44,10 @@ export default function ProductCard({ product }: ProductCardProps) {
     e.preventDefault();
     const token = useAuthStore.getState().token;
     if (token) {
-        const url = `${process.env.NEXT_PUBLIC_API_URL}/profile/download/${product.id}?token=${token}`;
+        const url = `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL}/profile/download/${product.id}?token=${token}`;
         window.open(url, '_blank');
     } else {
-        toast.error("Будь ласка, увійдіть, щоб завантажити файл.");
+        toast.error(t('toasts.loginToDownload'));
     }
   };
 
@@ -67,11 +59,11 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      // ОНОВЛЕНО: Використовуємо bg-card, border, і нову тінь
-      className="group relative bg-card text-card-foreground rounded-2xl overflow-hidden border border-border shadow-soft dark:shadow-none hover:border-primary/30 hover:shadow-lg transition-all duration-300 flex flex-col"
+      // ОПТИМІЗАЦІЯ: Прибрано prop 'layout', який викликає перерахунок геометрії
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }} // Швидша анімація
+      className="group relative bg-card text-card-foreground rounded-2xl overflow-hidden border border-border shadow-sm hover:border-primary/30 transition-colors duration-200 flex flex-col"
     >
       <AnimatePresence>
         {isModalOpen && <AddToCollectionModal product={product} onClose={() => setIsModalOpen(false)} />}
@@ -83,7 +75,10 @@ export default function ProductCard({ product }: ProductCardProps) {
             src={imageUrl}
             alt={product.title}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            // ОПТИМІЗАЦІЯ: Критично важливо! Вказує браузеру завантажувати маленькі картинки для сітки.
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.onerror = null;
@@ -92,12 +87,13 @@ export default function ProductCard({ product }: ProductCardProps) {
           />
           <div className="absolute top-2 left-2 flex flex-col gap-2">
             {product.product_type === 'free' && (
-              <span className="px-2.5 py-1 bg-green-500/90 backdrop-blur-sm text-white text-xs font-bold rounded-full shadow-sm">
+              // ОПТИМІЗАЦІЯ: Прибрано backdrop-blur
+              <span className="px-2.5 py-1 bg-green-600 text-white text-xs font-bold rounded-full shadow-sm">
                 FREE
               </span>
             )}
             {product.is_on_sale && (
-              <span className="px-2.5 py-1 bg-pink-soft text-white dark:text-slate-900 text-xs font-bold rounded-full shadow-sm">
+              <span className="px-2.5 py-1 bg-pink-soft text-slate-900 text-xs font-bold rounded-full shadow-sm">
                 -{discountPercentage}%
               </span>
             )}
@@ -105,7 +101,8 @@ export default function ProductCard({ product }: ProductCardProps) {
           <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <button
               onClick={handleFavoriteClick}
-              className="p-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-full hover:bg-white dark:hover:bg-slate-800 shadow-sm transition-colors"
+              // ОПТИМІЗАЦІЯ: Прибрано backdrop-blur, використано solid колір
+              className="p-2 bg-white dark:bg-slate-800 rounded-full shadow-md transition-colors"
             >
               <Heart className={`w-4 h-4 ${isFavorited ? 'text-red-500 fill-current' : 'text-gray-600 dark:text-gray-300'}`} />
             </button>
@@ -144,7 +141,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           {hasAccess ? (
              <button
                 onClick={handleDownload}
-                className="w-full mt-auto py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all shadow-sm hover:shadow flex items-center justify-center gap-2 font-medium text-sm active:scale-[0.98]"
+                className="w-full mt-auto py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors flex items-center justify-center gap-2 font-medium text-sm active:scale-[0.98]"
             >
                 <Download className="w-4 h-4" />
                 <span>Завантажити</span>
@@ -152,8 +149,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           ) : (
             <button
               onClick={handleAddToCart}
-              // ОНОВЛЕНО: Використовуємо primary колір теми
-              className="w-full mt-auto py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl transition-all shadow-sm hover:shadow flex items-center justify-center gap-2 font-medium text-sm active:scale-[0.98]"
+              className="w-full mt-auto py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl transition-colors flex items-center justify-center gap-2 font-medium text-sm active:scale-[0.98]"
             >
               <ShoppingCart className="w-4 h-4" />
               <span>{t('product.addToCart')}</span>

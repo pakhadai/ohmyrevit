@@ -71,18 +71,17 @@ export default function MarketplacePage() {
   ];
 
   return (
-    // ОНОВЛЕНО: Відступи як на головній (pt-14 pb-24) та px-5 для єдиного стилю
     <div className="container mx-auto px-5 pt-12 pb-20 min-h-screen">
 
-      {/* Панель інструментів */}
-      <div className="flex items-center gap-3 mb-6 sticky top-0 z-30 bg-background/95 backdrop-blur-xl py-3 -mx-5 px-5 transition-all border-b border-border shadow-sm">
+      {/* ОПТИМІЗАЦІЯ: Прибрано backdrop-blur-xl, залишено solid колір для продуктивності */}
+      <div className="flex items-center gap-3 mb-6 sticky top-0 z-30 bg-background py-3 -mx-5 px-5 border-b border-border shadow-sm transition-none">
 
         {/* 1. Сортування */}
-        <div className={`relative min-w-[140px] transition-all duration-300 ${isSearchOpen ? 'hidden sm:block' : 'block'}`}>
+        <div className={`relative min-w-[140px] transition-all duration-200 ${isSearchOpen ? 'hidden sm:block' : 'block'}`}>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="w-full appearance-none px-3.5 py-2.5 bg-muted text-foreground rounded-xl border-none focus:ring-2 focus:ring-primary/20 font-medium text-sm transition-all pr-8 cursor-pointer outline-none"
+              className="w-full appearance-none px-3.5 py-2.5 bg-muted text-foreground rounded-xl border-none focus:ring-2 focus:ring-primary/20 font-medium text-sm pr-8 cursor-pointer outline-none"
             >
               {sortOptions.map(option => (
                 <option key={option.value} value={option.value}>
@@ -98,9 +97,9 @@ export default function MarketplacePage() {
         </div>
 
         {/* 2. Пошук */}
-        <div className={`relative transition-all duration-300 ease-in-out ${isSearchOpen ? 'flex-grow' : ''}`}>
+        <div className={`relative transition-all duration-200 ease-in-out ${isSearchOpen ? 'flex-grow' : ''}`}>
             {isSearchOpen ? (
-                <div className="relative w-full animate-in fade-in zoom-in duration-200">
+                <div className="relative w-full">
                     <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                     <input
                         ref={searchInputRef}
@@ -169,13 +168,14 @@ export default function MarketplacePage() {
 
       </div>
 
-      {/* Панель фільтрів (заглушка) */}
+      {/* Панель фільтрів */}
       <AnimatePresence>
         {filterOpen && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
             className="overflow-hidden mb-6"
           >
             <div className="p-5 bg-card rounded-2xl border border-border/50 shadow-sm">
@@ -197,6 +197,7 @@ export default function MarketplacePage() {
             ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
             : 'grid-cols-1'
         }`}>
+          {/* ОПТИМІЗАЦІЯ: Прибрано AnimatePresence для списку, щоб не перераховувати DOM при вході */}
           {filteredProducts.length > 0 ? (
               filteredProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
