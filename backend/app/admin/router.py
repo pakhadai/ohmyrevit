@@ -1,4 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 """
 Головний роутер адмін-панелі з повною функціональністю
 """
@@ -7,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, String, and_, or_
 from sqlalchemy.orm import selectinload, joinedload
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import aiofiles
 from pathlib import Path
 import logging
@@ -21,13 +20,6 @@ from app.users.models import User
 from app.products.models import Product, Category, CategoryTranslation
 from app.orders.models import Order, OrderItem, PromoCode
 from app.subscriptions.models import Subscription
-# OLD: from app.admin.schemas import (
-# OLD:     DashboardStats, UserListResponse, CategoryResponse,
-# OLD:     PromoCodeCreate, PromoCodeResponse, OrderListResponse,
-# OLD:     FileUploadResponse, UserDetailResponse, SubscriptionForUser,
-# OLD:     OrderForUser, ReferralForUser, OrderDetailResponse, ProductInOrder, UserBrief,
-# OLD:     PromoCodeDetailResponse, PromoCodeUpdate, OrderForPromoCode
-# OLD: )
 from app.admin.schemas import (
     DashboardStats, UserListResponse, CategoryResponse,
     PromoCodeCreate, PromoCodeResponse, OrderListResponse,
@@ -35,8 +27,9 @@ from app.admin.schemas import (
     OrderForUser, ReferralForUser, OrderDetailResponse, ProductInOrder, UserBrief,
     PromoCodeDetailResponse, PromoCodeUpdate, OrderForPromoCode
 )
-# ДОДАНО: імпорт схеми відповіді для користувача, яка була в старому роутері
 from app.users.schemas import UserResponse
+# ДОДАНО: Імпорт сервісу телеграм
+from app.core.telegram_service import telegram_service
 
 router = APIRouter(tags=["Admin"])
 logger = logging.getLogger(__name__)
@@ -197,8 +190,8 @@ async def get_dashboard_stats(
     # Загальна кількість користувачів
     users_count = await db.scalar(select(func.count(User.id)))
 
-    # Нові користувачі за тиждень
-    week_ago = datetime.utcnow() - timedelta(days=7)
+    # Нові користувачі за тиждень (використовуємо UTC)
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
     new_users = await db.scalar(
         select(func.count(User.id)).where(User.created_at >= week_ago)
     )
@@ -206,11 +199,11 @@ async def get_dashboard_stats(
     # Кількість товарів
     products_count = await db.scalar(select(func.count(Product.id)))
 
-    # Активні підписки
+    # Активні підписки (використовуємо UTC)
     active_subscriptions = await db.scalar(
         select(func.count(Subscription.id)).where(
             Subscription.status == "active",
-            Subscription.end_date > datetime.utcnow()
+            Subscription.end_date > datetime.now(timezone.utc)
         )
     )
 
@@ -225,7 +218,8 @@ async def get_dashboard_stats(
         select(func.sum(Order.final_total)).where(Order.status == "paid")
     ) or 0
 
-    month_ago = datetime.utcnow() - timedelta(days=30)
+    # Дохід за місяць (використовуємо UTC)
+    month_ago = datetime.now(timezone.utc) - timedelta(days=30)
     monthly_revenue = await db.scalar(
         select(func.sum(Order.final_total)).where(
             Order.status == "paid",
@@ -258,7 +252,6 @@ async def get_dashboard_stats(
 
 # ========== КОРИСТУВАЧІ ==========
 
-# OLD: @router.get("/users", response_model=UserListResponse)
 @router.get("/users", response_model=UserListResponse, tags=["Admin Users"])
 async def get_users(
         skip: int = 0,
@@ -273,24 +266,6 @@ async def get_users(
 
     if search:
         search_term = f"%{search}%"
-        # OLD: # OLD: query = query.where(
-        # OLD: # OLD:     or_(
-        # OLD: # OLD:         User.username.ilike(search_term),
-        # OLD: # OLD:         User.first_name.ilike(search_term),
-        # OLD: # OLD:         User.last_name.ilike(search_term),
-        # OLD: # OLD:         User.email.ilike(search_term),
-        # OLD: # OLD:         User.telegram_id.cast(String).ilike(search_term)
-        # OLD: # OLD:     )
-        # OLD: # OLD: )
-        # OLD: query = query.where(
-        # OLD:     or_(
-        # OLD:         func.coalesce(User.username, '').ilike(search_term),
-        # OLD:         func.coalesce(User.first_name, '').ilike(search_term),
-        # OLD:         func.coalesce(User.last_name, '').ilike(search_term),
-        # OLD:         func.coalesce(User.email, '').ilike(search_term),
-        # OLD:         User.telegram_id.cast(String).ilike(search_term)
-        # OLD:     )
-        # OLD: )
         query = query.where(
             or_(
                 func.coalesce(User.username, '').ilike(search_term),
@@ -307,7 +282,6 @@ async def get_users(
     total = await db.scalar(count_query) or 0
 
     # Отримання користувачів з пагінацією
-    # OLD: query = query.offset(skip).limit(limit).order_by(User.created_at.desc())
     query = query.offset(skip).limit(limit).order_by(User.id.asc())
     result = await db.execute(query)
     users = result.scalars().all()
@@ -320,8 +294,6 @@ async def get_users(
     )
 
 
-# OLD: # ДОДАНО: Новий ендпоінт для отримання деталей профілю користувача
-# OLD: @router.get("/users/{user_id}", response_model=UserDetailResponse)
 @router.get("/users/{user_id}", response_model=UserDetailResponse, tags=["Admin Users"])
 async def get_user_details(
         user_id: int,
@@ -370,7 +342,6 @@ async def get_user_details(
     return user_data
 
 
-# OLD: @router.patch("/users/{user_id}/toggle-admin")
 @router.patch("/users/{user_id}/toggle-admin", tags=["Admin Users"])
 async def toggle_user_admin(
         user_id: int,
@@ -399,7 +370,6 @@ async def toggle_user_admin(
     }
 
 
-# OLD: @router.patch("/users/{user_id}/toggle-active")
 @router.patch("/users/{user_id}/toggle-active", tags=["Admin Users"])
 async def toggle_user_active(
         user_id: int,
@@ -432,7 +402,6 @@ async def toggle_user_active(
     }
 
 
-# OLD: @router.post("/users/{user_id}/add-bonus")
 @router.post("/users/{user_id}/add-bonus", tags=["Admin Users"])
 async def add_user_bonus(
         user_id: int,
@@ -453,6 +422,16 @@ async def add_user_bonus(
 
     logger.info(f"Admin {admin.id} added {amount} bonuses to user {user_id}. Reason: {reason}")
 
+    # ДОДАНО: Відправка повідомлення про бонуси
+    try:
+        msg = f"🎁 *Бонус!* Вам нараховано {amount} бонусів"
+        if reason:
+            msg += f"\nКоментар: {reason}"
+        msg += f"\n\nПоточний баланс: {user.bonus_balance} 💎"
+        await telegram_service.send_message(user.telegram_id, msg)
+    except Exception as e:
+        logger.error(f"Failed to send bonus notification: {e}")
+
     return {
         "success": True,
         "user_id": user_id,
@@ -462,11 +441,10 @@ async def add_user_bonus(
     }
 
 
-# OLD: @router.post("/users/{user_id}/subscription")
 @router.post("/users/{user_id}/subscription", tags=["Admin Users"])
 async def give_user_subscription(
         user_id: int,
-        days: int = Body(...),
+        days: int = Body(..., embed=True),
         admin: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
@@ -476,7 +454,7 @@ async def give_user_subscription(
         raise HTTPException(status_code=404, detail="Користувача не знайдено")
 
     # Створюємо або оновлюємо підписку
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     from app.subscriptions.models import Subscription
 
     existing = await db.execute(
@@ -489,21 +467,29 @@ async def give_user_subscription(
 
     if subscription:
         # Продовжуємо існуючу
-        if subscription.end_date < datetime.utcnow():
-            subscription.end_date = datetime.utcnow() + timedelta(days=days)
+        if subscription.end_date < datetime.now(timezone.utc):
+            subscription.end_date = datetime.now(timezone.utc) + timedelta(days=days)
         else:
             subscription.end_date += timedelta(days=days)
     else:
         # Створюємо нову
         subscription = Subscription(
             user_id=user_id,
-            start_date=datetime.utcnow(),
-            end_date=datetime.utcnow() + timedelta(days=days),
+            start_date=datetime.now(timezone.utc),
+            end_date=datetime.now(timezone.utc) + timedelta(days=days),
             status="active"
         )
         db.add(subscription)
 
     await db.commit()
+
+    # ДОДАНО: Відправка повідомлення про підписку
+    try:
+        date_str = subscription.end_date.strftime("%d.%m.%Y")
+        msg = f"👑 *Premium Підписка!*\n\nВам надано підписку на {days} днів.\nДіє до: {date_str}"
+        await telegram_service.send_message(user.telegram_id, msg)
+    except Exception as e:
+        logger.error(f"Failed to send subscription notification: {e}")
 
     return {
         "success": True,
@@ -931,7 +917,7 @@ async def update_order_status(
     order.status = status
 
     if status == "paid" and not order.paid_at:
-        order.paid_at = datetime.utcnow()
+        order.paid_at = datetime.now(timezone.utc)
 
     await db.commit()
 

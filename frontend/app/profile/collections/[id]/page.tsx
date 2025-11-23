@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { profileAPI } from '@/lib/api';
 import { CollectionDetail, ProductInCollection } from '@/types';
-import { ArrowLeft, Loader, Download, Trash2, Package } from 'lucide-react';
+import { ArrowLeft, Loader, Download, Trash2, Package, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 import { useAccessStore } from '@/store/accessStore';
 import { useAuthStore } from '@/store/authStore';
-import Image from 'next/image'; // <-- ДОДАНО
+import Image from 'next/image';
+import { LoadingSpinner } from '@/components/admin/Shared';
 
 export default function CollectionDetailPage() {
   const router = useRouter();
@@ -77,58 +78,85 @@ export default function CollectionDetailPage() {
     }
   };
 
-  if (loading) {
+  const fullImageUrl = (path: string) => {
+    if (!path) return '/placeholder.jpg';
+    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+    if (path.startsWith('http')) {
+        return path;
+    }
+    return `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  if (!collection) {
     return (
-      <div className="flex justify-center items-center h-60">
-        <Loader className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
-      </div>
+        <div className="flex flex-col items-center justify-center h-screen text-muted-foreground">
+            <p>{t('profilePages.collections.detail.notFound')}</p>
+            <button onClick={() => router.push('/profile/collections')} className="mt-4 text-primary hover:underline">
+                {t('common.back')}
+            </button>
+        </div>
     );
   }
 
-  if (!collection) {
-    return <div>{t('profilePages.collections.detail.notFound')}</div>;
-  }
-
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => router.push('/profile/collections')} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">
-          <ArrowLeft size={20} />
+    <div className="container mx-auto px-5 pt-14 pb-24 space-y-6 min-h-screen">
+      <div className="flex items-center gap-4">
+        <button onClick={() => router.push('/profile/collections')} className="p-2 hover:bg-muted rounded-xl transition-colors">
+          <ArrowLeft size={24} className="text-muted-foreground hover:text-foreground" />
         </button>
-        <h1 className="text-2xl font-bold">{collection.name}</h1>
+        <h1 className="text-2xl font-bold text-foreground">{collection.name}</h1>
       </div>
 
       {collection.products.length === 0 ? (
-         <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-          <Package size={48} className="mx-auto mb-4 opacity-50" />
-          <h2 className="text-xl font-semibold mb-2">{t('profilePages.collections.detail.empty.title')}</h2>
-          <Link href="/marketplace" className="mt-2 inline-block px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+         <div className="text-center py-20 px-6 bg-muted/30 rounded-[24px] border border-dashed border-border">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <Package size={32} className="text-muted-foreground opacity-50" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground mb-2">{t('profilePages.collections.detail.empty.title')}</h2>
+          <Link href="/marketplace" className="btn-primary mt-4 inline-flex items-center gap-2">
               {t('profilePages.collections.detail.empty.cta')}
+              <ArrowRight size={18} />
           </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {collection.products.map(product => (
-            <div key={product.id} className="bg-white dark:bg-slate-800 p-4 rounded-lg flex items-center gap-4 shadow-sm">
-                {/* ЗМІНЕНО: Додано relative, w-20 h-20 та компонент Image */}
-                <Link href={`/product/${product.id}`} className="relative w-20 h-20 flex-shrink-0">
+            <div key={product.id} className="card-minimal p-4 flex gap-4 group hover:border-primary/30 transition-all">
+                <Link href={`/product/${product.id}`} className="relative w-20 h-20 flex-shrink-0 bg-muted rounded-xl overflow-hidden">
                     <Image
-                        src={product.main_image_url || '/placeholder.jpg'}
+                        src={fullImageUrl(product.main_image_url)}
                         alt={product.title}
                         fill
-                        className="object-cover rounded-md"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
                         sizes="80px"
                     />
                 </Link>
-                <div className="flex-1 min-w-0">
-                    <Link href={`/product/${product.id}`}>
-                        <h3 className="font-semibold truncate hover:text-purple-500">{product.title}</h3>
-                    </Link>
-                    <p className="text-sm text-gray-500 mt-1 line-clamp-2">{product.description}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => handleDownload(product)} className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"><Download size={18} /></button>
-                    <button onClick={() => handleRemoveProduct(product.id)} className="p-2 bg-red-500 text-white rounded hover:bg-red-600"><Trash2 size={18} /></button>
+                <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+                    <div>
+                        <Link href={`/product/${product.id}`}>
+                            <h3 className="font-semibold text-foreground truncate hover:text-primary transition-colors">{product.title}</h3>
+                        </Link>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{product.description}</p>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 mt-2">
+                        <button
+                            onClick={() => handleDownload(product)}
+                            className="p-2 bg-secondary text-secondary-foreground rounded-lg hover:brightness-95 transition-all active:scale-95"
+                            title={t('productPage.download')}
+                        >
+                            <Download size={16} />
+                        </button>
+                        <button
+                            onClick={() => handleRemoveProduct(product.id)}
+                            className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors active:scale-95"
+                            title={t('common.delete')}
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
                 </div>
             </div>
           ))}

@@ -7,8 +7,8 @@ import { LoadingSpinner } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
 import {
     ArrowLeft, User, Mail, Phone, Clock, Gift, CreditCard, Shield,
-    CheckCircle, XCircle, UserPlus, ShoppingCart, Ban, Unlock, Calendar
-} from 'lucide-react';
+    CheckCircle, XCircle, UserPlus, ShoppingCart, Ban, Unlock, Calendar, ChevronRight
+} from 'lucide-react'; // ДОДАНО: ChevronRight
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 

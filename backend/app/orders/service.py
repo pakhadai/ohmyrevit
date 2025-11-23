@@ -13,6 +13,8 @@ from app.core.config import settings
 import logging
 from app.subscriptions.models import UserProductAccess, AccessType
 from app.referrals.models import ReferralLog, ReferralBonusType
+# ДОДАНО: Імпорт сервісу телеграм
+from app.core.telegram_service import telegram_service
 
 logger = logging.getLogger(__name__)
 
@@ -164,10 +166,11 @@ class OrderService:
         """
         Централізована обробка успішного замовлення
         """
+        # ОНОВЛЕНО: Додано завантаження перекладів товарів для коректної назви у повідомленні
         order_res = await self.db.execute(
             select(Order).options(
                 selectinload(Order.user).selectinload(User.referrer),
-                selectinload(Order.items).selectinload(OrderItem.product)
+                selectinload(Order.items).selectinload(OrderItem.product).selectinload(Product.translations)
             ).where(Order.id == order_id)
         )
         order = order_res.unique().scalar_one_or_none()
@@ -227,4 +230,26 @@ class OrderService:
 
         logger.info(f"Order {order.id} processed successfully as PAID.")
         await self.db.flush()
+
+        # ДОДАНО: Повідомлення покупцю про успішне замовлення
+        try:
+            items_str = ""
+            for item in order.items:
+                # Пробуємо знайти український переклад, інакше беремо будь-який
+                title = "Товар"
+                if item.product.translations:
+                    uk_trans = next((t for t in item.product.translations if t.language_code == 'uk'), None)
+                    title = uk_trans.title if uk_trans else item.product.translations[0].title
+                items_str += f"- {title}\n"
+
+            msg = (
+                f"✅ *Замовлення #{order.id} успішно оплачено!*\n\n"
+                f"Товари:\n{items_str}\n"
+                f"Сума: ${order.final_total}\n\n"
+                f"Доступ до файлів відкрито у вашому профілі."
+            )
+            await telegram_service.send_message(buyer.telegram_id, msg)
+        except Exception as e:
+            logger.error(f"Failed to send order notification: {e}")
+
         return order

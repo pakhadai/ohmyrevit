@@ -24,6 +24,8 @@ from app.payments.cryptomus import CryptomusClient
 from app.core.email import email_service
 from app.core.config import settings
 from app.referrals.models import ReferralLog, ReferralBonusType
+# ДОДАНО: Імпорт сервісу телеграм
+from app.core.telegram_service import telegram_service
 
 logger = logging.getLogger(__name__)
 
@@ -233,6 +235,20 @@ async def cryptomus_webhook(
                         db.add(UserProductAccess(user_id=subscription.user_id, product_id=product.id,
                                                     access_type=AccessType.SUBSCRIPTION))
                 logger.info(f"Subscription {order_id} activated successfully.")
+
+                # ДОДАНО: Повідомлення про активацію підписки
+                try:
+                    date_str = subscription.end_date.strftime("%d.%m.%Y")
+                    msg = (
+                        f"👑 *Premium активовано!*\n\n"
+                        f"Ваша підписка успішно оплачена.\n"
+                        f"Діє до: {date_str}\n\n"
+                        f"Тепер вам доступні всі Premium товари!"
+                    )
+                    await telegram_service.send_message(subscription.user.telegram_id, msg)
+                except Exception as e:
+                    logger.error(f"Failed to send sub notification: {e}")
+
             elif status in ["cancel", "wrong_amount", "fail", "system_fail", "refund"]:
                 subscription.status = SubscriptionStatus.CANCELLED
                 logger.warning(f"Subscription {order_id} payment failed with status: {status}")
@@ -248,6 +264,7 @@ async def cryptomus_webhook(
             if status == "paid" and order.status != OrderStatus.PAID:
                 order.payment_id = payment_id
                 service = OrderService(db)
+                # Всередині цієї функції тепер є надсилання повідомлення
                 await service.process_successful_order(order.id)
 
 

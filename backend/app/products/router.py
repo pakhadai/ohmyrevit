@@ -48,139 +48,7 @@ async def get_products(
         language_code=language_code, db=db, filters=filters, limit=limit, offset=offset
     )
 
-@router.get("/{product_id}", response_model=ProductResponse)
-async def get_product(
-    product_id: int,
-    accept_language: Optional[str] = Header(default="uk"),
-    db: AsyncSession = Depends(get_db),
-    background_tasks: BackgroundTasks = BackgroundTasks()
-):
-    language_code = _parse_language_header(accept_language)
-    product = await product_service.get_product(product_id=product_id, language_code=language_code, db=db)
-    if not product:
-        raise HTTPException(status_code=404, detail="Товар не знайдено")
-    background_tasks.add_task(product_service.increment_view_count, product_id, db)
-    return product
-
-
-@router.get("/slug/{slug}", response_model=ProductResponse)
-async def get_product_by_slug(
-        slug: str,
-        accept_language: Optional[str] = Header(default="uk"),
-        db: AsyncSession = Depends(get_db)
-):
-    """
-    Отримання товару за slug (для SEO-friendly URLs)
-    """
-    # Тут можна додати логіку пошуку за slug
-    # Поки що заглушка
-    raise HTTPException(status_code=501, detail="Not implemented")
-
-
-# ========== Адмін ендпоінти ==========
-
-@admin_router.post("", response_model=ProductResponse)
-async def create_product(
-        product_data: ProductCreate,
-        background_tasks: BackgroundTasks,
-        db: AsyncSession = Depends(get_db),
-        admin_user: User = Depends(require_admin)
-):
-    """
-    Створення нового товару (тільки для адміністраторів)
-
-    Приймає дані українською мовою.
-    Автоматично запускає переклад на інші мови у фоновому режимі.
-    """
-    product = await product_service.create_product(
-        product_data=product_data,
-        db=db,
-        background_tasks=background_tasks
-    )
-
-    # Повертаємо створений товар з українським перекладом
-    return await product_service.get_product(
-        product_id=product.id,
-        language_code="uk",
-        db=db
-    )
-
-
-@admin_router.put("/{product_id}", response_model=ProductResponse)
-async def update_product(
-        product_id: int,
-        update_data: ProductUpdate,
-        background_tasks: BackgroundTasks,
-        db: AsyncSession = Depends(get_db),
-        admin_user: User = Depends(require_admin)
-):
-    """
-    Оновлення товару (тільки для адміністраторів)
-
-    Якщо оновлюється текст - запускає переклад у фоні
-    """
-    product = await product_service.update_product(
-        product_id=product_id,
-        update_data=update_data,
-        db=db,
-        background_tasks=background_tasks
-    )
-
-    return await product_service.get_product(
-        product_id=product.id,
-        language_code="uk",
-        db=db
-    )
-
-
-@admin_router.delete("/{product_id}")
-async def delete_product(
-        product_id: int,
-        db: AsyncSession = Depends(get_db),
-        admin_user: User = Depends(require_admin)
-):
-    """
-    Видалення товару (тільки для адміністраторів)
-    """
-    success = await product_service.delete_product(
-        product_id=product_id,
-        db=db
-    )
-
-    return {"success": success, "message": "Товар успішно видалено"}
-
-
-@admin_router.post("/{product_id}/translations")
-async def update_product_translation(
-        product_id: int,
-        # OLD: language_code: str = Query(..., regex="^(en|ru)$", description="Код мови: en або ru"),
-        language_code: str = Query(..., pattern="^(en|ru)$", description="Код мови: en або ru"),
-        title: str = Query(..., min_length=1, max_length=200),
-        description: str = Query(..., min_length=1),
-        db: AsyncSession = Depends(get_db),
-        admin_user: User = Depends(require_admin)
-):
-    """
-    Ручне оновлення перекладу товару (для корекції автоперекладу)
-    """
-    from app.products.translation_service import translation_service
-
-    success = await translation_service.update_translation(
-        product_id=product_id,
-        language_code=language_code,
-        title=title,
-        description=description,
-        db=db
-    )
-
-    if not success:
-        raise HTTPException(status_code=500, detail="Помилка оновлення перекладу")
-
-    return {"success": True, "message": f"Переклад на {language_code} оновлено"}
-
-
-# ========== Категорії ==========
-
+# ВАЖЛИВО: Цей блок переміщено ВГОРУ, перед get_product
 @router.get("/categories", response_model=List[CategoryResponse])
 async def get_categories(
         accept_language: Optional[str] = Header(default="uk"),
@@ -211,16 +79,122 @@ async def get_categories(
     return response_data
 
 
+@router.get("/{product_id}", response_model=ProductResponse)
+async def get_product(
+    product_id: int,
+    accept_language: Optional[str] = Header(default="uk"),
+    db: AsyncSession = Depends(get_db),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    language_code = _parse_language_header(accept_language)
+    product = await product_service.get_product(product_id=product_id, language_code=language_code, db=db)
+    if not product:
+        raise HTTPException(status_code=404, detail="Товар не знайдено")
+    background_tasks.add_task(product_service.increment_view_count, product_id, db)
+    return product
+
+
+@router.get("/slug/{slug}", response_model=ProductResponse)
+async def get_product_by_slug(
+        slug: str,
+        accept_language: Optional[str] = Header(default="uk"),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Отримання товару за slug (для SEO-friendly URLs)
+    """
+    raise HTTPException(status_code=501, detail="Not implemented")
+
+
+# ========== Адмін ендпоінти ==========
+
+@admin_router.post("", response_model=ProductResponse)
+async def create_product(
+        product_data: ProductCreate,
+        background_tasks: BackgroundTasks,
+        db: AsyncSession = Depends(get_db),
+        admin_user: User = Depends(require_admin)
+):
+    product = await product_service.create_product(
+        product_data=product_data,
+        db=db,
+        background_tasks=background_tasks
+    )
+    return await product_service.get_product(
+        product_id=product.id,
+        language_code="uk",
+        db=db
+    )
+
+
+@admin_router.put("/{product_id}", response_model=ProductResponse)
+async def update_product(
+        product_id: int,
+        update_data: ProductUpdate,
+        background_tasks: BackgroundTasks,
+        db: AsyncSession = Depends(get_db),
+        admin_user: User = Depends(require_admin)
+):
+    product = await product_service.update_product(
+        product_id=product_id,
+        update_data=update_data,
+        db=db,
+        background_tasks=background_tasks
+    )
+    return await product_service.get_product(
+        product_id=product.id,
+        language_code="uk",
+        db=db
+    )
+
+
+@admin_router.delete("/{product_id}")
+async def delete_product(
+        product_id: int,
+        db: AsyncSession = Depends(get_db),
+        admin_user: User = Depends(require_admin)
+):
+    success = await product_service.delete_product(
+        product_id=product_id,
+        db=db
+    )
+    return {"success": success, "message": "Товар успішно видалено"}
+
+
+@admin_router.post("/{product_id}/translations")
+async def update_product_translation(
+        product_id: int,
+        language_code: str = Query(..., pattern="^(en|ru)$", description="Код мови: en або ru"),
+        title: str = Query(..., min_length=1, max_length=200),
+        description: str = Query(..., min_length=1),
+        db: AsyncSession = Depends(get_db),
+        admin_user: User = Depends(require_admin)
+):
+    from app.products.translation_service import translation_service
+
+    success = await translation_service.update_translation(
+        product_id=product_id,
+        language_code=language_code,
+        title=title,
+        description=description,
+        db=db
+    )
+
+    if not success:
+        raise HTTPException(status_code=500, detail="Помилка оновлення перекладу")
+
+    return {"success": True, "message": f"Переклад на {language_code} оновлено"}
+
+
+# ========== Категорії (Адмін) ==========
+
 @admin_router.post("/categories", response_model=CategoryResponse)
 async def create_category(
         category_data: CategoryCreate,
         db: AsyncSession = Depends(get_db),
         admin_user: User = Depends(require_admin)
 ):
-    """Створення нової категорії (тільки для адміністраторів)"""
     from app.products.models import Category
-
-    # Перевіряємо унікальність
     from sqlalchemy import select
     existing = await db.execute(
         select(Category).where(Category.slug == category_data.slug)
@@ -239,19 +213,11 @@ async def create_category(
 # ========== Допоміжні функції ==========
 
 def _parse_language_header(accept_language: str) -> str:
-
     if not accept_language:
         return "uk"
-
-    # Беремо першу мову
     lang = accept_language.split(",")[0].split(";")[0].lower()
-
-    # Відкидаємо регіон (en-US -> en)
     lang = lang.split("-")[0]
-
-    # Перевіряємо підтримувані мови
     supported_languages = ["uk", "en", "ru"]
     if lang not in supported_languages:
         return "uk"
-
     return lang

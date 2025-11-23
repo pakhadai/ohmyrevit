@@ -109,7 +109,6 @@ const createAPIClient = (): AxiosInstance => {
       const originalRequest = error.config;
 
       if (axios.isCancel(error)) {
-        console.log('Request canceled:', error.message);
         return Promise.reject(error);
       }
 
@@ -147,7 +146,6 @@ const createAPIClient = (): AxiosInstance => {
               start_param: tgData.start_param || null,
             };
 
-            // Використовуємо axios напряму, щоб уникнути циклів
             const { data } = await axios.post(
               `${process.env.NEXT_PUBLIC_API_URL || 'https://dev.ohmyrevit.pp.ua/api/v1'}/auth/telegram`,
               authData
@@ -155,11 +153,8 @@ const createAPIClient = (): AxiosInstance => {
 
             if (data.access_token) {
               useAuthStore.getState().login(authData);
-
-              // Оновлюємо заголовок для майбутніх запитів
               instance.defaults.headers.common['Authorization'] = 'Bearer ' + data.access_token;
               originalRequest.headers['Authorization'] = 'Bearer ' + data.access_token;
-
               processQueue(null, data.access_token);
               return instance(originalRequest);
             }
@@ -171,14 +166,12 @@ const createAPIClient = (): AxiosInstance => {
             isRefreshing = false;
           }
         } else {
-          // Якщо це не Telegram або немає initData
           useAuthStore.getState().logout();
           toast.error('Сесія закінчилась. Будь ласка, увійдіть знову.');
         }
       } else if (error.response?.status === 403) {
         toast.error('У вас немає доступу до цієї дії');
       } else if (error.response?.status === 500) {
-        // Не показуємо тост, якщо це помилка оновлення токена
         if (!originalRequest.url?.includes('/auth/telegram')) {
            toast.error('Помилка сервера. Спробуйте пізніше.');
         }
@@ -210,7 +203,7 @@ export const productsAPI = {
     is_on_sale?: boolean;
     min_price?: number;
     max_price?: number;
-    sort?: string;
+    sort_by?: string; // ВАЖЛИВО: sort_by замість sort
     limit?: number;
     offset?: number;
   }) => {
@@ -223,6 +216,7 @@ export const productsAPI = {
     }
     return getData(await api.get(`/products/${id}`, config));
   },
+  // Метод для отримання категорій
   getCategories: async () => {
     return getData(await api.get('/products/categories'));
   },

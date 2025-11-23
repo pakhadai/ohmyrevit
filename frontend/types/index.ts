@@ -1,4 +1,11 @@
-// Базові типи для проєкту
+// frontend/types/index.ts
+
+export interface Category {
+  id: number;
+  name: string;
+  slug: string;
+}
+
 export interface User {
   id: number;
   telegram_id: number;
@@ -26,6 +33,7 @@ export interface Product {
   sale_price?: number;
   file_size_mb: number;
   compatibility: string;
+  categories: Category[]; // Тепер це посилається на коректний інтерфейс
 }
 
 export interface CartItem {
@@ -35,9 +43,6 @@ export interface CartItem {
 
 export type Language = 'uk' | 'en' | 'ru';
 export type Theme = 'light' | 'dark';
-
-// ДОДАНО: Типи для колекцій
-
 
 export interface Collection {
     id: number;

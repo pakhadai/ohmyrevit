@@ -8,6 +8,36 @@
   "search": {
     "placeholder": "Пошук товарів..."
   },
+  "marketplace": {
+    "title": "Каталог",
+    "sort": {
+      "newest": "Найновіші",
+      "priceAsc": "Ціна: від низької",
+      "priceDesc": "Ціна: від високої",
+      "popular": "Популярні"
+    },
+    "filters": {
+      "title": "Фільтри",
+      "productType": "Тип продукту",
+      "all": "Всі",
+      "premium": "Premium",
+      "free": "Безкоштовні",
+      "categories": "Категорія",
+      "price": "Ціна ($)",
+      "priceFrom": "Від",
+      "priceTo": "До",
+      "onlySale": "Тільки зі знижкою",
+      "reset": "Скинути",
+      "apply": "Застосувати"
+    },
+    "empty": {
+      "title": "Нічого не знайдено",
+      "subtitle": "Спробуйте змінити параметри пошуку або фільтри",
+      "resetFilters": "Скинути всі фільтри"
+    },
+    "endOfList": "Це всі товари на даний момент",
+    "filtersComingSoon": "Фільтри в розробці..."
+  },
   "product": {
     "new": "Новинка",
     "sale": "Знижка",
@@ -127,7 +157,7 @@
     "referral": {
       "title": "Реферальна програма",
       "subtitle": "Запрошуй друзів",
-      "bonusInfo": "+30 бонусів за друга"
+      "bonusInfo": "+30 бонусов за друга"
     },
     "features": {
       "market": {
@@ -148,16 +178,6 @@
     "newArrivals": "Останні новинки",
     "allProducts": "Всі товари →",
     "loadingProducts": "Товари завантажуються..."
-  },
-  "marketplace": {
-    "filters": "Фільтри",
-    "sort": {
-      "newest": "Найновіші",
-      "priceAsc": "Ціна: від низької",
-      "priceDesc": "Ціна: від високої",
-      "popular": "Популярні"
-    },
-    "filtersComingSoon": "Фільтри в розробці..."
   },
   "productPage": {
     "loadError": "Не вдалося завантажити товар. Можливо, його не існує.",
@@ -479,7 +499,7 @@
         "uploadMain": "Завантажити головне фото",
         "gallery": "Галерея (до 6 зображень)",
         "addImage": "Додати фото",
-        "files": "Файли товару",
+        "files": "Файлы товара",
         "archive": "ZIP-Архів *",
         "uploadArchive": "Завантажити архів",
         "calculatedSize": "Розрахований розмір (MB)",
