@@ -72,17 +72,17 @@ export default function SubscriptionPage() {
       <h1 className="text-2xl font-bold text-foreground">{t('subscription.pageTitle')}</h1>
 
       {status?.has_active_subscription ? (
-        /* --- ACTIVE SUBSCRIPTION STATE --- */
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-[24px] p-6 text-white shadow-lg shadow-emerald-500/20"
+          className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-[24px] p-6 text-white shadow-lg"
         >
-          {/* Декор */}
-          <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[50px] -mr-10 -mt-10 pointer-events-none"></div>
+          {/* ОПТИМІЗАЦІЯ: Видалено blur-[50px]. Замінено на просту прозорість. */}
+          <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
 
           <div className="relative z-10 text-center">
-            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+            {/* ОПТИМІЗАЦІЯ: backdrop-blur-md -> bg-white/20 */}
+            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
                 <Crown size={32} className="text-white" fill="currentColor" />
             </div>
 
@@ -90,14 +90,15 @@ export default function SubscriptionPage() {
             <p className="opacity-90 mb-8 text-sm max-w-xs mx-auto">{t('subscription.activeSubtitle')}</p>
 
             <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                {/* ОПТИМІЗАЦІЯ: backdrop-blur-sm прибрано */}
+                <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
                     <div className="flex items-center justify-center gap-2 text-white/80 text-xs font-medium mb-1">
                         <Calendar size={14} />
                         <span>{t('subscription.activeUntil')}</span>
                     </div>
                     <p className="text-lg font-bold">{new Date(status.subscription!.end_date).toLocaleDateString()}</p>
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
                     <div className="flex items-center justify-center gap-2 text-white/80 text-xs font-medium mb-1">
                         <Sparkles size={14} />
                         <span>{t('subscription.daysRemaining')}</span>
@@ -108,20 +109,18 @@ export default function SubscriptionPage() {
           </div>
         </motion.div>
       ) : (
-        /* --- OFFER STATE --- */
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            // Використовуємо той самий темний стиль (#1A1A23), що і на головній
-            className="relative overflow-hidden bg-[#1A1A23] rounded-[24px] p-6 text-white shadow-xl shadow-slate-300/20 dark:shadow-none border border-white/5"
+            className="relative overflow-hidden bg-[#1A1A23] rounded-[24px] p-6 text-white shadow-xl border border-white/5"
         >
-            {/* Фоновий ефект */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-[60px] -mr-20 -mt-20 pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/10 rounded-full blur-[40px] -ml-10 -mb-10 pointer-events-none"></div>
+            {/* ОПТИМІЗАЦІЯ: Видалено blur-[60px] та blur-[40px]. */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full -mr-20 -mt-20 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/5 rounded-full -ml-10 -mb-10 pointer-events-none"></div>
 
             <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+                    <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
                         <Crown size={24} className="text-white" fill="currentColor" />
                     </div>
                     <div>

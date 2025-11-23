@@ -39,8 +39,10 @@ class AuthService:
             return settings.DEBUG
 
         auth_date = auth_dict.get('auth_date', 0)
-        if time.time() - int(auth_date) > 86400:
-            logger.warning("⏰ Auth data is too old")
+        # ВИПРАВЛЕННЯ 3.3: Зменшено час життя auth_date з 24 годин до 1 години (3600 секунд)
+        # Це значно знижує ризик Replay Attack
+        if time.time() - int(auth_date) > 3600:
+            logger.warning("⏰ Auth data is too old (> 1 hour)")
             return False
 
         check_string_parts = []

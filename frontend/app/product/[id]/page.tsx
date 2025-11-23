@@ -35,16 +35,21 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (productId) {
-      const fetchProductAndAccess = async () => {
+      const fetchData = async () => {
         try {
           setLoading(true);
-          const productData = await productsAPI.getProductById(productId);
+
+          const promises: Promise<any>[] = [productsAPI.getProductById(productId)];
+
+          if (isAuthenticated) {
+             promises.push(fetchAccessStatus([Number(productId)]));
+          }
+
+          const [productData] = await Promise.all(promises);
+
           setProduct(productData);
           setSelectedImage(productData.main_image_url);
 
-          if (isAuthenticated) {
-            await fetchAccessStatus([Number(productId)]);
-          }
         } catch (err) {
           setError(t('productPage.loadError'));
           toast.error(t('toasts.productLoadError'));
@@ -52,7 +57,7 @@ export default function ProductDetailPage() {
           setLoading(false);
         }
       };
-      fetchProductAndAccess();
+      fetchData();
     }
   }, [productId, isAuthenticated, fetchAccessStatus, t]);
 
@@ -98,24 +103,24 @@ export default function ProductDetailPage() {
   const fullImageUrl = (path: string) => {
     if (!path) return '/placeholder.jpg';
 
-    // Якщо це зовнішнє посилання або вже починається з http - залишаємо як є
     if (path.startsWith('http')) {
       return path;
     }
 
-    // Якщо це локальне завантаження (/uploads/...), повертаємо як відносний шлях
-    // Next.js знайде файл у public/uploads завдяки монтуванню тому
     if (path.startsWith('/uploads/')) {
         return path;
     }
 
-    // Fallback для інших випадків (хоча uploads покриває 99%)
     const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
     return `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
   };
 
   const hasAccess = product ? checkAccess(product.id) || product.product_type === 'free' : false;
   const isFavorited = product ? favoritedProductIds.has(product.id) : false;
+
+  // ВИПРАВЛЕННЯ: Конвертація цін
+  const price = product ? Number(product.price) : 0;
+  const salePrice = product?.sale_price ? Number(product.sale_price) : null;
 
   if (loading) {
     return (
@@ -145,7 +150,6 @@ export default function ProductDetailPage() {
         {isModalOpen && <AddToCollectionModal product={product} onClose={() => setIsModalOpen(false)} />}
       </AnimatePresence>
 
-      {/* Header Navigation */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => router.back()}
@@ -178,7 +182,6 @@ export default function ProductDetailPage() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
       >
-        {/* Image Gallery */}
         <div className="space-y-3">
             <div className="relative aspect-square w-full overflow-hidden rounded-[24px] bg-muted border border-border/50 shadow-sm">
               <Image
@@ -187,6 +190,7 @@ export default function ProductDetailPage() {
                 fill
                 className="object-cover"
                 priority
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
               {product.is_on_sale && (
                   <div className="absolute top-4 left-4 px-3 py-1 bg-destructive text-white text-xs font-bold rounded-full shadow-md">
@@ -195,7 +199,6 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {/* Thumbnails */}
             {product.gallery_image_urls.length > 0 && (
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                     {[product.main_image_url, ...product.gallery_image_urls].map((img, idx) => (
@@ -213,6 +216,7 @@ export default function ProductDetailPage() {
                             alt={`preview ${idx}`}
                             fill
                             className="object-cover"
+                            sizes="80px"
                         />
                         </div>
                     ))}
@@ -220,21 +224,21 @@ export default function ProductDetailPage() {
             )}
         </div>
 
-        {/* Product Info Card */}
         <div className="card-minimal p-6">
             <div className="flex justify-between items-start gap-4 mb-2">
                 <h1 className="text-2xl font-bold text-foreground leading-tight">{product.title}</h1>
             </div>
 
             <div className="flex items-center gap-3 mb-6">
-              {product.is_on_sale && product.sale_price ? (
+              {product.is_on_sale && salePrice ? (
                 <>
-                  <span className="text-3xl font-bold text-primary">${product.sale_price.toFixed(2)}</span>
-                  <span className="text-lg text-muted-foreground line-through decoration-2">${product.price.toFixed(2)}</span>
+                  {/* ВИПРАВЛЕННЯ: Використовуємо конвертовані змінні */}
+                  <span className="text-3xl font-bold text-primary">${salePrice.toFixed(2)}</span>
+                  <span className="text-lg text-muted-foreground line-through decoration-2">${price.toFixed(2)}</span>
                 </>
               ) : (
                 <span className="text-3xl font-bold text-foreground">
-                  {product.price === 0 ? <span className="text-green-500">FREE</span> : `$${product.price.toFixed(2)}`}
+                  {price === 0 ? <span className="text-green-500">FREE</span> : `$${price.toFixed(2)}`}
                 </span>
               )}
             </div>
@@ -255,7 +259,6 @@ export default function ProductDetailPage() {
             </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="fixed bottom-24 left-0 right-0 px-5 z-20 pointer-events-none">
             <div className="pointer-events-auto shadow-2xl shadow-black/10 rounded-2xl">
                 {hasAccess ? (

@@ -26,8 +26,9 @@ class ApplyDiscountRequest(BaseModel):
 
 class ApplyDiscountResponse(BaseModel):
     success: bool
-    discount_amount: float = 0.0
-    final_total: float
+    # ЗМІНЕНО: float -> Decimal
+    discount_amount: Decimal = Decimal("0.00")
+    final_total: Decimal
     message: Optional[str] = None
     bonus_points_used: int = 0
 
@@ -55,4 +56,5 @@ class OrderItemResponse(BaseModel):
 class CheckoutResponse(BaseModel):
     order_id: int
     payment_url: Optional[str] = None
-    amount: float
+    # ЗМІНЕНО: float -> Decimal
+    amount: Decimal

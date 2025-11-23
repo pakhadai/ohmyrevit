@@ -1,19 +1,15 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 # backend/app/orders/service.py
 from typing import Optional, List
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-# # OLD: from app.orders.models import Order, OrderItem, PromoCode, DiscountType
 from app.orders.models import Order, OrderItem, PromoCode, DiscountType, OrderStatus
 from app.products.models import Product
 from app.users.models import User
-# OLD: from datetime import datetime
 from datetime import datetime, timezone
 from fastapi import HTTPException
 from app.core.config import settings
-# ДОДАНО: Імпорти для нової логіки
 import logging
 from app.subscriptions.models import UserProductAccess, AccessType
 from app.referrals.models import ReferralLog, ReferralBonusType
@@ -36,7 +32,7 @@ class OrderService:
         Розрахунок знижки
         Можна застосувати АБО промокод АБО бонуси, не обидва
         """
-        discount_amount = Decimal(0)
+        discount_amount = Decimal("0.00")
         promo_code_id = None
         bonus_used = 0
 
@@ -56,20 +52,19 @@ class OrderService:
             if not promo:
                 raise ValueError("Невалідний або прострочений промокод")
 
-            # # OLD: # ВИПРАВЛЕННЯ: Порівнюємо naive datetime з naive datetime
-            # # OLD: if promo.expires_at and promo.expires_at.replace(tzinfo=None) < datetime.utcnow():
-            # Повторне виправлення для гарантованої роботи.
-# OLD:             if promo.expires_at and promo.expires_at.replace(tzinfo=None) < datetime.utcnow():
-            if promo.expires_at and promo.expires_at.replace(tzinfo=None) < datetime.now(timezone.utc):
+            if promo.expires_at and promo.expires_at.replace(tzinfo=None) < datetime.now(timezone.utc).replace(
+                    tzinfo=None):
                 raise ValueError("Термін дії промокоду закінчився")
 
             if promo.max_uses and promo.current_uses >= promo.max_uses:
                 raise ValueError("Ліміт використання промокоду вичерпано")
 
             if promo.discount_type == DiscountType.PERCENTAGE:
-                discount_amount = subtotal * (Decimal(promo.value) / 100)
+                # ЗМІНЕНО: Безпечне множення з округленням
+                raw_discount = subtotal * (promo.value / Decimal("100"))
+                discount_amount = raw_discount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             else:
-                discount_amount = min(subtotal, Decimal(promo.value))
+                discount_amount = min(subtotal, promo.value)
 
             promo_code_id = promo.id
 
@@ -81,12 +76,21 @@ class OrderService:
             if user.bonus_balance < bonus_points:
                 raise ValueError("Недостатньо бонусів на рахунку")
 
-            max_bonus_discount = subtotal * Decimal(settings.MAX_BONUS_DISCOUNT_PERCENT)
-            bonus_value = Decimal(bonus_points / settings.BONUS_TO_USD_RATE)
+            # ЗМІНЕНО: Всі константи конвертуємо в Decimal перед операціями
+            max_bonus_percent = Decimal(str(settings.MAX_BONUS_DISCOUNT_PERCENT))
+            max_bonus_discount = subtotal * max_bonus_percent
+
+            # Конвертація бонусів у гроші: Decimal(points) / Decimal(rate)
+            bonus_rate = Decimal(str(settings.BONUS_TO_USD_RATE))
+            bonus_value = Decimal(bonus_points) / bonus_rate
 
             actual_discount = min(bonus_value, max_bonus_discount)
-            discount_amount = actual_discount
-            bonus_used = int(actual_discount * settings.BONUS_TO_USD_RATE)
+
+            # Округлюємо до копійок
+            discount_amount = actual_discount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+            # Перераховуємо скільки бонусів реально списати (якщо округлення змінило суму)
+            bonus_used = int(discount_amount * bonus_rate)
 
         return {
             "discount_amount": discount_amount,
@@ -111,7 +115,9 @@ class OrderService:
         if not products:
             raise ValueError("Товари не знайдено")
 
+        # Сума вже в Decimal з бази даних
         subtotal = sum(p.get_actual_price() for p in products)
+
         if subtotal == 0 and not any(p.product_type == 'free' for p in products):
             raise ValueError(
                 "Не можна створювати замовлення з нульовою вартістю, якщо в ньому немає безкоштовних товарів.")
@@ -122,17 +128,19 @@ class OrderService:
 
         final_total = subtotal - discount_data["discount_amount"]
 
+        # Гарантуємо, що сума не від'ємна
+        final_total = max(final_total, Decimal("0.00"))
+
         order = Order(
             user_id=user_id,
             subtotal=subtotal,
             discount_amount=discount_data["discount_amount"],
-            final_total=max(final_total, Decimal(0)),
+            final_total=final_total,
             status="pending",
             promo_code_id=discount_data["promo_code_id"],
             bonus_used=discount_data["bonus_used"]
         )
 
-        # ВИПРАВЛЕННЯ: Ідіоматичне створення пов'язаних об'єктів через relationship
         for product in products:
             order.items.append(
                 OrderItem(
@@ -144,16 +152,6 @@ class OrderService:
         self.db.add(order)
         await self.db.flush()
 
-        # # OLD: for product in products:
-        # # OLD:     order_item = OrderItem(
-        # # OLD:         order_id=order.id,
-        # # OLD:         product_id=product.id,
-        # # OLD:         price_at_purchase=product.get_actual_price()
-        # # OLD:     )
-        # # OLD:     self.db.add(order_item)
-        # # OLD:
-        # # OLD: await self.db.refresh(order, attribute_names=['items'])
-
         if discount_data["bonus_used"] > 0:
             user = await self.db.get(User, user_id)
             if user:
@@ -162,20 +160,16 @@ class OrderService:
 
         return order
 
-    # # OLD: async def process_successful_order(self, order: Order) -> Order:
     async def process_successful_order(self, order_id: int) -> Order:
         """
-        Централізована обробка успішного замовлення (оплаченого або безкоштовного).
-        Змінює статус, надає доступ, оновлює промокоди та нараховує реферальні бонуси.
+        Централізована обробка успішного замовлення
         """
-        # ГАРАНТІЯ НАДІЙНОСТІ: Завжди завантажуємо замовлення з БД з усіма потрібними зв'язками
         order_res = await self.db.execute(
             select(Order).options(
                 selectinload(Order.user).selectinload(User.referrer),
                 selectinload(Order.items).selectinload(OrderItem.product)
             ).where(Order.id == order_id)
         )
-        # # OLD: order = order_res.scalar_one_or_none()
         order = order_res.unique().scalar_one_or_none()
 
         if not order:
@@ -186,12 +180,9 @@ class OrderService:
             logger.warning(f"Order {order.id} is already marked as paid. Skipping processing.")
             return order
 
-        # 1. Оновлюємо статус замовлення
         order.status = OrderStatus.PAID
-# OLD:         order.paid_at = datetime.utcnow()
         order.paid_at = datetime.now(timezone.utc)
 
-        # 2. Надаємо доступ до товарів
         for item in order.items:
             access_exists_res = await self.db.execute(
                 select(UserProductAccess).where(
@@ -207,19 +198,20 @@ class OrderService:
                 ))
                 logger.info(f"ACCESS GRANTED: User {order.user_id}, Product {item.product_id}")
 
-        # 3. Оновлюємо лічильник промокоду
         if order.promo_code_id:
             promo = await self.db.get(PromoCode, order.promo_code_id)
             if promo:
                 promo.current_uses += 1
                 logger.info(f"Promo code {promo.code} usage incremented for order {order.id}")
 
-        # 4. Нараховуємо реферальний бонус
         buyer = order.user
         if buyer and buyer.referrer_id:
             referrer = buyer.referrer
             if referrer:
-                commission_amount = int(order.final_total * Decimal(str(settings.REFERRAL_PURCHASE_PERCENT)) * 100)
+                # ЗМІНЕНО: Decimal розрахунок реферальних
+                ref_percent = Decimal(str(settings.REFERRAL_PURCHASE_PERCENT))
+                commission_amount = int(order.final_total * ref_percent * 100)
+
                 if commission_amount > 0:
                     referrer.bonus_balance += commission_amount
                     self.db.add(ReferralLog(

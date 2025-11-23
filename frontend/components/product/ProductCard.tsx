@@ -50,18 +50,18 @@ export default function ProductCard({ product }: ProductCardProps) {
     }
   };
 
-  const discountPercentage = product.is_on_sale && product.sale_price
-    ? Math.round(((product.price - product.sale_price) / product.price) * 100)
+  // ВИПРАВЛЕННЯ: Конвертуємо ціни в числа, щоб уникнути помилки .toFixed()
+  const price = Number(product.price);
+  const salePrice = product.sale_price ? Number(product.sale_price) : null;
+
+  const discountPercentage = product.is_on_sale && salePrice
+    ? Math.round(((price - salePrice) / price) * 100)
     : 0;
 
   const imageUrl = product.main_image_url || '/placeholder.jpg';
 
   return (
-    <div
-      // ОПТИМІЗАЦІЯ: Видалено всі анімації (animate-in, transition, hover-effects, will-change).
-      // Це "статична" картка, яка рендериться найшвидше.
-      className="relative bg-card text-card-foreground rounded-2xl overflow-hidden border border-border flex flex-col"
-    >
+    <div className="relative bg-card text-card-foreground rounded-2xl overflow-hidden border border-border flex flex-col">
       {isModalOpen && <AddToCollectionModal product={product} onClose={() => setIsModalOpen(false)} />}
 
       <Link href={`/product/${product.id}`} passHref className="flex flex-col h-full">
@@ -70,7 +70,6 @@ export default function ProductCard({ product }: ProductCardProps) {
             src={imageUrl}
             alt={product.title}
             fill
-            // Важливо залишити sizes для оптимізації завантаження
             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
             className="object-cover"
             loading="lazy"
@@ -111,18 +110,19 @@ export default function ProductCard({ product }: ProductCardProps) {
 
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              {product.is_on_sale && product.sale_price ? (
+              {product.is_on_sale && salePrice ? (
                 <>
                   <span className="text-lg font-bold text-primary">
-                    ${product.sale_price.toFixed(2)}
+                    {/* ВИПРАВЛЕННЯ: Використовуємо конвертовану змінну */}
+                    ${salePrice.toFixed(2)}
                   </span>
                   <span className="text-sm line-through text-muted-foreground">
-                    ${product.price.toFixed(2)}
+                    ${price.toFixed(2)}
                   </span>
                 </>
               ) : (
                 <span className="text-lg font-bold text-foreground">
-                  {product.price === 0 ? 'FREE' : `$${product.price.toFixed(2)}`}
+                  {price === 0 ? 'FREE' : `$${price.toFixed(2)}`}
                 </span>
               )}
             </div>

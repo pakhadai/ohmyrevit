@@ -54,7 +54,6 @@ export default function BonusesPage() {
     return <div className="text-center py-12 text-muted-foreground">{t('profilePages.bonuses.loadError')}</div>;
   }
 
-  // Розрахунок прогресу для візуалізації
   const progress = bonusInfo.streak > 0 ? (bonusInfo.streak % 7) || 7 : 0;
   const progressPercent = (progress / 7) * 100;
 
@@ -63,19 +62,19 @@ export default function BonusesPage() {
 
       <h1 className="text-2xl font-bold text-foreground">{t('profilePages.bonuses.pageTitle')}</h1>
 
-      {/* Головна картка: Стрік та Дія */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden bg-gradient-to-br from-orange-500 to-amber-600 rounded-[24px] p-6 text-white shadow-lg shadow-orange-500/20"
+        className="relative overflow-hidden bg-gradient-to-br from-orange-500 to-amber-600 rounded-[24px] p-6 text-white shadow-lg"
       >
-        {/* Декоративний фон */}
-        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-[50px] -mr-10 -mt-10 pointer-events-none"></div>
+        {/* ОПТИМІЗАЦІЯ: Прибрано blur-[50px] */}
+        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
 
         <div className="relative z-10">
           <div className="flex justify-between items-start mb-6">
             <div>
-               <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full mb-3 border border-white/10">
+               {/* ОПТИМІЗАЦІЯ: backdrop-blur-md -> bg-white/20 */}
+               <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full mb-3 border border-white/10">
                   <Zap size={14} className="text-yellow-200 fill-yellow-200" />
                   <span className="text-[11px] font-bold uppercase tracking-wider text-white">Daily Streak</span>
                </div>
@@ -85,17 +84,17 @@ export default function BonusesPage() {
             <Gift size={48} className="text-white/20 rotate-12" />
           </div>
 
-          {/* Прогрес бар */}
           <div className="mb-6">
             <div className="flex justify-between text-xs font-medium text-white/80 mb-2">
                 <span>Тижневий прогрес</span>
                 <span>{progress}/7</span>
             </div>
-            <div className="h-2 w-full bg-black/20 rounded-full overflow-hidden backdrop-blur-sm">
+            {/* ОПТИМІЗАЦІЯ: Прибрано backdrop-blur-sm */}
+            <div className="h-2 w-full bg-black/20 rounded-full overflow-hidden">
                 <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${progressPercent}%` }}
-                    className="h-full bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]"
+                    className="h-full bg-white rounded-full shadow-sm"
                 />
             </div>
           </div>
@@ -131,7 +130,6 @@ export default function BonusesPage() {
         </div>
       </motion.div>
 
-      {/* Статистика: Баланс */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -150,7 +148,6 @@ export default function BonusesPage() {
           </div>
         </motion.div>
 
-        {/* Правила */}
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

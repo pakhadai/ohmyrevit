@@ -1,9 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Product } from '@/types' // ВИПРАВЛЕНО: Використовуємо глобальний тип Product
+import { Product } from '@/types'
 
 interface CartStore {
-  // ВИПРАВЛЕНО: Зберігаємо повні об'єкти Product
   items: Product[]
   promoCode: string | null
   useBonusPoints: number
@@ -27,10 +26,8 @@ export const useCartStore = create<CartStore>()(
 
       addItem: (item) => {
         set((state) => {
-          // Перевіряємо чи товар вже в кошику
           const exists = state.items.find(i => i.id === item.id)
           if (exists) return state
-
           return { items: [...state.items, item] }
         })
       },
@@ -46,18 +43,18 @@ export const useCartStore = create<CartStore>()(
       },
 
       setPromoCode: (code) => {
-        set({ promoCode: code, useBonusPoints: 0 }) // Скидаємо бонуси
+        set({ promoCode: code, useBonusPoints: 0 })
       },
 
       setBonusPoints: (points) => {
-        set({ useBonusPoints: points, promoCode: null }) // Скидаємо промокод
+        set({ useBonusPoints: points, promoCode: null })
       },
 
       getTotalPrice: () => {
         const { items } = get()
         return items.reduce((total, item) => {
-          // ВИПРАВЛЕНО: Використовуємо sale_price, а не salePrice
-          const price = item.sale_price || item.price
+          // ВИПРАВЛЕННЯ: Примусова конвертація в Number
+          const price = Number(item.sale_price) || Number(item.price)
           return total + price
         }, 0)
       },
@@ -67,7 +64,7 @@ export const useCartStore = create<CartStore>()(
       }
     }),
     {
-      name: 'cart-storage', // Ім'я для localStorage
+      name: 'cart-storage',
     }
   )
 )

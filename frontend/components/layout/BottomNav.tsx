@@ -3,7 +3,7 @@
 import { Home, ShoppingBag, ShoppingCart, User } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useCartStore } from '@/store/cartStore';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -11,25 +11,29 @@ import { useTranslation } from 'react-i18next';
 export default function BottomNav() {
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollY = useRef(0);
   const cartItemsCount = useCartStore((state) => state.items.length);
   const { t } = useTranslation();
 
-  // Логіка приховування при скролі
   useEffect(() => {
+    let lastTick = 0;
     const handleScroll = () => {
+      const now = Date.now();
+      if (now - lastTick < 100) return;
+      lastTick = now;
       const currentScrollY = window.scrollY;
-      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
         setIsVisible(false);
       } else {
         setIsVisible(true);
       }
-      setLastScrollY(currentScrollY);
+      lastScrollY.current = currentScrollY;
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+  }, []);
 
   const navItems = [
     { href: '/', icon: Home, label: t('nav.home'), badge: 0 },
@@ -47,14 +51,14 @@ export default function BottomNav() {
           opacity: isVisible ? 1 : 0
         }}
         transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-        // ЗМІНИ ТУТ:
-        // bg-header/70 -> Адаптивний фон (білий/темний) з високою прозорістю
-        // border-black/5 dark:border-white/10 -> Тонкі адаптивні рамки
-        // shadow-black/5 dark:shadow-black/20 -> М'які тіні під тему
+        // ОПТИМІЗАЦІЯ:
+        // 1. bg-header/70 -> bg-header/95 (більш непрозорий фон)
+        // 2. backdrop-blur-2xl -> backdrop-blur-sm (мінімальне розмиття або взагалі без нього)
+        // 3. shadow-2xl -> shadow-lg (менша тінь)
         className="pointer-events-auto relative flex items-center
-                   bg-header/70 backdrop-blur-2xl
+                   bg-header/95 backdrop-blur-sm
                    border border-black/5 dark:border-white/10
-                   shadow-2xl shadow-black/5 dark:shadow-black/40
+                   shadow-lg shadow-black/5 dark:shadow-black/40
                    rounded-[32px] px-2 py-2 gap-1 min-w-[320px]"
       >
         {navItems.map((item) => {
@@ -67,32 +71,27 @@ export default function BottomNav() {
               href={item.href}
               className="relative flex-1 flex flex-col items-center justify-center h-12 min-w-[60px] cursor-pointer select-none group"
             >
-              {/* Активний фон (ковзаюча бульбашка) */}
               {isActive && (
                 <motion.div
                   layoutId="nav-pill"
                   className="absolute inset-0 bg-primary rounded-[24px]"
-                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                  // Зменшено тривалість анімації для чіткості
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
                 />
               )}
 
-              {/* Контент кнопки */}
               <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
                 <div className="relative">
                   <Icon
                     size={22}
                     strokeWidth={2.5}
-                    // Анімація кольору іконки:
-                    // Active: text-primary-foreground (зазвичай білий на кнопці)
-                    // Inactive: text-muted-foreground (сірий) -> hover:text-foreground (чорний/білий)
-                    className={`transition-colors duration-300 ${
+                    className={`transition-colors duration-200 ${
                       isActive
                         ? 'text-primary-foreground'
                         : 'text-muted-foreground group-hover:text-foreground'
                     }`}
                   />
 
-                  {/* Бейдж (лічильник) */}
                   {item.badge > 0 && (
                     <motion.span
                       initial={{ scale: 0 }}

@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation'
 import { ordersAPI } from '@/lib/api'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next';
-import Image from 'next/image'; // <-- ДОДАНО
+import Image from 'next/image';
 
 export default function CartPage() {
   const router = useRouter()
@@ -26,6 +26,8 @@ export default function CartPage() {
 
   const { user } = useAuthStore()
   const [promoInput, setPromoInput] = useState(promoCode || '')
+
+  // Ініціалізуємо стейт
   const [bonusInput, setBonusInput] = useState(useBonusPoints || 0)
 
   const [discountAmount, setDiscountAmount] = useState(0)
@@ -51,8 +53,9 @@ export default function CartPage() {
       });
 
       if (response.success) {
-        setDiscountAmount(response.discount_amount);
-        setFinalTotal(response.final_total);
+        setDiscountAmount(Number(response.discount_amount));
+        setFinalTotal(Number(response.final_total));
+
         if (promo) toast.success(t('toasts.promoApplied'));
         if (bonuses > 0) toast.success(t('toasts.bonusesApplied'));
       } else {
@@ -160,58 +163,61 @@ export default function CartPage() {
         {/* Items List */}
         <div className="lg:col-span-2 space-y-4">
           <AnimatePresence mode="popLayout">
-            {items.map((item) => (
-              <motion.div
-                key={item.id}
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
-                className="card-minimal p-4 flex gap-4 group"
-              >
-                {/* ЗМІНЕНО: Додано relative та компонент Image */}
-                <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted flex-shrink-0 relative">
-                    <Image
-                        src={item.main_image_url || '/placeholder.jpg'}
-                        alt={item.title}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 100vw, 96px"
-                    />
-                </div>
+            {items.map((item) => {
+                const itemPrice = Number(item.price);
+                const itemSalePrice = item.sale_price ? Number(item.sale_price) : null;
 
-                <div className="flex-1 min-w-0 py-1 flex flex-col justify-between">
-                  <div>
-                      <h3 className="font-semibold text-base text-foreground line-clamp-2 leading-tight">{item.title}</h3>
-                      {/* <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{item.description}</p> */}
-                  </div>
-
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center gap-2">
-                        {item.sale_price ? (
-                        <>
-                            <span className="text-primary font-bold text-lg">
-                            ${item.sale_price}
-                            </span>
-                            <span className="text-muted-foreground line-through text-sm">
-                            ${item.price}
-                            </span>
-                        </>
-                        ) : (
-                        <span className="font-bold text-lg text-foreground">${item.price}</span>
-                        )}
+                return (
+                  <motion.div
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+                    className="card-minimal p-4 flex gap-4 group"
+                  >
+                    <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted flex-shrink-0 relative">
+                        <Image
+                            src={item.main_image_url || '/placeholder.jpg'}
+                            alt={item.title}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 96px"
+                        />
                     </div>
 
-                    <button
-                        onClick={() => removeItem(item.id)}
-                        className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                    >
-                        <Trash2 size={20} />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                    <div className="flex-1 min-w-0 py-1 flex flex-col justify-between">
+                      <div>
+                          <h3 className="font-semibold text-base text-foreground line-clamp-2 leading-tight">{item.title}</h3>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                            {itemSalePrice ? (
+                            <>
+                                <span className="text-primary font-bold text-lg">
+                                ${itemSalePrice.toFixed(2)}
+                                </span>
+                                <span className="text-muted-foreground line-through text-sm">
+                                ${itemPrice.toFixed(2)}
+                                </span>
+                            </>
+                            ) : (
+                            <span className="font-bold text-lg text-foreground">${itemPrice.toFixed(2)}</span>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={() => removeItem(item.id)}
+                            className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                        >
+                            <Trash2 size={20} />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+            })}
           </AnimatePresence>
         </div>
 
@@ -261,8 +267,21 @@ export default function CartPage() {
                     <div className="flex gap-2">
                     <input
                         type="number"
-                        value={bonusInput}
-                        onChange={(e) => setBonusInput(Number(e.target.value))}
+                        // ВИПРАВЛЕННЯ: Якщо 0, показуємо пустий рядок (щоб не було '0150')
+                        value={bonusInput > 0 ? bonusInput : ''}
+                        onChange={(e) => {
+                            // Якщо поле пусте, ставимо 0, інакше парсимо число
+                            const val = e.target.value === '' ? 0 : parseInt(e.target.value);
+                            // Запобігаємо NaN
+                            setBonusInput(isNaN(val) ? 0 : val);
+                        }}
+                        // Забороняємо ввід мінуса та 'e'
+                        onKeyDown={(e) => {
+                            if (['-', '+', 'e', 'E', '.'].includes(e.key)) {
+                                e.preventDefault();
+                            }
+                        }}
+                        placeholder="0"
                         max={user?.bonus_balance || 0}
                         disabled={!!promoCode || isCalculating}
                         className="flex-1 px-4 py-2.5 bg-muted text-foreground rounded-xl border-none focus:ring-2 focus:ring-primary/20 text-sm disabled:opacity-50"
