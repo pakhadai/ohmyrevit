@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Download, Heart, Users, HelpCircle,
   FileText, Gift, Mail, Save, Settings,
@@ -21,18 +20,16 @@ export default function ProfilePage() {
   const { user, setUser, logout } = useAuthStore();
   const [email, setEmail] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false); // Стейт для контролю гідратації
+  const [isHydrated, setIsHydrated] = useState(false);
   const { t, i18n } = useTranslation();
 
   const { setLanguage } = useLanguageStore();
   const { theme, setTheme } = useUIStore();
 
   useEffect(() => {
-    // Встановлюємо email тільки коли user завантажився
     if (user) {
       setEmail(user.email || '');
     }
-    // Позначаємо, що клієнт готовий до відображення
     setIsHydrated(true);
   }, [user]);
 
@@ -66,15 +63,13 @@ export default function ProfilePage() {
     { href: '/profile/faq', label: t('profilePages.main.menu.faq'), icon: FileText }
   ];
 
-  // Запобігає "стрибкам" контенту до завантаження даних користувача
   if (!isHydrated) return null;
 
   return (
     <div className="container mx-auto px-5 pt-14 pb-24 space-y-6">
 
       {/* 1. Шапка профілю */}
-      {/* Додано animate-fade-in для плавної появи всього блоку без зміщення */}
-      <div className="flex flex-col items-center text-center pt-2 animate-fade-in">
+      <div className="flex flex-col items-center text-center pt-2">
         <div className="relative mb-4">
             <div className="w-24 h-24 rounded-full p-1 bg-background border-2 border-primary/20 shadow-lg shadow-primary/10">
                 <img
@@ -114,7 +109,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* 2. Налаштування */}
+      {/* 2. Налаштування (Без важких анімацій розгортання) */}
       <div className="card-minimal overflow-hidden">
         <button
           onClick={() => setSettingsOpen(!settingsOpen)}
@@ -133,15 +128,9 @@ export default function ProfilePage() {
           )}
         </button>
 
-        <AnimatePresence>
-          {settingsOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="border-t border-border"
-            >
+        {/* Просте умовне відображення замість AnimatePresence */}
+        {settingsOpen && (
+            <div className="border-t border-border">
               <div className="p-5 space-y-6">
                 {/* Email */}
                 <div>
@@ -217,26 +206,21 @@ export default function ProfilePage() {
                     </div>
                 </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+        )}
       </div>
 
-      {/* 3. Меню профілю */}
+      {/* 3. Меню профілю (Без анімації появи motion.div) */}
       <div>
         <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">
             {t('profilePages.main.menu.goToSection')}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {menuItems.map((item, index) => {
+            {menuItems.map((item) => {
             const Icon = item.icon;
             return (
                 <Link key={item.href} href={item.href}>
-                {/* ЗМІНЕНО: Прибрано animate={{ y: 0 }}, залишено тільки opacity для усунення мерехтіння */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                <div
                     className="card-minimal p-4 flex items-center gap-4 cursor-pointer group hover:border-primary/30 transition-all"
                 >
                     <div className="w-10 h-10 rounded-xl bg-secondary/50 flex items-center justify-center text-secondary-foreground group-hover:scale-110 transition-transform duration-200">
@@ -248,7 +232,7 @@ export default function ProfilePage() {
                     <div className="text-muted-foreground group-hover:text-primary transition-colors">
                         <ChevronDown size={16} className="-rotate-90" />
                     </div>
-                </motion.div>
+                </div>
                 </Link>
             );
             })}

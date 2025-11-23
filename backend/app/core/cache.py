@@ -4,7 +4,7 @@ import hashlib
 import json
 from typing import Optional
 import redis.asyncio as redis
-
+from app.core.config import settings
 
 class CacheManager:
     def __init__(self):

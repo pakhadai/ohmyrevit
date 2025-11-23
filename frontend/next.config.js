@@ -1,5 +1,3 @@
-// frontend/next.config.js
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -24,19 +22,8 @@ const nextConfig = {
       },
     ],
   },
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'no-cache, no-store, must-revalidate',
-          },
-        ],
-      },
-    ];
-  },
+  // ОПТИМІЗАЦІЯ: Видалено headers з no-cache.
+  // Next.js сам чудово керує кешуванням статики.
   devIndicators: {
     allowedDevOrigins: [
       'https://dev.ohmyrevit.pp.ua',

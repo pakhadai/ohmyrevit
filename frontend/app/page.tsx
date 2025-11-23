@@ -2,21 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { Sparkles, Crown, Send, ExternalLink, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import DailyBonus from '@/components/home/DailyBonus';
 import { useAuthStore } from '@/store/authStore';
-import { useAccessStore } from '@/store/accessStore'; // ОПТИМІЗАЦІЯ
 import { productsAPI } from '@/lib/api';
 import ProductCard from '@/components/product/ProductCard';
 import { useTranslation } from 'react-i18next';
-import { Product } from '@/types'; // Додано імпорт типу
+import { Product } from '@/types';
 
 export default function HomePage() {
   const router = useRouter();
   const { isAuthenticated, user } = useAuthStore();
-  const { fetchAccessStatus } = useAccessStore(); // ОПТИМІЗАЦІЯ
   const [newProducts, setNewProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const { t } = useTranslation();
@@ -25,19 +22,14 @@ export default function HomePage() {
     fetchNewProducts();
   }, []);
 
-  // ОПТИМІЗАЦІЯ: Перевіряємо доступи для всіх завантажених товарів одним масивом
-  useEffect(() => {
-    if (isAuthenticated && newProducts.length > 0) {
-      const productIds = newProducts.map(p => p.id);
-      fetchAccessStatus(productIds);
-    }
-  }, [newProducts, isAuthenticated, fetchAccessStatus]);
+  // ОПТИМІЗАЦІЯ: Видалено useEffect з fetchAccessStatus.
+  // На головній ми просто показуємо вітрину, перевірка прав тут не критична для швидкості.
 
   const fetchNewProducts = async () => {
     try {
       const data = await productsAPI.getProducts({
         sort: 'newest',
-        limit: 8
+        limit: 4 // ОПТИМІЗАЦІЯ: Завантажуємо тільки 4 товари
       });
       setNewProducts(data.products || []);
     } catch (error) {
@@ -60,11 +52,7 @@ export default function HomePage() {
     <div className="container mx-auto px-5 space-y-8 pt-14 pb-20">
 
       {/* 1. Привітання */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
+      <div className="flex items-center justify-between animate-in fade-in slide-in-from-bottom-2 duration-500">
          <div>
             <h1 className="text-2xl font-extrabold text-foreground tracking-tight leading-tight">
               {t('home.welcome')}{user ? `, ${user.first_name}` : ''} 👋
@@ -80,14 +68,10 @@ export default function HomePage() {
                 className="w-full h-full object-cover"
             />
          </div>
-      </motion.div>
+      </div>
 
       {/* 2. Premium Banner */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="relative overflow-hidden bg-[#1A1A23] rounded-[24px] p-6 text-white shadow-xl shadow-slate-300/20 dark:shadow-none border border-white/5"
-      >
+      <div className="relative overflow-hidden bg-[#1A1A23] rounded-[24px] p-6 text-white shadow-xl shadow-slate-300/20 dark:shadow-none border border-white/5 animate-in zoom-in-95 duration-500 delay-100 fill-mode-both">
         <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/20 rounded-full blur-[40px] -mr-10 -mt-10 pointer-events-none"></div>
 
         <div className="relative z-10">
@@ -127,15 +111,13 @@ export default function HomePage() {
                 <span>$5 / міс</span>
             </button>
         </div>
-      </motion.div>
+      </div>
 
       {/* 3. Сітка: Бонуси + Telegram */}
       <div className="grid grid-cols-1 gap-4">
           {isAuthenticated && <DailyBonus />}
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+          <div
             onClick={openTelegramChannel}
             className="card-minimal p-4 flex items-center justify-between cursor-pointer group hover:border-primary/50 transition-colors"
           >
@@ -151,7 +133,7 @@ export default function HomePage() {
             <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                 <ExternalLink size={16} className="text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
-          </motion.div>
+          </div>
       </div>
 
       {/* 4. Новинки */}

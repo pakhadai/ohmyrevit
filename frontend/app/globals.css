@@ -5,95 +5,48 @@
 @layer base {
   :root {
     /* --- СВІТЛА ТЕМА --- */
-
-    /* Фон: #F7F7FA -> 240 14% 97% */
     --background: 240 14% 97%;
-    /* Текст: #1A1A1A -> 0 0% 10% */
     --foreground: 0 0% 10%;
-
-    /* Картки: #FFFFFF -> 0 0% 100% */
     --card: 0 0% 100%;
     --card-foreground: 0 0% 10%;
-
-    /* Хедер: #FFFFFF -> 0 0% 100% */
     --header: 0 0% 100%;
-
-    /* Primary: #6C63FF -> 244 100% 69% */
     --primary: 244 100% 69%;
     --primary-foreground: 0 0% 100%;
-
-    /* Secondary: #EDECFB -> 244 67% 96% */
     --secondary: 244 67% 96%;
-    --secondary-foreground: 242 59% 55%; /* #4B47D1 */
-
-    /* Muted: #F0F0F3 -> 240 10% 95% */
+    --secondary-foreground: 242 59% 55%;
     --muted: 240 10% 95%;
-    --muted-foreground: 0 0% 42%; /* #6B6B6B */
-
-    /* Accent: #EDECFB */
+    --muted-foreground: 0 0% 42%;
     --accent: 244 67% 96%;
     --accent-foreground: 242 59% 55%;
-
-    /* Destructive: #FF6B6B */
     --destructive: 0 100% 71%;
     --destructive-foreground: 0 0% 100%;
-
-    /* Border: #EAEAF0 -> 240 11% 93% */
     --border: 240 11% 93%;
-    /* Input: #FFFFFF */
     --input: 0 0% 100%;
-    /* Ring: #6C63FF */
     --ring: 244 100% 69%;
-
-    /* Custom Pink: #FFB4C8 -> 344 100% 85% */
     --pink-soft: 344 100% 85%;
-
     --radius: 1rem;
   }
 
   .dark {
     /* --- ТЕМНА ТЕМА --- */
-
-    /* Фон: #1A1A23 -> 240 15% 12% */
     --background: 240 15% 12%;
-    /* Текст: #F2F2F5 -> 240 10% 95% */
     --foreground: 240 10% 95%;
-
-    /* Картки: #262633 -> 240 15% 17% */
     --card: 240 15% 17%;
     --card-foreground: 240 10% 95%;
-
-    /* Хедер: #1F1F2A -> 240 15% 14% */
     --header: 240 15% 14%;
-
-    /* Primary: #918BFF -> 243 100% 77% */
     --primary: 243 100% 77%;
     --primary-foreground: 240 15% 12%;
-
-    /* Secondary: #2F2F3D -> 240 13% 21% */
     --secondary: 240 13% 21%;
-    --secondary-foreground: 240 82% 90%; /* #CFCFFC */
-
-    /* Muted: #262633 -> 240 15% 17% */
+    --secondary-foreground: 240 82% 90%;
     --muted: 240 15% 17%;
-    --muted-foreground: 240 6% 67%; /* #A5A5B2 */
-
-    /* Accent */
+    --muted-foreground: 240 6% 67%;
     --accent: 240 13% 21%;
     --accent-foreground: 240 82% 90%;
-
-    /* Destructive */
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 100%;
-
-    /* Border: #2F2F3D -> 240 13% 21% */
     --border: 240 13% 21%;
-    /* Input: #262633 -> 240 15% 17% */
     --input: 240 15% 17%;
-    /* Ring: #918BFF */
     --ring: 243 100% 77%;
-
-    /* Custom Pink: #FF99B2 -> 345 100% 80% */
     --pink-soft: 345 100% 80%;
   }
 }
@@ -103,23 +56,23 @@
     @apply border-border;
   }
   html, body {
+    /* ОПТИМІЗАЦІЯ: overscroll-y-none запобігає "гумовому" ефекту всієї сторінки, що економить ресурси */
     @apply bg-background text-foreground antialiased h-full overscroll-y-none;
   }
 }
 
 @layer components {
-  /* Картка з м'якою тінню */
+  /* ОПТИМІЗАЦІЯ: Прибрано складні тіні (shadow-soft), залишено звичайний border */
   .card-minimal {
-    @apply bg-card text-card-foreground rounded-2xl border border-border/50 shadow-[0_4px_20px_-12px_rgba(0,0,0,0.08)] dark:shadow-none transition-transform duration-200;
+    @apply bg-card text-card-foreground rounded-2xl border border-border/50;
   }
 
-  /* Кнопка Primary */
   .btn-primary {
-    @apply bg-primary text-primary-foreground px-6 py-3.5 rounded-xl font-semibold shadow-lg shadow-primary/20 hover:brightness-105 active:scale-95 transition-all;
+    @apply bg-primary text-primary-foreground px-6 py-3.5 rounded-xl font-semibold active:scale-95 transition-transform;
   }
 
-  /* Навігація */
+  /* Спрощена навігація без блюру */
   .nav-blur {
-    @apply bg-header/90 backdrop-blur-xl border-t border-border dark:border-border/50;
+    @apply bg-header border-t border-border;
   }
 }
