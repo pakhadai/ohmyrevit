@@ -35,10 +35,17 @@ function DownloadItem({ product }: { product: DownloadableProduct }) {
 
     const fullImageUrl = (path: string) => {
         if (!path) return '/placeholder.jpg';
-        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+
         if (path.startsWith('http')) {
             return path;
         }
+
+        // Додано перевірку для відносного шляху
+        if (path.startsWith('/uploads/')) {
+            return path;
+        }
+
+        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
         return `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
     };
 

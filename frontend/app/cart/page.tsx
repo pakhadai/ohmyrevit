@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { ordersAPI } from '@/lib/api'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next';
+import Image from 'next/image'; // <-- ДОДАНО
 
 export default function CartPage() {
   const router = useRouter()
@@ -168,11 +169,14 @@ export default function CartPage() {
                 exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
                 className="card-minimal p-4 flex gap-4 group"
               >
-                <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted flex-shrink-0">
-                    <img
-                    src={item.main_image_url}
-                    alt={item.title}
-                    className="w-full h-full object-cover"
+                {/* ЗМІНЕНО: Додано relative та компонент Image */}
+                <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted flex-shrink-0 relative">
+                    <Image
+                        src={item.main_image_url || '/placeholder.jpg'}
+                        alt={item.title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 96px"
                     />
                 </div>
 

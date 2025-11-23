@@ -8,8 +8,9 @@ import { ArrowLeft, Loader, Download, Trash2, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
-import { useAccessStore } from '@/store/accessStore'; // ОПТИМІЗАЦІЯ
-import { useAuthStore } from '@/store/authStore'; // ОПТИМІЗАЦІЯ
+import { useAccessStore } from '@/store/accessStore';
+import { useAuthStore } from '@/store/authStore';
+import Image from 'next/image'; // <-- ДОДАНО
 
 export default function CollectionDetailPage() {
   const router = useRouter();
@@ -28,7 +29,6 @@ export default function CollectionDetailPage() {
     }
   }, [id]);
 
-  // ОПТИМІЗАЦІЯ: Групове завантаження статусів доступу для колекції
   useEffect(() => {
     if (isAuthenticated && collection?.products && collection.products.length > 0) {
       const productIds = collection.products.map(p => p.id);
@@ -66,7 +66,6 @@ export default function CollectionDetailPage() {
 
   const handleDownload = (product: ProductInCollection) => {
     const token = useAuthStore.getState().token;
-    // Перевірка доступу через глобальний стор
     const hasAccess = checkAccess(product.id) || product.product_type === 'free';
 
     if (hasAccess && token) {
@@ -111,8 +110,15 @@ export default function CollectionDetailPage() {
         <div className="grid grid-cols-1 gap-4">
           {collection.products.map(product => (
             <div key={product.id} className="bg-white dark:bg-slate-800 p-4 rounded-lg flex items-center gap-4 shadow-sm">
-                <Link href={`/product/${product.id}`}>
-                    <img src={product.main_image_url} alt={product.title} className="w-20 h-20 object-cover rounded-md flex-shrink-0" />
+                {/* ЗМІНЕНО: Додано relative, w-20 h-20 та компонент Image */}
+                <Link href={`/product/${product.id}`} className="relative w-20 h-20 flex-shrink-0">
+                    <Image
+                        src={product.main_image_url || '/placeholder.jpg'}
+                        alt={product.title}
+                        fill
+                        className="object-cover rounded-md"
+                        sizes="80px"
+                    />
                 </Link>
                 <div className="flex-1 min-w-0">
                     <Link href={`/product/${product.id}`}>

@@ -68,6 +68,7 @@ services:
       - ./frontend:/app
       - /app/node_modules
       - /app/.next
+      - backend_uploads:/app/public/uploads
     depends_on:
       - backend
     networks:

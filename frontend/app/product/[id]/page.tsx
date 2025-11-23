@@ -97,10 +97,20 @@ export default function ProductDetailPage() {
 
   const fullImageUrl = (path: string) => {
     if (!path) return '/placeholder.jpg';
-    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+
+    // Якщо це зовнішнє посилання або вже починається з http - залишаємо як є
     if (path.startsWith('http')) {
       return path;
     }
+
+    // Якщо це локальне завантаження (/uploads/...), повертаємо як відносний шлях
+    // Next.js знайде файл у public/uploads завдяки монтуванню тому
+    if (path.startsWith('/uploads/')) {
+        return path;
+    }
+
+    // Fallback для інших випадків (хоча uploads покриває 99%)
+    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
     return `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
   };
 

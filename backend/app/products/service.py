@@ -1,5 +1,5 @@
 """
-Сервіс для роботи з товарами
+Сервіс для роботи з товарів
 """
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,12 +7,12 @@ from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
 from fastapi import BackgroundTasks, HTTPException
 import logging
-import json  # Додано
+import json
 
 from app.products.models import Product, Category, ProductTranslation
 from app.products.translation_service import translation_service
 from app.products.schemas import ProductCreate, ProductUpdate, ProductFilter
-from app.core.cache import cache  # Додано імпорт кешу
+from app.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -66,9 +66,9 @@ class ProductService:
                 product_data.description_uk
             )
 
-            # Очищення кешу списків при створенні нового товару
-            # (Можна реалізувати більш розумну інвалідацію, але поки так)
-            # В Redis немає pattern delete без scan, тому просто чекаємо TTL
+            # 🔥 ОЧИЩЕННЯ КЕШУ: Новий товар змінює списки товарів
+            # Видаляємо всі закешовані сторінки каталогів
+            await cache.delete_pattern("products_list:*")
 
             logger.info(f"Створено товар ID: {product.id}")
             return product
@@ -97,8 +97,10 @@ class ProductService:
                 successful = sum(1 for success in results.values() if success)
                 logger.info(f"Переклад товару {product_id}: успішно {successful}/{len(results)} мов")
 
-                # Інвалідація кешу конкретного товару після перекладу
-                # await cache.delete(f"product:{product_id}:*") # Потрібна реалізація delete_pattern
+                # 🔥 ОЧИЩЕННЯ КЕШУ: Після перекладу оновлюємо кеш товару для всіх мов
+                await cache.delete_pattern(f"product:{product_id}:*")
+                # І списки, бо там теж є перекладені назви
+                await cache.delete_pattern("products_list:*")
 
             except Exception as e:
                 logger.error(f"Помилка фонового перекладу товару {product_id}: {str(e)}")
@@ -121,7 +123,7 @@ class ProductService:
         result = await db.execute(
             select(Product)
             .options(selectinload(Product.translations))
-            .options(selectinload(Product.categories))
+            .options(selectinload(Product.categories).selectinload(Category.translations)) # Важливо підгрузити переклади категорій
             .where(Product.id == product_id)
         )
         product = result.scalar_one_or_none()
@@ -133,6 +135,7 @@ class ProductService:
         if not translation:
             translation = product.get_translation('uk')
             if not translation:
+                # Якщо навіть українського немає (біта база), повертаємо заглушку або None
                 return None
 
         # Формуємо відповідь
@@ -178,7 +181,6 @@ class ProductService:
 
         # 1. Формування ключа кешу
         filters_dict = filters.model_dump(exclude_none=True) if filters else {}
-        # Сортуємо ключі фільтрів для стабільності хешу
         filters_str = json.dumps(filters_dict, sort_keys=True)
         cache_key = f"products_list:{language_code}:{limit}:{offset}:{filters_str}"
 
@@ -239,14 +241,18 @@ class ProductService:
                     "actual_price": float(product.get_actual_price()),
                     "categories": [cat.get_translation(language_code).name if cat.get_translation(language_code) else cat.slug for cat in product.categories],
                     "views_count": product.views_count,
-                    "file_size_mb": float(product.file_size_mb) # Додаємо розмір для карток
+                    "file_size_mb": float(product.file_size_mb)
                 })
 
+        # Підрахунок загальної кількості (окремим запитом для пагінації)
+        # Оптимізація: якщо це перша сторінка і кешу немає, count все одно потрібен
         count_query = select(func.count(Product.id))
         if filters and filters.category_id:
             count_query = count_query.join(Product.categories).where(
                 Category.id == filters.category_id
             )
+
+        # Дублюємо фільтри для count_query
         if filters:
             if filters.product_type:
                 count_query = count_query.where(Product.product_type == filters.product_type)
@@ -327,6 +333,7 @@ class ProductService:
                 title_to_translate = uk_trans.title
                 description_to_translate = uk_trans.description
             else:
+                # Якщо раптом немає укр. перекладу
                 uk_trans = ProductTranslation(
                     product_id=product.id,
                     language_code='uk',
@@ -349,10 +356,13 @@ class ProductService:
         await db.commit()
         await db.refresh(product)
 
-        # Кеш конкретного товару автоматично застаріє через TTL,
-        # або можна додати ручне видалення:
-        # await cache.redis.delete(f"product:{product_id}:*") # (якщо є доступ до redis instance)
+        # 🔥 ОЧИЩЕННЯ КЕШУ:
+        # 1. Видаляємо кеш цього конкретного товару (для всіх мов)
+        await cache.delete_pattern(f"product:{product_id}:*")
+        # 2. Видаляємо кеш списків, бо ціна/назва/картинка могли змінитись в каталозі
+        await cache.delete_pattern("products_list:*")
 
+        logger.info(f"Оновлено товар ID: {product_id}, кеш очищено")
         return product
 
     async def delete_product(
@@ -372,7 +382,11 @@ class ProductService:
         await db.delete(product)
         await db.commit()
 
-        logger.info(f"Видалено товар ID: {product_id}")
+        # 🔥 ОЧИЩЕННЯ КЕШУ
+        await cache.delete_pattern(f"product:{product_id}:*")
+        await cache.delete_pattern("products_list:*")
+
+        logger.info(f"Видалено товар ID: {product_id}, кеш очищено")
         return True
 
     async def increment_view_count(
@@ -385,6 +399,8 @@ class ProductService:
         if product:
             product.views_count += 1
             await db.commit()
+            # Примітка: Тут ми НЕ чистимо кеш, бо лічильник переглядів не є критичним
+            # для миттєвого відображення, а часті інвалідації "вб'ють" кеш.
 
 
 product_service = ProductService()
