@@ -11,15 +11,9 @@ WORKDIR /app
 
 # Копіювання файлу залежностей
 COPY requirements.txt .
-# Встановлення Python залежностей
-# OLD: RUN pip install --no-cache-dir --upgrade pip \
-# OLD:     && pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir --upgrade pip wheel setuptools \
     && pip install --no-cache-dir -r requirements.txt
 
-# Копіювання коду додатку
-# OLD: COPY .
-# OLD: .
 COPY . .
 
 # Створення директорії для завантажень

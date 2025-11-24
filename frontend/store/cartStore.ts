@@ -53,7 +53,6 @@ export const useCartStore = create<CartStore>()(
       getTotalPrice: () => {
         const { items } = get()
         return items.reduce((total, item) => {
-          // ВИПРАВЛЕННЯ: Примусова конвертація в Number
           const price = Number(item.sale_price) || Number(item.price)
           return total + price
         }, 0)

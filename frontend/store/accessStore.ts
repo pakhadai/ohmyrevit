@@ -1,7 +1,7 @@
 // frontend/store/accessStore.ts
 
 import { create } from 'zustand';
-import { profileAPI } from '@/lib/api'; // <-- Правильний імпорт
+import { profileAPI } from '@/lib/api';
 
 interface AccessState {
   accessibleProductIds: Set<number>;
@@ -20,7 +20,6 @@ export const useAccessStore = create<AccessState>((set, get) => ({
 
       if (idsToFetch.length === 0) return;
 
-      // Тепер цей виклик буде успішним
       const response = await profileAPI.checkAccess(idsToFetch);
 
       set(state => ({

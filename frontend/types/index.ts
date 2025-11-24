@@ -33,7 +33,7 @@ export interface Product {
   sale_price?: number;
   file_size_mb: number;
   compatibility: string;
-  categories: Category[]; // Тепер це посилається на коректний інтерфейс
+  categories: Category[];
 }
 
 export interface CartItem {

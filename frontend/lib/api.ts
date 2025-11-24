@@ -59,10 +59,11 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 const createAPIClient = (): AxiosInstance => {
   const instance = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://dev.ohmyrevit.pp.ua/api/v1',
+    baseURL: API_URL,
     timeout: 30000,
     headers: {
       'Content-Type': 'application/json',
@@ -112,7 +113,6 @@ const createAPIClient = (): AxiosInstance => {
         return Promise.reject(error);
       }
 
-      // Обробка 401 (Unauthorized) з автоматичним оновленням
       if (error.response?.status === 401 && !originalRequest._retry) {
         if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initData) {
           if (isRefreshing) {
@@ -147,7 +147,7 @@ const createAPIClient = (): AxiosInstance => {
             };
 
             const { data } = await axios.post(
-              `${process.env.NEXT_PUBLIC_API_URL || 'https://dev.ohmyrevit.pp.ua/api/v1'}/auth/telegram`,
+              `${API_URL}/auth/telegram`,
               authData
             );
 
@@ -161,16 +161,16 @@ const createAPIClient = (): AxiosInstance => {
           } catch (refreshError) {
             processQueue(refreshError, null);
             useAuthStore.getState().logout();
-            toast.error('Сесія закінчилась. Будь ласка, увійдіть знову.');
+            if (window.location.pathname !== '/') {
+                toast.error('Сесія закінчилась. Будь ласка, увійдіть знову.');
+            }
           } finally {
             isRefreshing = false;
           }
         } else {
           useAuthStore.getState().logout();
-          toast.error('Сесія закінчилась. Будь ласка, увійдіть знову.');
         }
       } else if (error.response?.status === 403) {
-        toast.error('У вас немає доступу до цієї дії');
       } else if (error.response?.status === 500) {
         if (!originalRequest.url?.includes('/auth/telegram')) {
            toast.error('Помилка сервера. Спробуйте пізніше.');
@@ -187,7 +187,6 @@ const createAPIClient = (): AxiosInstance => {
 const api = createAPIClient();
 const getData = (response: any) => response.data;
 
-// ===== AUTH API =====
 export const authAPI = {
   loginTelegram: async (initData: any) => {
     const response = await api.post('/auth/telegram', initData);
@@ -195,7 +194,6 @@ export const authAPI = {
   },
 };
 
-// ===== PRODUCTS API =====
 export const productsAPI = {
   getProducts: async (params?: {
     category_id?: number;
@@ -203,7 +201,7 @@ export const productsAPI = {
     is_on_sale?: boolean;
     min_price?: number;
     max_price?: number;
-    sort_by?: string; // ВАЖЛИВО: sort_by замість sort
+    sort_by?: string;
     limit?: number;
     offset?: number;
   }) => {
@@ -216,13 +214,11 @@ export const productsAPI = {
     }
     return getData(await api.get(`/products/${id}`, config));
   },
-  // Метод для отримання категорій
   getCategories: async () => {
     return getData(await api.get('/products/categories'));
   },
 };
 
-// ===== ORDERS API =====
 export const ordersAPI = {
   createCheckout: async (data: {
     product_ids: number[];
@@ -240,7 +236,6 @@ export const ordersAPI = {
   },
 };
 
-// ===== PROFILE API =====
 export const profileAPI = {
   getProfile: async () => {
     return getData(await api.get('/profile/me'));
@@ -289,7 +284,6 @@ export const profileAPI = {
   },
 };
 
-// ===== SUBSCRIPTIONS API =====
 export const subscriptionsAPI = {
   checkout: async () => {
     return getData(await api.post('/subscriptions/checkout'));
@@ -299,12 +293,10 @@ export const subscriptionsAPI = {
   },
 };
 
-// ===== ADMIN API =====
 export const adminAPI = {
   getDashboardStats: async () => {
     return getData(await api.get('/admin/dashboard/stats'));
   },
-  // Users
   getUsers: async (params?: { search?: string; skip?: number; limit?: number }) => {
     return getData(await api.get('/admin/users', { params }));
   },
@@ -329,17 +321,15 @@ export const adminAPI = {
   giveSubscription: async (userId: number, days: number) => {
     return getData(await api.post(`/admin/users/${userId}/subscription`, { days }));
   },
-  // Products
-  createProduct: async (data: ProductCreate) => {
+  createProduct: async (data: any) => {
     return getData(await api.post('/admin/products', data));
   },
-  updateProduct: async (id: string | number, data: ProductUpdate) => {
+  updateProduct: async (id: string | number, data: any) => {
     return getData(await api.put(`/admin/products/${id}`, data));
   },
   deleteProduct: async (id: string | number) => {
     return getData(await api.delete(`/admin/products/${id}`));
   },
-  // File uploads
   uploadImage: async (file: File, oldPath?: string) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -358,7 +348,6 @@ export const adminAPI = {
     });
     return getData(response);
   },
-  // Categories
   getCategories: async () => {
     return getData(await api.get('/admin/categories'));
   },
@@ -383,7 +372,6 @@ export const adminAPI = {
   deleteCategory: async (id: number) => {
     return getData(await api.delete(`/admin/categories/${id}`));
   },
-  // Promo codes
   getPromoCodes: async () => {
     return getData(await api.get('/admin/promo-codes'));
   },
@@ -402,7 +390,6 @@ export const adminAPI = {
   deletePromoCode: async (id: number) => {
     return getData(await api.delete(`/admin/promo-codes/${id}`));
   },
-  // Orders
   getOrders: async (params?: { skip?: number; limit?: number; status?: string }) => {
     return getData(await api.get('/admin/orders', { params }));
   },
@@ -417,7 +404,6 @@ export const adminAPI = {
     });
     return getData(response);
   },
-  // Export
   exportUsersCSV: async () => {
     const response = await api.get('/admin/export/users', {
       responseType: 'blob'

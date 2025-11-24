@@ -2,7 +2,7 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: ohmyrevit_cloudflared
-    restart: unless-stopped
+    restart: always
     command: tunnel --config /etc/cloudflared/config.yml run 2c52553e-1ffd-46b3-a653-1e52a8cac070
     volumes:
       - ./config.yml:/etc/cloudflared/config.yml
@@ -18,14 +18,13 @@ services:
     container_name: ohmyrevit_nginx
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
-      # FIX: Mount the uploads volume to allow Nginx to serve files
-      - backend_uploads:/app/uploads
+      - backend_uploads:/app/uploads:ro # Read-only for safety
     networks:
       - ohmyrevit_network
     depends_on:
       - backend
       - frontend
-    restart: unless-stopped
+    restart: always
     ports:
       - "80:80"
 
@@ -36,12 +35,12 @@ services:
     container_name: ohmyrevit_backend
     env_file:
       - ./.env
-    # ДОДАНО: Повертаємо змінну середовища для коректної роботи імпортів в тестах
     environment:
-      PYTHONPATH: .
+      # Вимикаємо PYTHONDONTWRITEBYTECODE для прода, але в Docker це не критично
+      PYTHONUNBUFFERED: 1
     volumes:
-      - ./backend:/app
       - backend_uploads:/app/uploads
+      # В продакшені не монтуємо код ./backend:/app, щоб використовувати версію з образу
     depends_on:
       db:
         condition: service_healthy
@@ -49,32 +48,30 @@ services:
         condition: service_healthy
     networks:
       - ohmyrevit_network
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    restart: unless-stopped
+    # Запуск через Gunicorn для кращої продуктивності (uvicorn workers)
+    command: gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+    restart: always
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile # Використовуємо Production Dockerfile (створений вище)
     container_name: ohmyrevit_frontend
+    env_file:
+      - ./.env # Передаємо змінні, але Next.js потребує їх під час Build-time для PUBLIC змінних
     environment:
-      NEXT_PUBLIC_API_URL: ${BACKEND_URL}/api/v1
-      NEXT_PUBLIC_BACKEND_URL: ${BACKEND_URL}
+      # Важливо: Ці змінні мають бути доступні під час build (ARG) або runtime
+      NEXT_PUBLIC_API_URL: ${FRONTEND_URL}/api/v1
+      NEXT_PUBLIC_BACKEND_URL: ${FRONTEND_URL}
       NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
-      NODE_ENV: development
-      WATCHPACK_POLLING: "true"
-      CHOKIDAR_USEPOLLING: "true"
+      PORT: 3000
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
-      - backend_uploads:/app/public/uploads
+      - backend_uploads:/app/public/uploads:ro # Щоб Next.js міг показувати картинки, якщо потрібно
     depends_on:
       - backend
     networks:
       - ohmyrevit_network
-    command: npm run dev
-    restart: unless-stopped
+    restart: always
 
   db:
     image: postgres:15-alpine
@@ -92,7 +89,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+    restart: always
 
   redis:
     image: redis:7-alpine
@@ -104,24 +101,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+    restart: always
+    # Додаємо персистентність для Redis, щоб не втрачати сесії rate-limit та кеш при перезапуску
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
 
-  adminer:
-    image: adminer:latest
-    container_name: ohmyrevit_adminer
-    ports:
-      - "8080:8080"
-    networks:
-      - ohmyrevit_network
-    depends_on:
-      - db
-    environment:
-      ADMINER_DEFAULT_SERVER: db
-    restart: unless-stopped
+  # Adminer видалено для продакшену
 
 volumes:
   postgres_data:
   backend_uploads:
+  redis_data:
 
 networks:
   ohmyrevit_network:

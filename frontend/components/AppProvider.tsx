@@ -9,7 +9,6 @@ import Onboarding from './Onboarding';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
-// ДОДАНО: імпорти для навігації
 import { usePathname, useRouter } from 'next/navigation';
 
 declare global {
@@ -32,7 +31,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   const authAttempted = useRef(false);
   const { t } = useTranslation();
 
-  // ДОДАНО: Хуки для керування кнопкою "Назад"
   const pathname = usePathname();
   const router = useRouter();
 
@@ -60,7 +58,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     };
   }, [setTheme]);
 
-  // ДОДАНО: Логіка для кнопки "Назад" в Telegram
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
@@ -70,7 +67,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         router.back();
       };
 
-      // Якщо ми не на головній сторінці - показуємо кнопку "Назад"
       if (pathname !== '/') {
         backButton.show();
         backButton.onClick(handleBack);
@@ -78,7 +74,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         backButton.hide();
       }
 
-      // Прибираємо обробник при зміні шляху або розмонтуванні
       return () => {
         backButton.offClick(handleBack);
       };
@@ -104,8 +99,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
 
       if (!authAttempted.current) {
           if (startParam) {
-              // Можна розкоментувати для дебагу
-              // alert(`✅ РЕФЕРАЛ ОТРИМАНО: ${startParam}`);
           } else {
               console.log('ℹ️ Немає реферального коду. Продовжуємо без нього.');
           }

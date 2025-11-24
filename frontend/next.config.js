@@ -1,6 +1,20 @@
-/** @type {import('next').NextConfig} */
+
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+let backendHostname = 'localhost';
+let backendProtocol = 'http';
+
+try {
+  const url = new URL(backendUrl);
+  backendHostname = url.hostname;
+  backendProtocol = url.protocol.replace(':', '');
+} catch (e) {
+  console.error('Failed to parse NEXT_PUBLIC_BACKEND_URL');
+}
+
 const nextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
+
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,
@@ -8,26 +22,16 @@ const nextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'dev.ohmyrevit.pp.ua',
+        protocol: backendProtocol,
+        hostname: backendHostname,
         port: '',
         pathname: '/uploads/**',
       },
-       {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '8000',
-        pathname: '/uploads/**',
-      },
     ],
   },
-  // ОПТИМІЗАЦІЯ: Видалено headers з no-cache.
-  // Next.js сам чудово керує кешуванням статики.
   devIndicators: {
-    allowedDevOrigins: [
-      'https://dev.ohmyrevit.pp.ua',
-    ],
-  },
+    buildActivity: false,
+  }
 }
 
 module.exports = nextConfig

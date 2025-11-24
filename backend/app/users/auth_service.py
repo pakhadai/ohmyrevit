@@ -26,38 +26,55 @@ class AuthService:
 
     @staticmethod
     def verify_telegram_auth(auth_data: dict) -> bool:
-        if settings.DEBUG:
+        """
+        Перевірка підпису даних від Telegram.
+        """
+        # 1. Локальна розробка (Development backdoor)
+        # Дозволяємо вхід без валідного підпису ТІЛЬКИ якщо це development оточення.
+        if settings.ENVIRONMENT == 'development' and settings.DEBUG:
+            # logger.warning("⚠️ Auth verification SKIPPED (Development Mode)") # Розкоментуйте, якщо хочете бачити це в логах
             return True
 
+        # 2. Перевірка налаштувань для Production
         if not settings.TELEGRAM_BOT_TOKEN:
-            logger.warning("⚠️ TELEGRAM_BOT_TOKEN not configured!")
-            return settings.DEBUG
+            logger.error("⚠️ TELEGRAM_BOT_TOKEN not configured!")
+            return False
 
         auth_dict = auth_data.copy()
         received_hash = auth_dict.pop('hash', '')
-        if not received_hash or received_hash == 'test_hash_for_development':
-            return settings.DEBUG
 
-        auth_date = auth_dict.get('auth_date', 0)
-        # ВИПРАВЛЕННЯ 3.3: Зменшено час життя auth_date з 24 годин до 1 години (3600 секунд)
-        # Це значно знижує ризик Replay Attack
-        if time.time() - int(auth_date) > 3600:
-            logger.warning("⏰ Auth data is too old (> 1 hour)")
+        if not received_hash:
             return False
 
+        # 3. Перевірка актуальності даних (захист від Replay Attack)
+        auth_date = auth_dict.get('auth_date', 0)
+        try:
+            # Дозволяємо дані не старіші за 1 годину (можна збільшити до 24 годин, якщо є проблеми з часом)
+            if time.time() - int(auth_date) > 3600:
+                logger.warning(f"⏰ Auth data is too old. Diff: {time.time() - int(auth_date)}")
+                return False
+        except (ValueError, TypeError):
+            return False
+
+        # 4. Формування рядка перевірки
         check_string_parts = []
         for key in sorted(auth_dict.keys()):
             value = auth_dict[key]
             if value is not None:
                 if isinstance(value, (dict, list)):
-                    value = json.dumps(value, separators=(',', ':'), sort_keys=True)
+                    pass
                 check_string_parts.append(f"{key}={value}")
 
         check_string = "\n".join(check_string_parts)
         secret_key = hashlib.sha256(settings.TELEGRAM_BOT_TOKEN.encode()).digest()
         computed_hash = hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
 
-        return computed_hash == received_hash
+        is_valid = hmac.compare_digest(computed_hash, received_hash)
+
+        if not is_valid:
+            logger.warning(f"❌ Invalid hash for user {auth_dict.get('id')}")
+
+        return is_valid
 
     @staticmethod
     def create_access_token(user_id: int) -> str:
@@ -82,48 +99,24 @@ class AuthService:
 
     @staticmethod
     async def process_referral_link(db: AsyncSession, user: User, start_param: str):
-        # 🔍 ДІАГНОСТИКА
-        logger.info(f"🎯 PROCESS REFERRAL LINK CALLED")
-        logger.info(f"- Current user ID: {user.id}")
-        logger.info(f"- Current user referrer_id: {user.referrer_id}")
-        logger.info(f"- Start param: '{start_param}'")
-
-        # Очистка коду від зайвих пробілів
         start_param = start_param.strip()
 
-        # 1. Перевірки
         if user.referrer_id is not None:
-            logger.info(f"⚠️ User {user.id} already has referrer_id={user.referrer_id}")
             return
 
         if user.referral_code == start_param:
-            logger.info(f"⚠️ User trying to use their own referral code")
             return
 
-        # 2. Шукаємо реферера
-        logger.info(f"🔍 Looking for referrer with code: {start_param}")
         referrer_res = await db.execute(select(User).where(User.referral_code == start_param))
         referrer = referrer_res.scalar_one_or_none()
 
-        if not referrer:
-            logger.warning(f"❌ Referral code '{start_param}' not found in database.")
+        if not referrer or referrer.id == user.id:
             return
 
-        logger.info(f"✅ Found referrer: ID={referrer.id}, username={referrer.username}")
-
-        if referrer.id == user.id:
-            logger.info(f"⚠️ Referrer and user are the same person")
-            return
-
-        # 3. Прив'язуємо та нараховуємо бонус
         user.referrer_id = referrer.id
-        logger.info(f"✅ Set user.referrer_id = {referrer.id}")
-
         bonus_amount = settings.REFERRAL_REGISTRATION_BONUS
         referrer.bonus_balance += bonus_amount
-        logger.info(f"💰 Added {bonus_amount} bonuses to referrer {referrer.id}")
 
-        # Логуємо подію
         log_entry = ReferralLog(
             referrer_id=referrer.id,
             referred_user_id=user.id,
@@ -131,11 +124,7 @@ class AuthService:
             bonus_amount=bonus_amount
         )
         db.add(log_entry)
-        logger.info(f"📝 Created ReferralLog entry")
 
-        logger.info(f"🎉 Referral success: User {referrer.id} invited {user.id}. +{bonus_amount} bonuses.")
-
-        # 4. Сповіщення рефереру
         try:
             message = (
                 f"🎉 *Новий реферал!*\n\n"
@@ -143,9 +132,8 @@ class AuthService:
                 f"Вам нараховано *+{bonus_amount}* бонусів! 💎"
             )
             await telegram_service.send_message(referrer.telegram_id, message)
-            logger.info(f"✅ Sent notification to referrer")
         except Exception as e:
-            logger.error(f"❌ Failed to send referral notification: {e}")
+            logger.error(f"Failed to send referral notification: {e}")
 
     @staticmethod
     async def authenticate_telegram_user(
@@ -153,18 +141,10 @@ class AuthService:
             auth_data: TelegramAuthData
     ) -> Tuple[User, bool]:
 
-        # 🔍 ДІАГНОСТИКА: Що прийшло від frontend
-        logger.info(f"=" * 60)
-        logger.info(f"📥 AUTHENTICATE TELEGRAM USER")
-        logger.info(f"- User ID: {auth_data.id}")
-        logger.info(f"- Username: {auth_data.username}")
-        logger.info(f"- First name: {auth_data.first_name}")
-        logger.info(f"- Start param received: {auth_data.start_param}")
-        logger.info(f"=" * 60)
-
         auth_data_dict = auth_data.model_dump(exclude_none=True)
 
-        if not settings.DEBUG and not AuthService.verify_telegram_auth(auth_data_dict):
+        # Викликаємо нашу оновлену функцію перевірки
+        if not AuthService.verify_telegram_auth(auth_data_dict):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram authentication data")
 
         result = await db.execute(select(User).where(User.telegram_id == auth_data.id))
@@ -197,13 +177,11 @@ class AuthService:
                 else:
                     raise HTTPException(status_code=500, detail="Could not generate unique referral code")
 
-                # Перший юзер - адмін
                 users_count_res = await db.execute(select(func.count(User.id)))
                 if users_count_res.scalar_one() == 1:
                     user.is_admin = True
 
             else:
-                # Оновлення даних
                 user.username = auth_data.username
                 user.first_name = auth_data.first_name or user.first_name
                 user.last_name = auth_data.last_name or user.last_name
@@ -213,9 +191,7 @@ class AuthService:
                 if not user.referral_code:
                     user.referral_code = AuthService._generate_referral_code()
 
-            # === ВАЖЛИВО: Обробка реферала ===
             if auth_data.start_param:
-                logger.info(f"Processing referral param: {auth_data.start_param}")
                 await AuthService.process_referral_link(db, user, auth_data.start_param)
 
             await db.commit()

@@ -1,4 +1,3 @@
-// ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 import { create } from 'zustand';
 import { profileAPI } from '@/lib/api';
 import { Collection } from '@/types';
@@ -40,11 +39,9 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
     try {
       const newCollection = await profileAPI.createCollection({ name, color });
       set(state => ({ collections: [...state.collections, newCollection] }));
-      // OLD: toast.success(`Колекцію "${name}" створено`);
       toast.success(i18n.t('toasts.collectionCreated', { name }));
       return newCollection;
     } catch (error: any) {
-      // OLD: toast.error(error.message || "Не вдалося створити колекцію");
       toast.error(error.message || i18n.t('toasts.collectionCreateError'));
       return null;
     }
@@ -56,10 +53,8 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
       set(state => ({
         collections: state.collections.filter(c => c.id !== id)
       }));
-      // OLD: toast.success("Колекцію видалено");
       toast.success(i18n.t('toasts.collectionDeleted'));
     } catch (error) {
-      // OLD: toast.error("Не вдалося видалити колекцію");
       toast.error(i18n.t('toasts.collectionDeleteError'));
     }
   },

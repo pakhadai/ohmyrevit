@@ -1,7 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
-"""
-Сервіс для автоматичного перекладу товарів через DeepL API
-"""
 import httpx
 import logging
 from typing import Dict, List, Optional
@@ -16,13 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 class TranslationService:
-    """Сервіс для роботи з перекладами"""
 
     def __init__(self):
         self.deepl_api_key = settings.DEEPL_API_KEY
-        self.deepl_api_url = "https://api-free.deepl.com/v2/translate"  # або api.deepl.com для Pro
-        # # OLD: self.target_languages = ['EN', 'RU']  # Мови для перекладу
-        self.target_languages = settings.DEEPL_TARGET_LANGUAGES # Мови для перекладу беруться з конфігурації
+        self.deepl_api_url = "https://api-free.deepl.com/v2/translate"
+        self.target_languages = settings.DEEPL_TARGET_LANGUAGES
 
     async def translate_text(
             self,
@@ -30,17 +24,7 @@ class TranslationService:
             target_lang: str,
             source_lang: str = 'UK'
     ) -> Optional[str]:
-        """
-        Переклад тексту через DeepL API
 
-        Args:
-            text: Текст для перекладу
-            target_lang: Цільова мова (EN, RU)
-            source_lang: Вихідна мова (UK)
-
-        Returns:
-            Перекладений текст або None при помилці
-        """
         if not self.deepl_api_key:
             logger.error("DeepL API key не налаштовано!")
             return None
@@ -54,11 +38,10 @@ class TranslationService:
             'text': text,
             'source_lang': source_lang,
             'target_lang': target_lang,
-            'preserve_formatting': '1'  # Зберігаємо форматування
+            'preserve_formatting': '1'
         }
 
         try:
-            # Асинхронний запит до DeepL
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     self.deepl_api_url,
@@ -87,19 +70,11 @@ class TranslationService:
             description_uk: str,
             db: AsyncSession
     ) -> Dict[str, bool]:
-        """
-        Переклад товару на всі цільові мови.
-        Цей метод тепер є ідемпотентним: він оновить існуючі переклади або створить нові.
-        """
+
         results = {}
 
-        # === ВИРІШЕННЯ ПРОБЛЕМИ: Не створюємо український переклад повторно ===
-        # Українська версія вже створюється в product_service, тому ми її тут не чіпаємо.
-
-        # Перекладаємо на кожну цільову мову
         for lang in self.target_languages:
             try:
-                # Перекладаємо назву
                 translated_title = await self.translate_text(
                     title_uk,
                     target_lang=lang
@@ -112,13 +87,12 @@ class TranslationService:
                 )
 
                 if translated_title is not None and translated_description is not None:
-                    # === ПОКРАЩЕННЯ: Оновлюємо існуючий переклад або створюємо новий ===
                     await self.update_translation(
                         product_id=product_id,
                         language_code=lang.lower(),
                         title=translated_title,
                         description=translated_description,
-                        is_auto=True, # Позначаємо, що це авто-переклад
+                        is_auto=True,
                         db=db
                     )
                     results[lang] = True
@@ -131,13 +105,11 @@ class TranslationService:
                 logger.error(f"Помилка при перекладі товару {product_id} на {lang}: {str(e)}")
                 results[lang] = False
 
-        # Зберігаємо всі зміни
         try:
             await db.commit()
         except Exception as e:
             logger.error(f"Помилка збереження перекладів: {str(e)}")
             await db.rollback()
-            # У фоновому завданні не варто піднімати виключення, просто логуємо
 
         return results
 
@@ -148,40 +120,31 @@ class TranslationService:
             title: str,
             description: str,
             db: AsyncSession,
-            is_auto: bool = False # Додано параметр для розрізнення ручного та авто-оновлення
+            is_auto: bool = False
     ) -> bool:
-        """
-        Оновлення або створення існуючого перекладу.
-        """
+
         try:
-            # Шукаємо існуючий переклад
             result = await db.execute(select(ProductTranslation).filter_by(
                 product_id=product_id, language_code=language_code
             ))
             translation = result.scalar_one_or_none()
 
             if translation:
-                # Оновлюємо
                 translation.title = title
                 translation.description = description
-                # Якщо це ручне оновлення, знімаємо позначку авто-перекладу
                 translation.is_auto_translated = is_auto
-# OLD:                 translation.translated_at = datetime.utcnow()
                 translation.translated_at = datetime.now(timezone.utc)
             else:
-                # Створюємо новий
                 translation = ProductTranslation(
                     product_id=product_id,
                     language_code=language_code,
                     title=title,
                     description=description,
                     is_auto_translated=is_auto,
-# OLD:                     translated_at=datetime.utcnow()
                     translated_at=datetime.now(timezone.utc)
                 )
                 db.add(translation)
 
-            # Commit тут не робимо, він буде в головному методі translate_product
             await db.flush()
             return True
 
@@ -190,6 +153,4 @@ class TranslationService:
             await db.rollback()
             return False
 
-
-# Створюємо екземпляр сервісу для використання
 translation_service = TranslationService()
