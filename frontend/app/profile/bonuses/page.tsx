@@ -67,57 +67,53 @@ export default function BonusesPage() {
         animate={{ opacity: 1, y: 0 }}
         className="relative overflow-hidden bg-gradient-to-br from-orange-500 to-amber-600 rounded-[24px] p-6 text-white shadow-lg"
       >
-        {/* ОПТИМІЗАЦІЯ: Прибрано blur-[50px] */}
         <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
 
         <div className="relative z-10">
           <div className="flex justify-between items-start mb-6">
             <div>
-               {/* ОПТИМІЗАЦІЯ: backdrop-blur-md -> bg-white/20 */}
-               <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full mb-3 border border-white/10">
-                  <Zap size={14} className="text-yellow-200 fill-yellow-200" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-white">Daily Streak</span>
-               </div>
-               <h2 className="text-3xl font-bold mb-1">{bonusInfo.streak} {t('profilePages.bonuses.days')}</h2>
-               <p className="text-white/80 text-sm font-medium">{t('profilePages.bonuses.currentStreak')}</p>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full mb-3 border border-white/10">
+                <Zap size={14} className="text-yellow-200 fill-yellow-200" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-white">{t('profilePages.bonuses.dailyStreakLabel')}</span>
+              </div>
+              <h2 className="text-3xl font-bold mb-1">{bonusInfo.streak} {t('profilePages.bonuses.days')}</h2>
+              <p className="text-white/80 text-sm font-medium">{t('profilePages.bonuses.currentStreak')}</p>
             </div>
             <Gift size={48} className="text-white/20 rotate-12" />
           </div>
 
           <div className="mb-6">
             <div className="flex justify-between text-xs font-medium text-white/80 mb-2">
-                <span>Тижневий прогрес</span>
-                <span>{progress}/7</span>
+              <span>{t('profilePages.bonuses.weeklyProgress')}</span>
+              <span>{progress}/7</span>
             </div>
-            {/* ОПТИМІЗАЦІЯ: Прибрано backdrop-blur-sm */}
             <div className="h-2 w-full bg-black/20 rounded-full overflow-hidden">
-                <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progressPercent}%` }}
-                    className="h-full bg-white rounded-full shadow-sm"
-                />
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPercent}%` }}
+                className="h-full bg-white rounded-full shadow-sm"
+              />
             </div>
           </div>
 
           <button
             onClick={claimBonus}
             disabled={!bonusInfo.can_claim_today}
-            className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg ${
-              bonusInfo.can_claim_today
+            className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg ${bonusInfo.can_claim_today
                 ? 'bg-white text-orange-600 hover:bg-orange-50 active:scale-[0.98]'
                 : 'bg-black/20 text-white/60 cursor-not-allowed'
-            }`}
+              }`}
           >
             {bonusInfo.can_claim_today ? (
-                <>
-                    <Gift size={18} />
-                    {t('profilePages.bonuses.claimBonus')}
-                </>
+              <>
+                <Gift size={18} />
+                {t('profilePages.bonuses.claimBonus')}
+              </>
             ) : (
-                <>
-                    <CheckCircle2 size={18} />
-                    {t('profilePages.bonuses.alreadyClaimed')}
-                </>
+              <>
+                <CheckCircle2 size={18} />
+                {t('profilePages.bonuses.alreadyClaimed')}
+              </>
             )}
           </button>
 
@@ -132,10 +128,10 @@ export default function BonusesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="card-minimal p-5"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="card-minimal p-5"
         >
           <p className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-2">{t('profilePages.bonuses.currentBalance')}</p>
           <div className="flex items-baseline gap-2">
@@ -149,29 +145,29 @@ export default function BonusesPage() {
         </motion.div>
 
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="card-minimal p-5"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="card-minimal p-5"
         >
-           <div className="flex items-center gap-2 mb-3 text-muted-foreground">
-             <Info size={16} />
-             <h3 className="text-xs font-bold uppercase tracking-wider">{t('profilePages.bonuses.howItWorks')}</h3>
-           </div>
-           <ul className="space-y-3">
-              <li className="flex gap-3 text-sm text-foreground/80">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0"></div>
-                <span>{t('profilePages.bonuses.rule1')}</span>
-              </li>
-              <li className="flex gap-3 text-sm text-foreground/80">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0"></div>
-                <span>{t('profilePages.bonuses.rule2')}</span>
-              </li>
-              <li className="flex gap-3 text-sm text-foreground/80">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0"></div>
-                <span>{t('profilePages.bonuses.rule3')}</span>
-              </li>
-           </ul>
+          <div className="flex items-center gap-2 mb-3 text-muted-foreground">
+            <Info size={16} />
+            <h3 className="text-xs font-bold uppercase tracking-wider">{t('profilePages.bonuses.howItWorks')}</h3>
+          </div>
+          <ul className="space-y-3">
+            <li className="flex gap-3 text-sm text-foreground/80">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0"></div>
+              <span>{t('profilePages.bonuses.rule1')}</span>
+            </li>
+            <li className="flex gap-3 text-sm text-foreground/80">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0"></div>
+              <span>{t('profilePages.bonuses.rule2')}</span>
+            </li>
+            <li className="flex gap-3 text-sm text-foreground/80">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0"></div>
+              <span>{t('profilePages.bonuses.rule3')}</span>
+            </li>
+          </ul>
         </motion.div>
       </div>
     </div>

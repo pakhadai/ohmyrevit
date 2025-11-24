@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
+import i18n from '@/lib/i18n';
 
 export interface Category {
   id: number;
@@ -162,7 +163,7 @@ const createAPIClient = (): AxiosInstance => {
             processQueue(refreshError, null);
             useAuthStore.getState().logout();
             if (window.location.pathname !== '/') {
-                toast.error('Сесія закінчилась. Будь ласка, увійдіть знову.');
+              toast.error(i18n.t('toasts.sessionExpired'));
             }
           } finally {
             isRefreshing = false;
@@ -173,7 +174,7 @@ const createAPIClient = (): AxiosInstance => {
       } else if (error.response?.status === 403) {
       } else if (error.response?.status === 500) {
         if (!originalRequest.url?.includes('/auth/telegram')) {
-           toast.error('Помилка сервера. Спробуйте пізніше.');
+          toast.error(i18n.t('toasts.serverError'));
         }
       }
 

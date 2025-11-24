@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { profileAPI } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import { Download, Package, Crown, Loader, ArrowRight } from 'lucide-react';
+import { Download, Package, Crown, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,7 +17,7 @@ interface DownloadableProduct {
   zip_file_path: string;
 }
 
-function DownloadItem({ product }: { product: DownloadableProduct }) {
+const DownloadItem = forwardRef<HTMLDivElement, { product: DownloadableProduct }>(({ product }, ref) => {
     const { token } = useAuthStore.getState();
     const { t } = useTranslation();
 
@@ -40,7 +40,6 @@ function DownloadItem({ product }: { product: DownloadableProduct }) {
             return path;
         }
 
-        // Додано перевірку для відносного шляху
         if (path.startsWith('/uploads/')) {
             return path;
         }
@@ -51,6 +50,7 @@ function DownloadItem({ product }: { product: DownloadableProduct }) {
 
     return (
         <motion.div
+            ref={ref}
             layout
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -82,7 +82,9 @@ function DownloadItem({ product }: { product: DownloadableProduct }) {
             </div>
         </motion.div>
     );
-}
+});
+
+DownloadItem.displayName = 'DownloadItem';
 
 export default function DownloadsPage() {
   const [activeTab, setActiveTab] = useState('premium');
@@ -145,7 +147,6 @@ export default function DownloadsPage() {
         <h1 className="text-2xl font-bold text-foreground">{t('profilePages.downloads.pageTitle')}</h1>
       </div>
 
-      {/* Нові Таби (Tabs) */}
       <div className="flex p-1 bg-muted rounded-2xl mb-6 relative z-20">
         <button
             onClick={() => setActiveTab('premium')}

@@ -43,14 +43,13 @@ export default function ProductCard({ product }: ProductCardProps) {
     e.preventDefault();
     const token = useAuthStore.getState().token;
     if (token) {
-        const url = `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL}/profile/download/${product.id}?token=${token}`;
-        window.open(url, '_blank');
+      const url = `${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL}/profile/download/${product.id}?token=${token}`;
+      window.open(url, '_blank');
     } else {
-        toast.error(t('toasts.loginToDownload'));
+      toast.error(t('toasts.loginToDownload'));
     }
   };
 
-  // ВИПРАВЛЕННЯ: Конвертуємо ціни в числа, щоб уникнути помилки .toFixed()
   const price = Number(product.price);
   const salePrice = product.sale_price ? Number(product.sale_price) : null;
 
@@ -82,7 +81,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <div className="absolute top-2 left-2 flex flex-col gap-2">
             {product.product_type === 'free' && (
               <span className="px-2.5 py-1 bg-green-600 text-white text-xs font-bold rounded-full">
-                FREE
+                {t('product.free')}
               </span>
             )}
             {product.is_on_sale && (
@@ -113,7 +112,6 @@ export default function ProductCard({ product }: ProductCardProps) {
               {product.is_on_sale && salePrice ? (
                 <>
                   <span className="text-lg font-bold text-primary">
-                    {/* ВИПРАВЛЕННЯ: Використовуємо конвертовану змінну */}
                     ${salePrice.toFixed(2)}
                   </span>
                   <span className="text-sm line-through text-muted-foreground">
@@ -122,7 +120,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 </>
               ) : (
                 <span className="text-lg font-bold text-foreground">
-                  {price === 0 ? 'FREE' : `$${price.toFixed(2)}`}
+                  {price === 0 ? t('product.free') : `$${price.toFixed(2)}`}
                 </span>
               )}
             </div>
@@ -132,12 +130,12 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
 
           {hasAccess ? (
-             <button
-                onClick={handleDownload}
-                className="w-full mt-auto py-2.5 bg-green-600 text-white rounded-xl flex items-center justify-center gap-2 font-medium text-sm active:opacity-80"
+            <button
+              onClick={handleDownload}
+              className="w-full mt-auto py-2.5 bg-green-600 text-white rounded-xl flex items-center justify-center gap-2 font-medium text-sm active:opacity-80"
             >
-                <Download className="w-4 h-4" />
-                <span>Завантажити</span>
+              <Download className="w-4 h-4" />
+              <span>{t('productPage.download')}</span>
             </button>
           ) : (
             <button

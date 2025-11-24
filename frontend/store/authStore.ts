@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { User } from '@/types';
 import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
+import i18n from '@/lib/i18n';
 
 interface AuthState {
   user: User | null;
@@ -33,11 +34,10 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, isNewUser: null });
 
         try {
-          console.log('🔐 Починаємо авторизацію...');
           const response = await authAPI.loginTelegram(initData);
 
           if (!response || !response.user || !response.access_token) {
-            throw new Error('Сервер не повернув дані користувача');
+            throw new Error(i18n.t('auth.serverDataError'));
           }
 
           set({
@@ -49,12 +49,9 @@ export const useAuthStore = create<AuthState>()(
             isNewUser: response.is_new_user,
           });
 
-          console.log('✅ Користувач авторизований:', response.user.first_name);
           return response;
 
         } catch (error: any) {
-          console.error('❌ Помилка авторизації:', error);
-
           set({
             isLoading: false,
             isAuthenticated: false,
@@ -75,7 +72,7 @@ export const useAuthStore = create<AuthState>()(
           lastLoginAt: null,
           isNewUser: null,
         });
-        toast.success('Ви вийшли з системи');
+        toast.success(i18n.t('toasts.loggedOut'));
       },
 
       setUser: (user: User) => {
@@ -97,7 +94,7 @@ export const useAuthStore = create<AuthState>()(
 
         if (Date.now() - lastLoginAt > TOKEN_LIFETIME_MS) {
           get().logout();
-          toast.error("Сесія застаріла. Будь ласка, увійдіть знову.");
+          toast.error(i18n.t('toasts.sessionExpired'));
         }
       },
     }),
