@@ -3,7 +3,7 @@
 import { Product } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Heart, ShoppingCart, Download } from 'lucide-react';
+import { Heart, ShoppingCart, Download, Check } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useTranslation } from 'react-i18next';
 import { useAccessStore } from '@/store/accessStore';
@@ -18,7 +18,7 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const addToCart = useCartStore((state) => state.addItem);
+  const { addItem, removeItem, items } = useCartStore();
   const { t } = useTranslation();
   const { checkAccess } = useAccessStore();
   const { favoritedProductIds } = useCollectionStore();
@@ -26,11 +26,16 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const hasAccess = checkAccess(product.id);
   const isFavorited = favoritedProductIds.has(product.id);
+  const isInCart = items.some(item => item.id === product.id);
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleCartAction = (e: React.MouseEvent) => {
     e.preventDefault();
-    addToCart(product);
-    toast.success(t('toasts.addedToCart', { title: product.title }));
+    if (isInCart) {
+      removeItem(product.id);
+    } else {
+      addItem(product);
+      toast.success(t('toasts.addedToCart', { title: product.title }));
+    }
   };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
@@ -120,7 +125,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 </>
               ) : (
                 <span className="text-lg font-bold text-foreground">
-                  {price === 0 ? t('product.free') : `$${price.toFixed(2)}`}
+                  ${price.toFixed(2)}
                 </span>
               )}
             </div>
@@ -139,11 +144,24 @@ export default function ProductCard({ product }: ProductCardProps) {
             </button>
           ) : (
             <button
-              onClick={handleAddToCart}
-              className="w-full mt-auto py-2.5 bg-primary text-primary-foreground rounded-xl flex items-center justify-center gap-2 font-medium text-sm active:opacity-80"
+              onClick={handleCartAction}
+              className={`w-full mt-auto py-2.5 rounded-xl flex items-center justify-center gap-2 font-medium text-sm active:opacity-80 transition-colors ${
+                isInCart
+                  ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
+              }`}
             >
-              <ShoppingCart className="w-4 h-4" />
-              <span>{t('product.addToCart')}</span>
+              {isInCart ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>{t('product.inCart')}</span>
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="w-4 h-4" />
+                  <span>{t('product.addToCart')}</span>
+                </>
+              )}
             </button>
           )}
         </div>
