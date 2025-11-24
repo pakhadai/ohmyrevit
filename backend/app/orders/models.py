@@ -1,7 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
-"""
-Моделі для замовлень та промокодів
-"""
 from sqlalchemy import (
     Column, Integer, String, Numeric, Boolean,
     ForeignKey, DateTime, Enum, Text
@@ -35,8 +31,6 @@ class PromoCode(Base):
     current_uses = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    # OLD: orders_used_in = relationship("Order", back_populates="promo_code")
     orders_used_in = relationship("Order", back_populates="promo_code")
 
 
@@ -59,8 +53,11 @@ class Order(Base):
     # Зв'язки
     user = relationship("User", backref="orders")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
-    # OLD: promo_code = relationship("PromoCode", back_populates="orders_used_in")
     promo_code = relationship("PromoCode", back_populates="orders_used_in")
+
+    @property
+    def items_count(self) -> int:
+        return len(self.items)
 
 
 class OrderItem(Base):
