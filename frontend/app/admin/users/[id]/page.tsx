@@ -240,13 +240,24 @@ export default function UserDetailPage() {
                            <div className="space-y-2">
                                {user.subscriptions.map(s => (
                                    <div key={s.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-border/50">
-                                       <div className="flex items-center gap-3">
-                                           <div className={`w-2 h-2 rounded-full ${s.status === 'active' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                                           <span className="text-sm font-medium capitalize">{s.status}</span>
-                                       </div>
-                                       <div className="text-xs text-muted-foreground">
-                                           {t('subscription.activeUntil')} <span className="font-medium text-foreground">{new Date(s.end_date).toLocaleDateString()}</span>
-                                       </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-2 h-2 rounded-full ${
+                                                s.status === 'active' ? 'bg-green-500' :
+                                                s.status === 'pending' ? 'bg-yellow-500' : 'bg-gray-400'
+                                            }`}></div>
+                                            <span className="text-sm font-medium capitalize">{s.status}</span>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {s.status === 'active' ? (
+                                                <>
+                                                    {t('subscription.activeUntil')} <span className="font-medium text-foreground">{new Date(s.end_date).toLocaleDateString()}</span>
+                                                </>
+                                            ) : s.status === 'pending' ? (
+                                                <span className="text-yellow-600">Очікує оплати</span>
+                                            ) : (
+                                                <span>Неактивна</span>
+                                            )}
+                                        </div>
                                    </div>
                                ))}
                            </div>

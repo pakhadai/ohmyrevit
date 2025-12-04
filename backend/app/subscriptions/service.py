@@ -1,10 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-# # OLD: from app.subscriptions.models import Subscription, UserProductAccess, SubscriptionStatus
 from app.subscriptions.models import Subscription, UserProductAccess, SubscriptionStatus
 from app.products.models import Product
-# OLD: from datetime import datetime, timedelta
 from datetime import datetime, timedelta, timezone
-# # OLD: from sqlalchemy import select
 from sqlalchemy import select, update
 
 
@@ -13,8 +10,6 @@ class SubscriptionService:
         self.db = db
 
     async def create_subscription(self, user_id: int) -> Subscription:
-
-        # Перевіряємо чи немає активної підписки
         existing = await self.db.execute(
             select(Subscription).where(
                 Subscription.user_id == user_id,
@@ -36,7 +31,6 @@ class SubscriptionService:
         return subscription
 
     async def check_and_update_expired(self) -> int:
-
         stmt = (
             update(Subscription)
             .where(
@@ -44,6 +38,21 @@ class SubscriptionService:
                 Subscription.end_date < datetime.now(timezone.utc)
             )
             .values(status=SubscriptionStatus.EXPIRED)
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        return result.rowcount
+
+    async def cancel_stale_pending_subscriptions(self) -> int:
+        threshold_time = datetime.now(timezone.utc) - timedelta(hours=24)
+
+        stmt = (
+            update(Subscription)
+            .where(
+                Subscription.status == SubscriptionStatus.PENDING,
+                Subscription.created_at < threshold_time
+            )
+            .values(status=SubscriptionStatus.CANCELLED)
         )
         result = await self.db.execute(stmt)
         await self.db.commit()

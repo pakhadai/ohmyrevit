@@ -46,6 +46,9 @@ export default function RootLayout({
               <BottomNav />
               <Toaster
                 position="top-center"
+                containerStyle={{
+                 top: 80,
+                }}
                 toastOptions={{
                   style: {
                     background: 'var(--card)',

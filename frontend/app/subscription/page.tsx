@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { subscriptionsAPI } from '@/lib/api';
 import { motion } from 'framer-motion';
-import { Crown, CheckCircle2, Loader, Calendar, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Crown, CheckCircle2, Loader, Calendar, Sparkles, ShieldCheck, ArrowRight, AlertTriangle, CreditCard, XCircle, Settings, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'next/navigation';
 
 interface SubscriptionStatus {
   has_active_subscription: boolean;
@@ -23,6 +24,7 @@ export default function SubscriptionPage() {
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const { t } = useTranslation();
+  const router = useRouter();
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -58,6 +60,14 @@ export default function SubscriptionPage() {
     }
   };
 
+  const handleCancelSubscription = () => {
+    router.push('/profile/support');
+    toast(t('subscription.toasts.cancelInfo'), {
+      icon: 'ℹ️',
+      duration: 4000
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-60">
@@ -72,49 +82,94 @@ export default function SubscriptionPage() {
       <h1 className="text-2xl font-bold text-foreground">{t('subscription.pageTitle')}</h1>
 
       {status?.has_active_subscription ? (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-[24px] p-6 text-white shadow-lg"
-        >
-          {/* ОПТИМІЗАЦІЯ: Видалено blur-[50px]. Замінено на просту прозорість. */}
-          <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+        <div className="space-y-6">
+            <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-[24px] p-6 text-white shadow-xl shadow-emerald-500/20"
+            >
+            <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-10 -mt-10 pointer-events-none blur-3xl"></div>
 
-          <div className="relative z-10 text-center">
-            {/* ОПТИМІЗАЦІЯ: backdrop-blur-md -> bg-white/20 */}
-            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
-                <Crown size={32} className="text-white" fill="currentColor" />
-            </div>
-
-            <h2 className="text-2xl font-bold mb-2">{t('subscription.activeTitle')}</h2>
-            <p className="opacity-90 mb-8 text-sm max-w-xs mx-auto">{t('subscription.activeSubtitle')}</p>
-
-            <div className="grid grid-cols-2 gap-4">
-                {/* ОПТИМІЗАЦІЯ: backdrop-blur-sm прибрано */}
-                <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
-                    <div className="flex items-center justify-center gap-2 text-white/80 text-xs font-medium mb-1">
-                        <Calendar size={14} />
-                        <span>{t('subscription.activeUntil')}</span>
-                    </div>
-                    <p className="text-lg font-bold">{new Date(status.subscription!.end_date).toLocaleDateString()}</p>
+            <div className="relative z-10 text-center">
+                <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner backdrop-blur-sm">
+                    <Crown size={40} className="text-yellow-300 fill-yellow-300 animate-pulse" />
                 </div>
-                <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
-                    <div className="flex items-center justify-center gap-2 text-white/80 text-xs font-medium mb-1">
-                        <Sparkles size={14} />
-                        <span>{t('subscription.daysRemaining')}</span>
+
+                <h2 className="text-2xl font-bold mb-2">{t('subscription.activeTitle')}</h2>
+                <p className="opacity-90 mb-8 text-sm max-w-xs mx-auto">{t('subscription.activeSubtitle')}</p>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-black/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                        <div className="flex items-center justify-center gap-2 text-white/80 text-xs font-medium mb-1">
+                            <Calendar size={14} />
+                            <span>{t('subscription.activeUntil')}</span>
+                        </div>
+                        <p className="text-lg font-bold font-mono">{new Date(status.subscription!.end_date).toLocaleDateString()}</p>
                     </div>
-                    <p className="text-lg font-bold">{status.subscription!.days_remaining}</p>
+                    <div className="bg-black/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                        <div className="flex items-center justify-center gap-2 text-white/80 text-xs font-medium mb-1">
+                            <Sparkles size={14} />
+                            <span>{t('subscription.daysRemaining')}</span>
+                        </div>
+                        <p className="text-lg font-bold font-mono">{status.subscription!.days_remaining}</p>
+                    </div>
                 </div>
             </div>
-          </div>
-        </motion.div>
+            </motion.div>
+
+            <div className="card-minimal p-6">
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <Settings size={20} className="text-primary" />
+                    {t('subscription.management.title')}
+                </h3>
+
+                <div className="space-y-3">
+                    <button
+                        onClick={handleSubscribe}
+                        disabled={isProcessing}
+                        className="w-full flex items-center justify-between p-4 bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-xl transition-colors group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                <CreditCard size={20} />
+                            </div>
+                            <div className="text-left">
+                                <p className="font-bold text-sm text-foreground">{t('subscription.management.extend')}</p>
+                                <p className="text-xs text-muted-foreground">{t('subscription.management.extendDesc')}</p>
+                            </div>
+                        </div>
+                        {isProcessing ? <Loader className="animate-spin text-primary" size={20}/> : <ArrowRight size={20} className="text-primary opacity-50 group-hover:opacity-100" />}
+                    </button>
+
+                    <button
+                        onClick={handleCancelSubscription}
+                        className="w-full flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-900/30 rounded-xl transition-colors group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-500">
+                                <XCircle size={20} />
+                            </div>
+                            <div className="text-left">
+                                <p className="font-bold text-sm text-red-600 dark:text-red-400">{t('subscription.management.cancel')}</p>
+                                <p className="text-xs text-red-400 dark:text-red-500/70">{t('subscription.management.cancelDesc')}</p>
+                            </div>
+                        </div>
+                        <ChevronRight size={20} className="text-red-400 opacity-50 group-hover:opacity-100" />
+                    </button>
+                </div>
+
+                <p className="mt-4 text-xs text-muted-foreground text-center">
+                    <AlertTriangle size={12} className="inline mr-1 -mt-0.5" />
+                    {t('subscription.management.cancelWarning')}
+                </p>
+            </div>
+        </div>
       ) : (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="relative overflow-hidden bg-[#1A1A23] rounded-[24px] p-6 text-white shadow-xl border border-white/5"
         >
-            {/* ОПТИМІЗАЦІЯ: Видалено blur-[60px] та blur-[40px]. */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full -mr-20 -mt-20 pointer-events-none"></div>
             <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/5 rounded-full -ml-10 -mb-10 pointer-events-none"></div>
 

@@ -24,12 +24,18 @@ export default function ProductCard({ product }: ProductCardProps) {
   const { favoritedProductIds } = useCollectionStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const hasAccess = checkAccess(product.id);
+  const hasAccess = checkAccess(product.id) || product.product_type === 'free';
+
   const isFavorited = favoritedProductIds.has(product.id);
   const isInCart = items.some(item => item.id === product.id);
 
   const handleCartAction = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (product.product_type === 'free') {
+        handleDownload(e);
+        return;
+    }
+
     if (isInCart) {
       removeItem(product.id);
     } else {
@@ -125,7 +131,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 </>
               ) : (
                 <span className="text-lg font-bold text-foreground">
-                  ${price.toFixed(2)}
+                  {price === 0 ? <span className="text-green-500">FREE</span> : `$${price.toFixed(2)}`}
                 </span>
               )}
             </div>
