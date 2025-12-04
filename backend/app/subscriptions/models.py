@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, String, ForeignKey, DateTime, Enum, UniqueConstraint
+    Column, Integer, String, ForeignKey, DateTime, Enum, UniqueConstraint, Boolean
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -27,6 +27,10 @@ class Subscription(Base):
     start_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     end_date = Column(DateTime(timezone=True), nullable=False)
     status = Column(Enum(SubscriptionStatus), default=SubscriptionStatus.PENDING)
+
+    # 👇 НОВЕ ПОЛЕ: Чи увімкнене автопродовження (за замовчуванням True)
+    is_auto_renewal = Column(Boolean, default=True, server_default='true')
+
     payment_id = Column(String(200), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

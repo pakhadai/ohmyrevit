@@ -45,13 +45,17 @@ class Update(BaseModel):
 WELCOME_MESSAGES = {
     "uk": "👋 *Ласкаво просимо!*\n\nТисни кнопку нижче, щоб відкрити маркет.",
     "ru": "👋 *Добро пожаловать!*\n\nНажми кнопку ниже, чтобы открыть маркет.",
-    "en": "👋 *Welcome!*\n\nClick the button below to open the market."
+    "en": "👋 *Welcome!*\n\nClick the button below to open the market.",
+    "de": "👋 *Willkommen!*\n\nKlicken Sie auf die Schaltfläche unten, um den Markt zu öffnen.",
+    "es": "👋 *¡Bienvenido!*\n\nHaz clic en el botón de abajo para abrir el mercado."
 }
 
 REFERRAL_WELCOME_MESSAGES = {
     "uk": "👋 *Привіт!*\n\nВас запросив користувач *{name}*.\nТисни кнопку нижче, щоб отримати свій бонус! 🎁",
     "ru": "👋 *Привет!*\n\nВас пригласил пользователь *{name}*.\nЖми кнопку ниже, чтобы получить свой бонус! 🎁",
-    "en": "👋 *Hi!*\n\nYou were invited by *{name}*.\nClick the button below to claim your bonus! 🎁"
+    "en": "👋 *Hi!*\n\nYou were invited by *{name}*.\nClick the button below to claim your bonus! 🎁",
+    "de": "👋 *Hallo!*\n\nSie wurden von Benutzer *{name}* eingeladen.\nKlicken Sie unten, um Ihren Bonus zu erhalten! 🎁",
+    "es": "👋 *¡Hola!*\n\nHas sido invitado por el usuario *{name}*.\n¡Haz clic en el botón de abajo para obtener tu bono! 🎁"
 }
 
 
@@ -65,17 +69,14 @@ async def telegram_webhook(update: Update):
     chat_id = message.chat.id
 
     if message.text.startswith("/start"):
-        # Логуємо повний текст команди для діагностики
         logger.info(f"📥 Received start command: '{message.text}' from user {user_data.id}")
 
         parts = message.text.split()
-        # Беремо код, прибираємо пробіли
         start_param = parts[1].strip() if len(parts) > 1 else None
 
         referrer_name = None
 
         async with AsyncSessionLocal() as db:
-            # 1. Робота з поточним юзером
             result = await db.execute(select(User).where(User.telegram_id == user_data.id))
             user = result.scalar_one_or_none()
 
@@ -93,12 +94,9 @@ async def telegram_webhook(update: Update):
             else:
                 logger.info(f"ℹ️ User {user_data.id} already exists")
 
-            # 2. Пошук реферала (Тільки якщо є start_param)
             if start_param:
                 logger.info(f"🔍 Searching for referrer with code: '{start_param}'")
 
-                # Шукаємо точно по коду (вважаємо, що в базі вони чутливі до регістру)
-                # Але для надійності можна спробувати знайти і так, і так, якщо ваша генерація кодів це дозволяє
                 ref_res = await db.execute(select(User).where(User.referral_code == start_param))
                 referrer = ref_res.scalar_one_or_none()
 
@@ -112,21 +110,13 @@ async def telegram_webhook(update: Update):
                 else:
                     logger.warning(f"❌ Referrer NOT FOUND for code: '{start_param}'")
 
-                    # ДІАГНОСТИКА: Виведемо всі коди з бази, щоб ви побачили, чи є схожі
-                    # (Тільки для дебагу, приберіть потім)
-                    all_codes_res = await db.execute(select(User.referral_code).limit(10))
-                    all_codes = all_codes_res.scalars().all()
-                    logger.info(f"📋 First 10 codes in DB: {all_codes}")
+        lang = user_data.language_code if user_data.language_code in ["uk", "ru", "en", "de", "es"] else 'en'
 
-        lang = user_data.language_code if user_data.language_code in ["uk", "ru", "en"] else 'en'
-
-        # Вибір тексту
         if referrer_name:
             text = REFERRAL_WELCOME_MESSAGES.get(lang, REFERRAL_WELCOME_MESSAGES["en"]).format(name=referrer_name)
         else:
             text = WELCOME_MESSAGES.get(lang, WELCOME_MESSAGES["en"])
 
-        # Формування посилання
         web_app_url = settings.FRONTEND_URL
         if start_param:
             base = settings.FRONTEND_URL.rstrip('/')

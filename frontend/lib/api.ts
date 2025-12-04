@@ -86,7 +86,7 @@ const createAPIClient = (): AxiosInstance => {
             lang = persistedState?.state?.language;
           } catch (jsonError) {
             const rawValue = languageStorage.replace(/"/g, '');
-            if (['uk', 'en', 'ru'].includes(rawValue)) {
+            if (['uk', 'en', 'ru', 'de', 'es'].includes(rawValue)) {
               lang = rawValue;
             }
           }
@@ -288,6 +288,9 @@ export const profileAPI = {
 export const subscriptionsAPI = {
   checkout: async () => {
     return getData(await api.post('/subscriptions/checkout'));
+  },
+  cancel: async () => {
+    return getData(await api.delete('/subscriptions/cancel'));
   },
   getStatus: async () => {
     return getData(await api.get('/subscriptions/status'));

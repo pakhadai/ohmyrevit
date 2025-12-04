@@ -18,16 +18,10 @@ async def create_subscription_checkout(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)
 ):
-
     service = SubscriptionService(db)
-
     try:
-        # Створюємо підписку (поки що pending)
         subscription = await service.create_subscription(current_user.id)
-        subscription.status = "pending"
-        await db.commit()
 
-        # Створюємо платіж
         cryptomus = CryptomusClient()
         payment_data = await cryptomus.create_payment(
             amount=settings.SUBSCRIPTION_PRICE_USD,
@@ -46,12 +40,25 @@ async def create_subscription_checkout(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.delete("/cancel")
+async def cancel_subscription(
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_user)
+):
+    service = SubscriptionService(db)
+    success = await service.cancel_active_subscription(current_user.id)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="Активну підписку не знайдено")
+
+    return {"success": True, "message": "Автопродовження скасовано"}
+
+
 @router.get("/status")
 async def get_subscription_status(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)
 ):
-
     subscription = await db.execute(
         select(Subscription).where(
             Subscription.user_id == current_user.id,
@@ -71,6 +78,7 @@ async def get_subscription_status(
         "subscription": {
             "start_date": subscription.start_date,
             "end_date": subscription.end_date,
-            "days_remaining": (subscription.end_date - datetime.now(timezone.utc)).days
+            "days_remaining": max(0, (subscription.end_date - datetime.now(timezone.utc)).days),
+            "is_auto_renewal": subscription.is_auto_renewal
         }
     }

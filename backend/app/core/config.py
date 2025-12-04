@@ -1,4 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional, Any
 from functools import lru_cache
@@ -27,7 +26,7 @@ class Settings(BaseSettings):
     # DeepL API
     DEEPL_API_KEY: Optional[str] = None
     DEEPL_API_FREE: bool = True
-    DEEPL_TARGET_LANGUAGES: List[str] = ["EN", "RU"]
+    DEEPL_TARGET_LANGUAGES: List[str] = ["EN", "RU", "DE", "ES"]
 
     # Cryptomus
     CRYPTOMUS_API_KEY: str = ""
@@ -50,11 +49,9 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
 
-    # =================================================================
-    # OLD: ALLOWED_ORIGINS: List[str] = []
-    ALLOWED_ORIGINS: str = "" # ЗМІНЕНО ТИП НА str
+    # CORS
+    ALLOWED_ORIGINS: str = ""
     ALLOWED_FILE_EXTENSIONS: List[str] = [".zip", ".rar", ".7z"]
-    # =================================================================
 
     # Files
     MAX_UPLOAD_SIZE_MB: int = 100
@@ -65,16 +62,16 @@ class Settings(BaseSettings):
     MAX_PAGE_SIZE: int = 100
 
     # Supported languages
-    SUPPORTED_LANGUAGES: list = ["uk", "en", "ru"]
+    SUPPORTED_LANGUAGES: list = ["uk", "en", "ru", "de", "es"]
     DEFAULT_LANGUAGE: str = "uk"
 
     # Subscription
     SUBSCRIPTION_PRICE_USD: float = 5.0
 
     # Bonus system
-    REFERRAL_PURCHASE_PERCENT: float = 0.05  # 5%
+    REFERRAL_PURCHASE_PERCENT: float = 0.05
     DAILY_BONUS_BASE: int = 10
-    BONUS_TO_USD_RATE: int = 100  # 100 бонусів = $1
+    BONUS_TO_USD_RATE: int = 100
     MAX_BONUS_DISCOUNT_PERCENT: float = 0.5
     REFERRAL_REGISTRATION_BONUS: int = 30
 
@@ -86,8 +83,6 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings() -> Settings:
-
     return Settings()
 
-# Глобальний об'єкт налаштувань
 settings = get_settings()

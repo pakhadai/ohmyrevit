@@ -91,45 +91,51 @@ export default function HomePage() {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="relative overflow-hidden bg-gradient-to-r from-emerald-600 to-teal-600 rounded-[24px] p-6 text-white shadow-xl shadow-emerald-500/20"
+          className="relative overflow-hidden bg-card text-card-foreground rounded-[24px] p-6 shadow-xl border border-emerald-500/30"
         >
-          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-10 -mt-10 pointer-events-none blur-2xl"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-20 -mt-20 pointer-events-none blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-500/5 rounded-full -ml-10 -mb-10 pointer-events-none blur-3xl"></div>
 
           <div className="relative z-10">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/20 backdrop-blur-md rounded-xl">
-                  <Crown size={24} className="text-yellow-300 fill-yellow-300" />
+            <div className="flex justify-between items-start mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center shadow-inner border border-emerald-500/20">
+                  <Crown size={28} className="text-emerald-500 fill-emerald-500/20" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold">{t('home.premium.clubTitle')}</h2>
-                  <p className="text-emerald-100 text-xs font-medium">{t('home.premium.activeMember')}</p>
+                  <h2 className="text-xl font-bold text-foreground">{t('home.premium.clubTitle')}</h2>
+                  <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <CheckCircle2 size={12} className="fill-emerald-600/20" />
+                    {t('home.premium.activeMember')}
+                  </p>
                 </div>
               </div>
+
               <button
                 onClick={() => router.push('/subscription')}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                className="p-2.5 bg-muted/50 hover:bg-muted rounded-xl transition-colors text-muted-foreground hover:text-foreground"
               >
-                <Settings size={20} className="text-white/80" />
+                <Settings size={20} />
               </button>
             </div>
 
-            <div className="flex gap-4 mt-6">
-              <div className="flex-1 bg-black/10 backdrop-blur-sm rounded-xl p-3 border border-white/10">
-                <div className="flex items-center gap-2 text-emerald-100 text-xs mb-1">
-                  <Calendar size={12} />
+            <div className="flex gap-4">
+              <div className="flex-1 bg-muted/50 rounded-2xl p-4 border border-border/50">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs font-bold uppercase tracking-wider mb-1">
+                  <Calendar size={14} />
                   <span>{t('subscription.activeUntil')}</span>
                 </div>
-                <p className="font-mono font-bold text-lg">
+                <p className="font-mono font-bold text-lg text-foreground">
                   {subStatus.endDate ? new Date(subStatus.endDate).toLocaleDateString() : '...'}
                 </p>
               </div>
-              <div className="flex-1 bg-black/10 backdrop-blur-sm rounded-xl p-3 border border-white/10">
-                <div className="flex items-center gap-2 text-emerald-100 text-xs mb-1">
-                  <Sparkles size={12} />
+
+              <div className="flex-1 bg-muted/50 rounded-2xl p-4 border border-border/50">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs font-bold uppercase tracking-wider mb-1">
+                  <Sparkles size={14} />
                   <span>{t('subscription.daysRemaining')}</span>
                 </div>
-                <p className="font-mono font-bold text-lg">
+                <p className="font-mono font-bold text-lg text-foreground">
                   {subStatus.daysRemaining}
                 </p>
               </div>

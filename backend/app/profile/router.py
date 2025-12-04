@@ -51,8 +51,6 @@ async def get_favorites(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-
-    # TODO: Реалізувати після додавання таблиці favorites
     return {"message": "Coming soon"}
 
 
@@ -64,7 +62,7 @@ async def get_my_downloads(
 ):
 
     language_code = accept_language.split(",")[0].split("-")[0].lower()
-    if language_code not in ["uk", "en", "ru"]:
+    if language_code not in ["uk", "en", "ru", "de", "es"]:
         language_code = "uk"
 
     # --- 1. Отримати всі безкоштовні товари ---
@@ -184,19 +182,16 @@ async def check_product_access(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Перевіряє доступ поточного користувача до списку товарів."""
     accessible_ids = set()
 
     if not product_ids:
         return {"accessible_product_ids": []}
 
-    # 1. Додаємо всі безкоштовні товари
     free_products = await db.execute(
         select(Product.id).where(Product.id.in_(product_ids), Product.product_type == ProductType.FREE)
     )
     accessible_ids.update(free_products.scalars().all())
 
-    # 2. Перевіряємо куплені товари або надані по підписці
     granted_access = await db.execute(
         select(UserProductAccess.product_id).where(
             UserProductAccess.user_id == current_user.id,
@@ -209,7 +204,6 @@ async def check_product_access(
 
 
 def get_archive_media_type(filename: str) -> str:
-    """Визначає MIME-тип на основі розширення файлу для кращої сумісності."""
     if filename.lower().endswith('.zip'):
         return 'application/zip'
     if filename.lower().endswith('.rar'):
@@ -225,7 +219,6 @@ async def download_product_file(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Віддає файл товару, якщо користувач має до нього доступ."""
     access_response = await check_product_access(product_ids=[product_id], current_user=current_user, db=db)
     if product_id not in access_response["accessible_product_ids"]:
         raise HTTPException(status_code=403, detail="Доступ заборонено")
@@ -252,10 +245,9 @@ async def get_referral_info(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    # Завантажуємо користувача разом з рефералами ТА ТИМ, ХТО ЙОГО ЗАПРОСИВ (referrer)
     user_query = select(User).options(
         selectinload(User.referrals),
-        selectinload(User.referrer)  # <--- Додано
+        selectinload(User.referrer)
     ).where(User.id == current_user.id)
 
     user_res = await db.execute(user_query)
@@ -285,7 +277,6 @@ async def get_referral_info(
 
     total_bonuses = sum(log.bonus_amount for log in logs)
 
-    # Формуємо інформацію про того, хто запросив
     referrer_info = None
     if user.referrer:
         referrer_info = ReferrerInfo(
@@ -299,5 +290,5 @@ async def get_referral_info(
         total_referrals=len(user.referrals),
         total_bonuses_earned=total_bonuses,
         logs=formatted_logs,
-        referrer=referrer_info  # <--- Передаємо на фронт
+        referrer=referrer_info
     )

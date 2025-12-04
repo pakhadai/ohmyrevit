@@ -48,13 +48,11 @@ async def get_products(
         language_code=language_code, db=db, filters=filters, limit=limit, offset=offset
     )
 
-# ВАЖЛИВО: Цей блок переміщено ВГОРУ, перед get_product
 @router.get("/categories", response_model=List[CategoryResponse])
 async def get_categories(
         accept_language: Optional[str] = Header(default="uk"),
         db: AsyncSession = Depends(get_db)
 ):
-    """Отримання списку категорій з перекладом"""
     language_code = _parse_language_header(accept_language)
 
     result = await db.execute(
@@ -100,9 +98,6 @@ async def get_product_by_slug(
         accept_language: Optional[str] = Header(default="uk"),
         db: AsyncSession = Depends(get_db)
 ):
-    """
-    Отримання товару за slug (для SEO-friendly URLs)
-    """
     raise HTTPException(status_code=501, detail="Not implemented")
 
 
@@ -164,7 +159,7 @@ async def delete_product(
 @admin_router.post("/{product_id}/translations")
 async def update_product_translation(
         product_id: int,
-        language_code: str = Query(..., pattern="^(en|ru)$", description="Код мови: en або ru"),
+        language_code: str = Query(..., pattern="^(en|ru|de|es)$", description="Код мови: en, ru, de або es"),
         title: str = Query(..., min_length=1, max_length=200),
         description: str = Query(..., min_length=1),
         db: AsyncSession = Depends(get_db),
@@ -217,7 +212,7 @@ def _parse_language_header(accept_language: str) -> str:
         return "uk"
     lang = accept_language.split(",")[0].split(";")[0].lower()
     lang = lang.split("-")[0]
-    supported_languages = ["uk", "en", "ru"]
+    supported_languages = ["uk", "en", "ru", "de", "es"]
     if lang not in supported_languages:
         return "uk"
     return lang

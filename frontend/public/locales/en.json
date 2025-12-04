@@ -32,7 +32,7 @@
     },
     "empty": {
       "title": "Nothing found",
-      "subtitle": "Try changing your search terms or filters",
+      "subtitle": "Try changing search parameters or filters",
       "resetFilters": "Reset all filters"
     },
     "endOfList": "That's all products for now",
@@ -69,7 +69,7 @@
     "loginToDownload": "You need to log in to download.",
     "linkCopied": "Link copied!",
     "linkCopyError": "Failed to copy link.",
-    "telegramOnlyFeature": "This feature is only available in the Telegram app.",
+    "telegramOnlyFeature": "This feature is available only in the Telegram app.",
     "sessionExpired": "Session expired. Please log in again.",
     "loggedOut": "You have logged out",
     "collectionCreated": "Collection \"{{name}}\" created",
@@ -92,14 +92,14 @@
     "serverError": "Server error. Please try again later."
   },
   "appProvider": {
-    "loginError": "Failed to log in. Please try reloading the app.",
+    "loginError": "Failed to log in. Try reloading the app.",
     "telegramOnlyError": "The app works only in Telegram",
     "telegramConnectionError": "Failed to connect to Telegram. Open the app via Telegram."
   },
   "onboarding": {
     "welcome": {
       "title": "Welcome to OhMyRevit!",
-      "description": "Your new source for high-quality Revit families and projects."
+      "description": "Your new source for high-quality families and projects for Revit."
     },
     "features": {
       "title": "All families in one place",
@@ -127,24 +127,35 @@
     "premiumTitle": "Premium Subscription",
     "whatYouGet": "What you get:",
     "feature1": "<b>Access to all premium products</b> released during the subscription period.",
-    "feature2": "<b>Lifetime access:</b> Acquired products stay with you forever, even after the subscription ends.",
+    "feature2": "<b>Lifetime access:</b> Products you get stay with you forever, even after the subscription ends.",
     "feature3": "<b>Regular updates:</b> New exclusive families and archives every week.",
     "feature4": "Priority support",
     "priceTitle": "Price",
     "perMonth": "/month",
     "checkoutButton": "Subscribe",
-    "cancelAnytime": "Cancel anytime"
+    "cancelAnytime": "Cancel anytime",
+    "management": {
+      "title": "Subscription Management",
+      "extend": "Extend subscription",
+      "extendDesc": "Add another 30 days",
+      "cancel": "Cancel subscription",
+      "cancelDesc": "Disable auto-renewal",
+      "cancelWarning": "If you cancel the subscription, access to premium content remains until the end of the paid period."
+    },
+    "toasts": {
+      "cancelInfo": "Contact support to cancel"
+    }
   },
   "bonus": {
     "dailyBonus": "Daily Bonus",
     "daysInARow": "days in a row",
     "streakProgress": "Streak Progress",
-    "superBonusClaimed": "You claimed a super bonus!",
+    "superBonusClaimed": "You claimed the super bonus!",
     "daysToSuperBonus": "{{count}} more days to weekly bonus",
-    "claimButton": "Claim Bonus! 🎁",
+    "claimButton": "Claim bonus! 🎁",
     "nextBonusIn": "Next bonus in",
     "yourBalance": "Your balance:",
-    "weeklyProgress": "Weekly progress",
+    "weeklyProgress": "Weekly Progress",
     "toasts": {
       "claimed": "🎉 +{{amount}} bonuses!",
       "claimError": "Error claiming bonus"
@@ -157,7 +168,11 @@
   },
   "home": {
     "welcome": "Welcome to OhMyRevit",
-    "heroSubtitle": "The best marketplace for Revit content",
+    "heroSubtitle": "The best Revit content marketplace",
+    "premium": {
+      "clubTitle": "Premium Club",
+      "activeMember": "Active Member"
+    },
     "goToMarket": "Go to Market",
     "subscription": {
       "subtitle": "Unlimited access"
@@ -192,7 +207,7 @@
     }
   },
   "productPage": {
-    "loadError": "Failed to load product. It might not exist.",
+    "loadError": "Failed to load product. It may not exist.",
     "backToProducts": "Back to products",
     "free": "Free",
     "compatibility": "Compatibility:",
@@ -208,7 +223,7 @@
     "title": "My Cart",
     "summary": {
       "title": "Your Order",
-      "promo": "Promo Code",
+      "promo": "Promo code",
       "promoPlaceholder": "Enter code",
       "apply": "OK",
       "or": "OR",
@@ -223,9 +238,9 @@
   },
   "profilePages": {
     "main": {
-      "adminBadge": "Admin",
+      "adminBadge": "Administrator",
       "adminPanel": "Admin Panel",
-      "logout": "Log Out",
+      "logout": "Log out",
       "settings": {
         "title": "Settings",
         "contactInfo": "Contact Information",
@@ -259,40 +274,40 @@
     "bonuses": {
       "pageTitle": "Bonus System",
       "days": "days",
-      "currentStreak": "Current Streak",
-      "claimBonus": "Claim Bonus",
+      "currentStreak": "Current streak",
+      "claimBonus": "Claim bonus",
       "alreadyClaimed": "Already claimed",
       "nextBonusTomorrow": "Next bonus will be available tomorrow.",
-      "currentBalance": "Current Balance",
+      "currentBalance": "Current balance",
       "equivalentDiscount": "This is equivalent to ≈ ${{amount}} discount",
       "howItWorks": "How it works?",
-      "rule1": "Log in daily to claim bonuses.",
+      "rule1": "Visit daily to get bonuses.",
       "rule2": "The longer your streak, the bigger the bonus.",
-      "rule3": "Use bonuses to pay up to 50% of your order value.",
+      "rule3": "Use bonuses to pay up to 50% of order value.",
       "loadError": "Failed to load bonus info.",
       "toasts": {
         "claimError": "Error claiming bonus"
       },
       "dailyStreakLabel": "Streak",
-      "weeklyProgress": "Weekly Progress"
+      "weeklyProgress": "Weekly progress"
     },
     "collections": {
       "pageTitle": "My Collections",
       "modalAddTo": "Add to collection",
       "empty": {
         "title": "You have no collections yet",
-        "subtitle": "Create your first collection to save your favorite products.",
+        "subtitle": "Create your first collection to save favorite items.",
         "cta": "Create first collection"
       },
       "createCta": "Create collection",
       "deleteConfirm": "Are you sure you want to delete collection \"{{name}}\"? This action cannot be undone.",
-      "deleteTitle": "Delete Collection",
+      "deleteTitle": "Delete collection",
       "modal": {
         "title": "Create new collection",
-        "placeholder": "Collection name (e.g., 'Kitchen')",
+        "placeholder": "Collection name (e.g., Kitchen)",
         "iconColor": "Icon color",
         "emptyList": "You don't have any collections yet.",
-        "createFirst": "Create the first one to add this product. You can do this in the Profile menu, under \"Collections\"."
+        "createFirst": "Create your first one to add this product. You can do this in the Profile menu, \"Collections\" section"
       },
       "toasts": {
         "nameEmpty": "Collection name cannot be empty.",
@@ -313,9 +328,9 @@
       "premium": "Premium",
       "free": "Free",
       "empty": {
-        "premium": "You don't have any available premium products yet.",
+        "premium": "You don't have any premium products yet.",
         "goToMarket": "Go to Market",
-        "free": "No free products available at the moment."
+        "free": "No free products available currently."
       },
       "toasts": {
         "loadError": "Failed to load file list."
@@ -324,10 +339,10 @@
     "referrals": {
       "pageTitle": "Referral Program",
       "yourLink": "Your invitation link",
-      "description": "Share this link. You will receive <b>30 bonuses</b> for everyone who registers, and <b>5%</b> of their purchase amount.",
-      "shareText": "Hey! 👋 I invite you to OhMyRevit - a cool marketplace for Revit content. Sign up using my link and start collecting bonuses!",
-      "history": "Earnings History",
-      "emptyHistory": "As soon as someone registers via your link, it will appear here.",
+      "description": "Share this link. You will get <b>30 bonuses</b> for everyone who registers, and <b>5%</b> of their purchase amount.",
+      "shareText": "Hi! 👋 I invite you to OhMyRevit - a cool marketplace for Revit content. Sign up using my link and start collecting bonuses!",
+      "history": "Reward History",
+      "emptyHistory": "As soon as someone registers using your link, it will appear here.",
       "invited": "Invited",
       "bonusesEarned": "Bonuses earned",
       "log": {
@@ -346,7 +361,7 @@
     "support": {
       "pageTitle": "Support",
       "needHelp": "Need help?",
-      "description": "We are working on creating a convenient support center. You will be able to contact us very soon.",
+      "description": "We are already working on creating a convenient support center. You will be able to contact us very soon.",
       "backToProfile": "Back to profile",
       "workingHours": "We reply 10:00 - 20:00",
       "telegramChat": "Telegram Chat",
@@ -359,21 +374,21 @@
     },
     "faq": {
       "pageTitle": "FAQ",
-      "answersComingSoon": "Answers are coming soon",
-      "description": "We are gathering the most frequent questions to provide comprehensive answers in this section.",
+      "answersComingSoon": "Answers are being prepared",
+      "description": "We are collecting the most frequent questions to provide you with comprehensive answers in this section.",
       "backToProfile": "Back to profile",
       "subtitle": "Answers to popular questions",
       "items": {
         "q1": "How to install downloaded families in Revit?",
         "a1": "After downloading the .rfa file, open your project in Revit. Go to the \"Insert\" tab -> \"Load Family\" and select the downloaded file.",
-        "q2": "Can I use purchased products in commercial projects?",
-        "a2": "Yes, all purchased products come with a commercial license for use in your projects. However, reselling the files themselves is prohibited.",
+        "q2": "Can I use purchased items in commercial projects?",
+        "a2": "Yes, all purchased items have a commercial license for use in your projects. However, reselling the files themselves is prohibited.",
         "q3": "How does the bonus system work?",
-        "a3": "You get bonuses for daily logins and inviting friends. Bonuses can be used to pay up to 50% of the purchase cost.",
-        "q4": "What does the Premium subscription give?",
-        "a4": "Premium subscription unlocks access to all paid products without limits for the duration of the subscription. You also get priority support.",
+        "a3": "You get bonuses for daily login and inviting friends. Bonuses can cover up to 50% of purchase costs.",
+        "q4": "What does Premium subscription give?",
+        "a4": "Premium subscription unlocks access to all paid items without limits for the duration of the subscription. You also get priority support.",
         "q5": "How to get a refund?",
-        "a5": "If the product does not match the description or a technical issue arises, write to our support, and we will review your request within 24 hours."
+        "a5": "If the product does not match the description or a technical issue arose, write to our support, and we will review your request within 24 hours."
       }
     }
   },
@@ -388,7 +403,7 @@
       "promoCodes": "Promo Codes"
     },
     "categories": {
-      "pageTitle": "Manage Categories",
+      "pageTitle": "Category Management",
       "new": "Create",
       "hide": "Hide",
       "formTitleNew": "New Category",
@@ -421,14 +436,14 @@
       "paidOrders": "Paid Orders",
       "conversionRate": "Conversion Rate",
       "quickActions": "Quick Actions",
-      "addNewProduct": "Add New Product",
-      "createPromoCode": "Create Promo Code",
-      "addAdmin": "Add Administrator",
+      "addNewProduct": "Add new product",
+      "createPromoCode": "Create promo code",
+      "addAdmin": "Add administrator",
       "statsLoadError": "Error loading statistics."
     },
     "orders": {
-      "pageTitle": "Manage Orders",
-      "allOrders": "All Orders",
+      "pageTitle": "Order Management",
+      "allOrders": "All orders",
       "empty": "No orders found",
       "loadError": "Failed to load orders",
       "title": "Order #{{id}}",
@@ -453,31 +468,31 @@
       "loadError": "Failed to load order details."
     },
     "users": {
-      "pageTitle": "Manage Users",
+      "pageTitle": "User Management",
       "profileTitle": "User Profile",
       "searchPlaceholder": "Search by name, email or Telegram ID...",
       "empty": "No users found",
       "mainActions": "Main Actions",
-      "addBonus": "Add Bonuses",
-      "giveSubscription": "Give Subscription",
-      "revokeAdmin": "Revoke Admin",
-      "makeAdmin": "Make Admin",
+      "addBonus": "Add bonuses",
+      "giveSubscription": "Give subscription",
+      "revokeAdmin": "Revoke admin rights",
+      "makeAdmin": "Make admin",
       "block": "Block",
       "unblock": "Unblock",
-      "details": "Detailed Information",
+      "details": "Details",
       "id": "ID:",
       "email": "Email:",
       "phone": "Phone:",
       "bonuses": "Bonuses:",
       "registration": "Registration:",
-      "lastVisit": "Last Visit:",
+      "lastVisit": "Last visit:",
       "notSpecified": "Not specified",
       "wasNot": "Never",
       "subscriptions": "Subscriptions ({{count}})",
       "noSubscriptions": "No active subscriptions.",
       "orders": "Orders ({{count}})",
       "noOrders": "No orders yet.",
-      "referrals": "Invited Users ({{count}})",
+      "referrals": "Invited users ({{count}})",
       "noReferrals": "This user hasn't invited anyone yet.",
       "loadError": "Failed to load user profile.",
       "modals": {
@@ -485,14 +500,14 @@
         "bonusAmount": "Bonus amount",
         "bonusReason": "Reason (optional)",
         "add": "Add",
-        "giveSubscriptionTitle": "Give subscription to {{name}}",
+        "giveSubscriptionTitle": "Grant subscription for {{name}}",
         "days": {
           "7": "7 days",
           "30": "30 days",
           "90": "90 days",
           "365": "365 days (year)"
         },
-        "give": "Give"
+        "give": "Grant"
       },
       "toasts": {
         "adminGranted": "Admin status granted",
@@ -503,8 +518,8 @@
         "activityError": "Error changing activity status.",
         "bonusAdded": "Added {{amount}} bonuses",
         "bonusError": "Error adding bonuses",
-        "subscriptionGiven": "Subscription given for {{days}} days",
-        "subscriptionError": "Error giving subscription"
+        "subscriptionGiven": "Subscription granted for {{days}} days",
+        "subscriptionError": "Error granting subscription"
       }
     },
     "products": {
@@ -523,39 +538,39 @@
         "createTitle": "Create New Product",
         "editTitle": "Edit Product #{{id}}",
         "mainInfo": "Main Information",
-        "titleUk": "Title (in Ukrainian) *",
-        "titlePlaceholder": "e.g., Modern Office Chair",
+        "titleUk": "Title (Ukrainian) *",
+        "titlePlaceholder": "E.g., Modern Office Chair",
         "productType": "Product Type",
         "premium": "Premium",
         "free": "Free",
-        "descriptionUk": "Description (in Ukrainian)",
-        "descriptionPlaceholder": "Detailed product description, specs, benefits...",
+        "descriptionUk": "Description (Ukrainian)",
+        "descriptionPlaceholder": "Detailed product description, features, benefits...",
         "compatibility": "Compatibility",
-        "compatibilityPlaceholder": "e.g., Revit 2021-2024",
-        "pricing": "Pricing & Discounts",
+        "compatibilityPlaceholder": "E.g., Revit 2021-2024",
+        "pricing": "Pricing and Discounts",
         "price": "Price ($) *",
         "salePrice": "Sale Price ($)",
         "optional": "Optional",
         "onSale": "On Sale",
         "images": "Images",
         "mainImage": "Main Image *",
-        "uploadMain": "Upload main photo",
+        "uploadMain": "Upload Main Photo",
         "gallery": "Gallery (up to 6 images)",
-        "addImage": "Add photo",
+        "addImage": "Add Photo",
         "files": "Product Files",
         "archive": "ZIP Archive *",
-        "uploadArchive": "Upload archive",
-        "calculatedSize": "Calculated size (MB)",
+        "uploadArchive": "Upload Archive",
+        "calculatedSize": "Calculated Size (MB)",
         "categories": "Categories",
         "toasts": {
           "fillRequired": "Please fill in required fields: Title, Main Image, ZIP Archive.",
-          "created": "Product successfully created! Translation will start in background.",
+          "created": "Product created successfully! Translation will start in the background.",
           "createError": "Error creating product",
           "updated": "Product successfully updated!",
           "updateError": "Error updating product",
           "categoriesLoadError": "Failed to load categories",
           "dataLoadError": "Error loading product data",
-          "fileUploaded": "File successfully uploaded!",
+          "fileUploaded": "File uploaded successfully!",
           "fileUploadError": "Error uploading file.",
           "clickToSelect": "Click to select"
         }
@@ -575,16 +590,16 @@
         "codePlaceholder": "Code (e.g., WINTER25)",
         "discountType": "Discount Type",
         "percentage": "Percentage (%)",
-        "fixed": "Fixed Amount ($)",
+        "fixed": "Fixed amount ($)",
         "value": "Value",
         "maxUses": "Max Uses",
         "unlimitedPlaceholder": "Unlimited",
-        "expiresAt": "Expires At (optional)",
-        "isActive": "Active Promo Code"
+        "expiresAt": "Valid until (optional)",
+        "isActive": "Active promo code"
       },
       "detail": {
         "titleNew": "New Promo Code",
-        "titleEdit": "Edit: {{code}}",
+        "titleEdit": "Editing: {{code}}",
         "actions": "Actions",
         "history": "Usage History ({{count}})",
         "noUses": "Not used yet.",

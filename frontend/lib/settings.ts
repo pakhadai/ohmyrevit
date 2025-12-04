@@ -1,4 +1,4 @@
 export const settings = {
   defaultLanguage: 'uk',
-  supportedLanguages: ['uk', 'en', 'ru'],
+  supportedLanguages: ['uk', 'en', 'ru', 'de', 'es'],
 };

@@ -12,8 +12,8 @@
     "title": "Katalog",
     "sort": {
       "newest": "Neueste",
-      "priceAsc": "Preis: niedrig",
-      "priceDesc": "Preis: hoch",
+      "priceAsc": "Preis: aufsteigend",
+      "priceDesc": "Preis: absteigend",
       "popular": "Beliebt"
     },
     "filters": {
@@ -26,24 +26,24 @@
       "price": "Preis ($)",
       "priceFrom": "Von",
       "priceTo": "Bis",
-      "onlySale": "Nur im Angebot",
+      "onlySale": "Nur Angebote",
       "reset": "Zurücksetzen",
       "apply": "Anwenden"
     },
     "empty": {
       "title": "Nichts gefunden",
-      "subtitle": "Versuchen Sie, die Suchbegriffe oder Filter zu ändern",
+      "subtitle": "Versuchen Sie, die Suchparameter oder Filter zu ändern",
       "resetFilters": "Alle Filter zurücksetzen"
     },
-    "endOfList": "Das sind alle Produkte für den Moment",
+    "endOfList": "Das sind alle Produkte im Moment",
     "filtersComingSoon": "Filter in Entwicklung..."
   },
   "product": {
     "new": "Neu",
     "sale": "Angebot",
-    "addToCart": "In Warenkorb",
-    "inCart": "Im Korb",
-    "free": "Gratis"
+    "addToCart": "In den Warenkorb",
+    "inCart": "Im Warenkorb",
+    "free": "Kostenlos"
   },
   "common": {
     "loading": "Laden...",
@@ -63,7 +63,7 @@
   },
   "toasts": {
     "welcome": "Willkommen, {{userName}}! 😊",
-    "authError": "Authentifizierungsfehler. Bitte versuchen Sie es erneut.",
+    "authError": "Autorisierungsfehler. Bitte versuchen Sie es erneut.",
     "productLoadError": "Fehler beim Laden des Produkts.",
     "downloadStarted": "Download von '{{title}}' gestartet...",
     "loginToDownload": "Sie müssen sich anmelden, um herunterzuladen.",
@@ -92,27 +92,27 @@
     "serverError": "Serverfehler. Bitte versuchen Sie es später erneut."
   },
   "appProvider": {
-    "loginError": "Anmeldung fehlgeschlagen. Bitte starten Sie die App neu.",
+    "loginError": "Anmeldung fehlgeschlagen. Versuchen Sie, die App neu zu laden.",
     "telegramOnlyError": "Die App funktioniert nur in Telegram",
     "telegramConnectionError": "Verbindung zu Telegram fehlgeschlagen. Öffnen Sie die App über Telegram."
   },
   "onboarding": {
     "welcome": {
       "title": "Willkommen bei OhMyRevit!",
-      "description": "Ihre neue Quelle für hochwertige Revit-Familien und Projekte."
+      "description": "Ihre neue Quelle für hochwertige Familien und Projekte für Revit."
     },
     "features": {
       "title": "Alle Familien an einem Ort",
-      "description": "Erhalten Sie sofortigen Zugriff auf eine riesige Bibliothek von Premium-Produkten. Sparen Sie Zeit und verbessern Sie Ihren Workflow."
+      "description": "Erhalten Sie sofortigen Zugriff auf eine riesige Bibliothek von Premium-Produkten. Sparen Sie Zeit und verbessern Sie Ihren Arbeitsablauf."
     },
     "subscription": {
-      "title": "Volles Potenzial freischalten",
+      "title": "Entfalten Sie das volle Potenzial",
       "description": "Abonnieren Sie für nur 5 $/Monat und erhalten Sie unbegrenzten Zugriff auf alle Premium-Produkte und exklusive Updates.",
-      "cta": "Über das Abo erfahren"
+      "cta": "Über das Abonnement erfahren"
     },
     "buttons": {
       "next": "Weiter",
-      "skip": "Später",
+      "skip": "Überspringen",
       "finish": "Starten!"
     }
   },
@@ -126,20 +126,31 @@
     "activeUntil": "Gültig bis:",
     "premiumTitle": "Premium-Abonnement",
     "whatYouGet": "Was Sie erhalten:",
-    "feature1": "<b>Zugriff auf alle Premium-Produkte</b>, die während der Abo-Laufzeit veröffentlicht werden.",
-    "feature2": "<b>Lebenslanger Zugriff:</b> Erworbene Produkte bleiben für immer bei Ihnen, auch nach Ende des Abos.",
+    "feature1": "<b>Zugriff auf alle Premium-Produkte</b>, die während des Abonnementzeitraums veröffentlicht werden.",
+    "feature2": "<b>Lebenslanger Zugriff:</b> Erhaltene Produkte bleiben für immer bei Ihnen, auch nach Ende des Abonnements.",
     "feature3": "<b>Regelmäßige Updates:</b> Jede Woche neue exklusive Familien und Archive.",
     "feature4": "Bevorzugter Support",
     "priceTitle": "Preis",
     "perMonth": "/Monat",
     "checkoutButton": "Abonnieren",
-    "cancelAnytime": "Jederzeit kündbar"
+    "cancelAnytime": "Jederzeit kündbar",
+    "management": {
+      "title": "Abonnementverwaltung",
+      "extend": "Abonnement verlängern",
+      "extendDesc": "Weitere 30 Tage hinzufügen",
+      "cancel": "Abonnement kündigen",
+      "cancelDesc": "Automatische Verlängerung deaktivieren",
+      "cancelWarning": "Wenn Sie das Abonnement kündigen, bleibt der Zugriff auf Premium-Inhalte bis zum Ende des bezahlten Zeitraums erhalten."
+    },
+    "toasts": {
+      "cancelInfo": "Kontaktieren Sie den Support zur Kündigung"
+    }
   },
   "bonus": {
     "dailyBonus": "Täglicher Bonus",
     "daysInARow": "Tage in Folge",
-    "streakProgress": "Serien-Fortschritt",
-    "superBonusClaimed": "Sie haben einen Super-Bonus erhalten!",
+    "streakProgress": "Streak-Fortschritt",
+    "superBonusClaimed": "Sie haben den Super-Bonus erhalten!",
     "daysToSuperBonus": "Noch {{count}} Tage bis zum Wochenbonus",
     "claimButton": "Bonus abholen! 🎁",
     "nextBonusIn": "Nächster Bonus in",
@@ -157,7 +168,11 @@
   },
   "home": {
     "welcome": "Willkommen bei OhMyRevit",
-    "heroSubtitle": "Der beste Marktplatz für Revit-Content",
+    "heroSubtitle": "Der beste Marktplatz für Revit-Inhalte",
+    "premium": {
+      "clubTitle": "Premium Club",
+      "activeMember": "Aktives Mitglied"
+    },
     "goToMarket": "Zum Markt",
     "subscription": {
       "subtitle": "Unbegrenzter Zugriff"
@@ -176,24 +191,24 @@
         "description": "Tägliche Geschenke"
       },
       "subscription": {
-        "description": "$5/Monat"
+        "description": "5 $/Monat"
       },
       "community": {
         "title": "Community",
-        "description": "Tausende Nutzer"
+        "description": "Tausende Benutzer"
       }
     },
     "newArrivals": "Neuheiten",
     "allProducts": "Alle Produkte →",
-    "loadingProducts": "Produkte werden geladen...",
+    "loadingProducts": "Produkte laden...",
     "telegram": {
       "title": "OhMyRevit Kanal",
-      "description": "Nachrichten und Updates"
+      "description": "Neuigkeiten und Updates"
     }
   },
   "productPage": {
     "loadError": "Produkt konnte nicht geladen werden. Möglicherweise existiert es nicht.",
-    "backToProducts": "Zurück zu Produkten",
+    "backToProducts": "Zurück zu den Produkten",
     "free": "Kostenlos",
     "compatibility": "Kompatibilität:",
     "size": "Größe:",
@@ -223,13 +238,13 @@
   },
   "profilePages": {
     "main": {
-      "adminBadge": "Admin",
-      "adminPanel": "Admin-Panel",
+      "adminBadge": "Administrator",
+      "adminPanel": "Admin-Bereich",
       "logout": "Abmelden",
       "settings": {
         "title": "Einstellungen",
         "contactInfo": "Kontaktinformationen",
-        "emailDescription": "Ihre E-Mail wird für wichtige Benachrichtigungen und Zugangswiederherstellung verwendet.",
+        "emailDescription": "Ihre E-Mail wird für wichtige Benachrichtigungen und die Wiederherstellung des Zugriffs verwendet.",
         "emailPlaceholder": "Ihre E-Mail",
         "language": "Sprache",
         "theme": "Thema",
@@ -243,11 +258,11 @@
         "referrals": "Empfehlungen",
         "support": "Support",
         "faq": "FAQ",
-        "goToSection": "Gehe zu Abschnitt"
+        "goToSection": "Zum Bereich gehen"
       },
       "stats": {
         "bonuses": "Boni",
-        "streakDays": "Serien-Tage",
+        "streakDays": "Streak-Tage",
         "downloads": "Downloads",
         "referrals": "Empfehlungen"
       },
@@ -259,21 +274,21 @@
     "bonuses": {
       "pageTitle": "Bonussystem",
       "days": "Tage",
-      "currentStreak": "Aktuelle Serie",
-      "claimBonus": "Bonus beanspruchen",
-      "alreadyClaimed": "Bereits erhalten",
+      "currentStreak": "Aktueller Streak",
+      "claimBonus": "Bonus abholen",
+      "alreadyClaimed": "Bereits abgeholt",
       "nextBonusTomorrow": "Der nächste Bonus ist morgen verfügbar.",
       "currentBalance": "Aktuelles Guthaben",
-      "equivalentDiscount": "Dies entspricht ≈ ${{amount}} Rabatt",
+      "equivalentDiscount": "Das entspricht ≈ ${{amount}} Rabatt",
       "howItWorks": "Wie funktioniert es?",
-      "rule1": "Melden Sie sich täglich an, um Boni zu erhalten.",
-      "rule2": "Je länger Ihre Serie, desto größer der Bonus.",
+      "rule1": "Besuchen Sie uns täglich, um Boni zu erhalten.",
+      "rule2": "Je länger Ihr Streak, desto größer der Bonus.",
       "rule3": "Verwenden Sie Boni, um bis zu 50% des Bestellwerts zu bezahlen.",
       "loadError": "Bonusinformationen konnten nicht geladen werden.",
       "toasts": {
-        "claimError": "Fehler beim Beanspruchen des Bonus"
+        "claimError": "Fehler beim Abholen des Bonus"
       },
-      "dailyStreakLabel": "Serie",
+      "dailyStreakLabel": "Streak",
       "weeklyProgress": "Wochenfortschritt"
     },
     "collections": {
@@ -281,23 +296,23 @@
       "modalAddTo": "Zur Sammlung hinzufügen",
       "empty": {
         "title": "Sie haben noch keine Sammlungen",
-        "subtitle": "Erstellen Sie Ihre erste Sammlung, um Lieblingsprodukte zu speichern.",
+        "subtitle": "Erstellen Sie Ihre erste Sammlung, um Lieblingsartikel zu speichern.",
         "cta": "Erste Sammlung erstellen"
       },
       "createCta": "Sammlung erstellen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie die Sammlung \"{{name}}\" löschen möchten? Dies kann nicht rückgängig gemacht werden.",
+      "deleteConfirm": "Sind Sie sicher, dass Sie die Sammlung \"{{name}}\" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
       "deleteTitle": "Sammlung löschen",
       "modal": {
         "title": "Neue Sammlung erstellen",
-        "placeholder": "Sammlungsname (z.B. 'Küche')",
+        "placeholder": "Sammlungsname (z.B. Küche)",
         "iconColor": "Symbolfarbe",
-        "emptyList": "Sie haben noch keine Sammlungen.",
-        "createFirst": "Erstellen Sie die erste, um dieses Produkt hinzuzufügen. Dies können Sie im Profilmenü unter \"Sammlungen\" tun."
+        "emptyList": "Sie haben noch keine Sammlung.",
+        "createFirst": "Erstellen Sie Ihre erste, um dieses Produkt hinzuzufügen. Dies können Sie im Profilmenü unter \"Sammlungen\" tun."
       },
       "toasts": {
-        "nameEmpty": "Sammlungsname darf nicht leer sein.",
+        "nameEmpty": "Der Sammlungsname darf nicht leer sein.",
         "detailsError": "Sammlungsdetails konnten nicht geladen werden.",
-        "productRemoved": "Produkt aus Sammlung entfernt",
+        "productRemoved": "Produkt aus der Sammlung entfernt",
         "productRemoveError": "Fehler beim Entfernen des Produkts aus der Sammlung."
       },
       "detail": {
@@ -313,7 +328,7 @@
       "premium": "Premium",
       "free": "Kostenlos",
       "empty": {
-        "premium": "Sie haben noch keine verfügbaren Premium-Produkte.",
+        "premium": "Sie haben noch keine Premium-Produkte.",
         "goToMarket": "Zum Markt",
         "free": "Derzeit keine kostenlosen Produkte verfügbar."
       },
@@ -325,8 +340,8 @@
       "pageTitle": "Empfehlungsprogramm",
       "yourLink": "Ihr Einladungslink",
       "description": "Teilen Sie diesen Link. Sie erhalten <b>30 Boni</b> für jeden, der sich registriert, und <b>5%</b> seines Kaufbetrags.",
-      "shareText": "Hallo! 👋 Ich lade dich zu OhMyRevit ein - einem coolen Marktplatz für Revit-Content. Registriere dich über meinen Link und sammle Boni!",
-      "history": "Verdiensthistorie",
+      "shareText": "Hallo! 👋 Ich lade dich zu OhMyRevit ein - einem coolen Marktplatz für Revit-Inhalte. Melde dich über meinen Link an und sammle Boni!",
+      "history": "Belohnungshistorie",
       "emptyHistory": "Sobald sich jemand über Ihren Link registriert, erscheint es hier.",
       "invited": "Eingeladen",
       "bonusesEarned": "Verdiente Boni",
@@ -346,40 +361,40 @@
     "support": {
       "pageTitle": "Support",
       "needHelp": "Brauchen Sie Hilfe?",
-      "description": "Wir arbeiten am Aufbau eines komfortablen Support-Centers. Sie können uns schon sehr bald kontaktieren.",
+      "description": "Wir arbeiten bereits an einem komfortablen Support-Center. Sie können uns bald kontaktieren.",
       "backToProfile": "Zurück zum Profil",
       "workingHours": "Wir antworten 10:00 - 20:00",
       "telegramChat": "Telegram Chat",
-      "telegramDesc": "Der schnellste Weg für eine Antwort",
+      "telegramDesc": "Der schnellste Weg, eine Antwort zu erhalten",
       "email": "E-Mail",
-      "emailDesc": "Für Geschäftsanfragen und Beschwerden",
+      "emailDesc": "Für Geschäftsvorschläge und Beschwerden",
       "toasts": {
         "emailCopied": "E-Mail kopiert!"
       }
     },
     "faq": {
-      "pageTitle": "Häufige Fragen (FAQ)",
-      "answersComingSoon": "Antworten kommen bald",
-      "description": "Wir sammeln die häufigsten Fragen, um in diesem Bereich umfassende Antworten zu geben.",
+      "pageTitle": "Häufig gestellte Fragen (FAQ)",
+      "answersComingSoon": "Antworten werden vorbereitet",
+      "description": "Wir sammeln die häufigsten Fragen, um Ihnen in diesem Bereich umfassende Antworten zu geben.",
       "backToProfile": "Zurück zum Profil",
       "subtitle": "Antworten auf beliebte Fragen",
       "items": {
         "q1": "Wie installiere ich heruntergeladene Familien in Revit?",
-        "a1": "Öffnen Sie nach dem Download der .rfa-Datei Ihr Projekt in Revit. Gehen Sie zum Reiter \"Einfügen\" -> \"Familie laden\" und wählen Sie die Datei aus.",
-        "q2": "Kann ich gekaufte Produkte in kommerziellen Projekten verwenden?",
-        "a2": "Ja, alle gekauften Produkte verfügen über eine kommerzielle Lizenz zur Nutzung in Ihren Projekten. Der Weiterverkauf der Dateien selbst ist jedoch untersagt.",
+        "a1": "Öffnen Sie nach dem Herunterladen der .rfa-Datei Ihr Projekt in Revit. Gehen Sie zum Reiter \"Einfügen\" -> \"Familie laden\" und wählen Sie die heruntergeladene Datei aus.",
+        "q2": "Kann ich gekaufte Artikel in kommerziellen Projekten verwenden?",
+        "a2": "Ja, alle gekauften Artikel verfügen über eine kommerzielle Lizenz zur Verwendung in Ihren Projekten. Der Weiterverkauf der Dateien selbst ist jedoch untersagt.",
         "q3": "Wie funktioniert das Bonussystem?",
-        "a3": "Sie erhalten Boni für tägliche Logins und das Einladen von Freunden. Boni können verwendet werden, um bis zu 50% der Kaufkosten zu bezahlen.",
+        "a3": "Sie erhalten Boni für das tägliche Einloggen und das Einladen von Freunden. Boni können bis zu 50% der Einkaufskosten decken.",
         "q4": "Was bietet das Premium-Abonnement?",
-        "a4": "Das Premium-Abo schaltet den Zugriff auf alle kostenpflichtigen Produkte ohne Einschränkungen für die Dauer des Abos frei. Sie erhalten auch bevorzugten Support.",
+        "a4": "Das Premium-Abonnement schaltet den Zugriff auf alle kostenpflichtigen Artikel ohne Einschränkungen für die Dauer des Abonnements frei. Außerdem erhalten Sie bevorzugten Support.",
         "q5": "Wie erhalte ich eine Rückerstattung?",
-        "a5": "Wenn das Produkt nicht der Beschreibung entspricht oder ein technisches Problem auftritt, schreiben Sie unserem Support, und wir werden Ihre Anfrage innerhalb von 24 Stunden prüfen."
+        "a5": "Wenn das Produkt nicht der Beschreibung entspricht oder ein technisches Problem aufgetreten ist, schreiben Sie unserem Support, und wir werden Ihre Anfrage innerhalb von 24 Stunden prüfen."
       }
     }
   },
   "admin": {
     "sidebar": {
-      "title": "Admin-Panel",
+      "title": "Admin-Bereich",
       "dashboard": "Dashboard",
       "users": "Benutzer",
       "products": "Produkte",
@@ -388,7 +403,7 @@
       "promoCodes": "Gutscheincodes"
     },
     "categories": {
-      "pageTitle": "Kategorien verwalten",
+      "pageTitle": "Kategorieverwaltung",
       "new": "Erstellen",
       "hide": "Verbergen",
       "formTitleNew": "Neue Kategorie",
@@ -404,7 +419,7 @@
         "updated": "Kategorie aktualisiert",
         "deleted": "Kategorie gelöscht",
         "deleteError": "Kategorie konnte nicht gelöscht werden",
-        "saveError": "Fehler beim Speichern",
+        "saveError": "Speicherfehler aufgetreten",
         "confirmDelete": "Sind Sie sicher, dass Sie diese Kategorie löschen möchten?"
       }
     },
@@ -413,7 +428,7 @@
       "totalUsers": "Benutzer gesamt",
       "newThisWeek": "+{{count}} diese Woche",
       "products": "Produkte",
-      "activeSubscriptions": "Aktive Abos",
+      "activeSubscriptions": "Aktive Abonnements",
       "revenue": "Umsatz",
       "thisMonth": "diesen Monat",
       "ordersOverview": "Bestellübersicht",
@@ -424,10 +439,10 @@
       "addNewProduct": "Neues Produkt hinzufügen",
       "createPromoCode": "Gutscheincode erstellen",
       "addAdmin": "Administrator hinzufügen",
-      "statsLoadError": "Fehler beim Laden der Statistik."
+      "statsLoadError": "Fehler beim Laden der Statistiken."
     },
     "orders": {
-      "pageTitle": "Bestellungen verwalten",
+      "pageTitle": "Bestellverwaltung",
       "allOrders": "Alle Bestellungen",
       "empty": "Keine Bestellungen gefunden",
       "loadError": "Bestellungen konnten nicht geladen werden",
@@ -453,18 +468,18 @@
       "loadError": "Bestelldetails konnten nicht geladen werden."
     },
     "users": {
-      "pageTitle": "Benutzer verwalten",
+      "pageTitle": "Benutzerverwaltung",
       "profileTitle": "Benutzerprofil",
       "searchPlaceholder": "Suche nach Name, E-Mail oder Telegram-ID...",
       "empty": "Keine Benutzer gefunden",
       "mainActions": "Hauptaktionen",
       "addBonus": "Boni hinzufügen",
-      "giveSubscription": "Abo vergeben",
+      "giveSubscription": "Abonnement geben",
       "revokeAdmin": "Admin-Rechte entziehen",
       "makeAdmin": "Zum Admin machen",
       "block": "Blockieren",
       "unblock": "Entsperren",
-      "details": "Detaillierte Informationen",
+      "details": "Details",
       "id": "ID:",
       "email": "E-Mail:",
       "phone": "Telefon:",
@@ -485,14 +500,14 @@
         "bonusAmount": "Bonusbetrag",
         "bonusReason": "Grund (optional)",
         "add": "Hinzufügen",
-        "giveSubscriptionTitle": "Abo vergeben an {{name}}",
+        "giveSubscriptionTitle": "Abonnement gewähren für {{name}}",
         "days": {
           "7": "7 Tage",
           "30": "30 Tage",
           "90": "90 Tage",
           "365": "365 Tage (Jahr)"
         },
-        "give": "Vergeben"
+        "give": "Gewähren"
       },
       "toasts": {
         "adminGranted": "Admin-Status gewährt",
@@ -503,8 +518,8 @@
         "activityError": "Fehler beim Ändern des Aktivitätsstatus.",
         "bonusAdded": "{{amount}} Boni hinzugefügt",
         "bonusError": "Fehler beim Hinzufügen von Boni",
-        "subscriptionGiven": "Abo für {{days}} Tage vergeben",
-        "subscriptionError": "Fehler beim Vergeben des Abos"
+        "subscriptionGiven": "Abonnement für {{days}} Tage gewährt",
+        "subscriptionError": "Fehler beim Gewähren des Abonnements"
       }
     },
     "products": {
@@ -521,18 +536,18 @@
       },
       "form": {
         "createTitle": "Neues Produkt erstellen",
-        "editTitle": "Produkt #{{id}} bearbeiten",
+        "editTitle": "Produkt bearbeiten #{{id}}",
         "mainInfo": "Hauptinformationen",
-        "titleUk": "Titel (auf Ukrainisch) *",
-        "titlePlaceholder": "z.B. Moderner Bürostuhl",
+        "titleUk": "Titel (Ukrainisch) *",
+        "titlePlaceholder": "Z.B., Moderner Bürostuhl",
         "productType": "Produkttyp",
         "premium": "Premium",
         "free": "Kostenlos",
-        "descriptionUk": "Beschreibung (auf Ukrainisch)",
-        "descriptionPlaceholder": "Detaillierte Produktbeschreibung, Spezifikationen...",
+        "descriptionUk": "Beschreibung (Ukrainisch)",
+        "descriptionPlaceholder": "Detaillierte Produktbeschreibung, Funktionen, Vorteile...",
         "compatibility": "Kompatibilität",
-        "compatibilityPlaceholder": "z.B. Revit 2021-2024",
-        "pricing": "Preise & Rabatte",
+        "compatibilityPlaceholder": "Z.B., Revit 2021-2024",
+        "pricing": "Preise und Rabatte",
         "price": "Preis ($) *",
         "salePrice": "Angebotspreis ($)",
         "optional": "Optional",
@@ -549,7 +564,7 @@
         "categories": "Kategorien",
         "toasts": {
           "fillRequired": "Bitte füllen Sie die Pflichtfelder aus: Titel, Hauptbild, ZIP-Archiv.",
-          "created": "Produkt erfolgreich erstellt! Übersetzung beginnt im Hintergrund.",
+          "created": "Produkt erfolgreich erstellt! Übersetzung startet im Hintergrund.",
           "createError": "Fehler beim Erstellen des Produkts",
           "updated": "Produkt erfolgreich aktualisiert!",
           "updateError": "Fehler beim Aktualisieren des Produkts",
@@ -557,7 +572,7 @@
           "dataLoadError": "Fehler beim Laden der Produktdaten",
           "fileUploaded": "Datei erfolgreich hochgeladen!",
           "fileUploadError": "Fehler beim Hochladen der Datei.",
-          "clickToSelect": "Zum Auswählen klicken"
+          "clickToSelect": "Klicken zum Auswählen"
         }
       }
     },
@@ -573,7 +588,7 @@
       "form": {
         "title": "Neuer Gutscheincode",
         "codePlaceholder": "Code (z.B. WINTER25)",
-        "discountType": "Rabattart",
+        "discountType": "Rabatttyp",
         "percentage": "Prozentsatz (%)",
         "fixed": "Fester Betrag ($)",
         "value": "Wert",
@@ -586,7 +601,7 @@
         "titleNew": "Neuer Gutscheincode",
         "titleEdit": "Bearbeiten: {{code}}",
         "actions": "Aktionen",
-        "history": "Verwendungshistorie ({{count}})",
+        "history": "Nutzungshistorie ({{count}})",
         "noUses": "Noch nicht verwendet.",
         "orderLink": "Bestellung #{{id}}",
         "byUser": "von {{name}}",
@@ -594,10 +609,10 @@
           "loadError": "Gutscheincode konnte nicht geladen werden.",
           "created": "Gutscheincode erstellt!",
           "updated": "Gutscheincode aktualisiert!",
-          "saveError": "Fehler beim Speichern",
+          "saveError": "Speicherfehler",
           "confirmDelete": "Gutscheincode \"{{code}}\" löschen?",
           "deleted": "Gutscheincode gelöscht",
-          "deleteError": "Fehler beim Löschen"
+          "deleteError": "Löschfehler"
         }
       }
     }

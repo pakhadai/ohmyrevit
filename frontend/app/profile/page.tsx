@@ -52,6 +52,8 @@ export default function ProfilePage() {
     { code: 'uk', label: '🇺🇦 Українська' },
     { code: 'en', label: '🇬🇧 English' },
     { code: 'ru', label: '🇷🇺 Русский' },
+    { code: 'de', label: '🇩🇪 Deutsch' },
+    { code: 'es', label: '🇪🇸 Español' },
   ];
 
   const menuItems = [
