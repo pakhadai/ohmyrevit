@@ -1,9 +1,8 @@
 import hashlib
 import hmac
 import time
-import json
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Tuple
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -27,6 +26,9 @@ class AuthService:
 
     @staticmethod
     def verify_telegram_auth(auth_data: dict) -> bool:
+        """
+        Перевірка підпису даних від Telegram.
+        """
         if settings.ENVIRONMENT == 'development' and settings.DEBUG:
             return True
 
@@ -135,9 +137,14 @@ class AuthService:
     ) -> Tuple[User, bool]:
 
         auth_data_dict = auth_data.model_dump(exclude_none=True)
+        # Визначаємо мову для помилок (з даних Telegram або дефолтна)
+        error_lang = auth_data.language_code if auth_data.language_code in ["uk", "en", "ru", "de", "es"] else "uk"
 
         if not AuthService.verify_telegram_auth(auth_data_dict):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram authentication data")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=get_text("auth_error_invalid_telegram_data", error_lang)
+            )
 
         result = await db.execute(select(User).where(User.telegram_id == auth_data.id))
         user = result.scalar_one_or_none()
@@ -167,7 +174,10 @@ class AuthService:
                         await db.rollback()
                         db.add(user)
                 else:
-                    raise HTTPException(status_code=500, detail="Could not generate unique referral code")
+                    raise HTTPException(
+                        status_code=500,
+                        detail=get_text("auth_error_referral_code_gen_failed", error_lang)
+                    )
 
                 users_count_res = await db.execute(select(func.count(User.id)))
                 if users_count_res.scalar_one() == 1:
@@ -193,8 +203,16 @@ class AuthService:
         except IntegrityError as e:
             await db.rollback()
             logger.error(f"Database integrity error: {e}")
-            raise HTTPException(status_code=500, detail="Database error")
+            raise HTTPException(
+                status_code=500,
+                detail=get_text("auth_error_database", error_lang)
+            )
         except Exception as e:
             await db.rollback()
             logger.error(f"Auth error: {e}")
-            raise HTTPException(status_code=500, detail="Authentication failed")
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(
+                status_code=500,
+                detail=get_text("auth_error_auth_failed", error_lang)
+            )

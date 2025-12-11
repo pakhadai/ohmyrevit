@@ -145,7 +145,30 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "auth_error_invalid_token": "Невірний токен авторизації",
         "auth_error_user_not_found": "Користувача не знайдено",
         "auth_error_account_disabled": "Обліковий запис вимкнено",
-        "auth_error_not_enough_permissions": "Недостатньо прав"
+        "auth_error_not_enough_permissions": "Недостатньо прав",
+
+        # Profile Router
+        "profile_favorites_coming_soon": "Функціонал у розробці",
+        "profile_error_telegram_auth": "Невірні дані авторизації Telegram",
+        "profile_error_telegram_id": "Telegram ID не співпадає з поточним користувачем",
+        "profile_download_access_denied": "Доступ заборонено",
+        "profile_download_db_error": "Файл товару не знайдено в базі даних",
+        "profile_download_server_error": "Файл не знайдено на сервері",
+        "profile_user_not_found": "Користувача не знайдено",
+        "profile_default_referral_name": "Користувач",
+
+        # Auth Service
+        "auth_error_invalid_telegram_data": "Невірні дані авторизації Telegram",
+        "auth_error_referral_code_gen_failed": "Не вдалося згенерувати унікальний реферальний код",
+        "auth_error_database": "Помилка бази даних",
+        "auth_error_auth_failed": "Помилка авторизації",
+
+        # Main App
+        "main_app_title": "OhMyRevit API",
+        "main_app_description": "API для Telegram Mini App маркетплейсу Revit плагінів",
+        "main_root_message": "OhMyRevit API працює",
+        "main_startup_log": "Запуск додатку...",
+        "main_shutdown_log": "Зупинка додатку..."
     }
 }
 
