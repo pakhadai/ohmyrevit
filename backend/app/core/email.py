@@ -1,17 +1,13 @@
-"""
-Email сервіс для відправки повідомлень через Resend
-"""
 import httpx
 import logging
 from typing import List, Optional, Dict
 from app.core.config import settings
+from app.core.translations import get_text
 
 logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """Сервіс для роботи з email через Resend API"""
-
     def __init__(self):
         self.api_key = settings.RESEND_API_KEY
         self.from_email = settings.FROM_EMAIL
@@ -24,20 +20,8 @@ class EmailService:
             html_content: str,
             text_content: Optional[str] = None
     ) -> bool:
-        """
-        Відправка email
-
-        Args:
-            to: Email отримувача
-            subject: Тема листа
-            html_content: HTML версія листа
-            text_content: Текстова версія (опціонально)
-
-        Returns:
-            True при успішній відправці
-        """
         if not self.api_key:
-            logger.warning("Resend API key не налаштовано")
+            logger.warning("Resend API key missing")
             return False
 
         headers = {
@@ -63,10 +47,10 @@ class EmailService:
                     headers=headers
                 )
                 response.raise_for_status()
-                logger.info(f"Email успішно відправлено на {to}")
+                logger.info(f"Email sent successfully to {to}")
                 return True
         except Exception as e:
-            logger.error(f"Помилка відправки email: {str(e)}")
+            logger.error(f"Failed to send email: {str(e)}")
             return False
 
     async def send_order_confirmation(
@@ -74,23 +58,12 @@ class EmailService:
             user_email: str,
             order_id: int,
             products: List[Dict],
-            total_amount: float
+            total_amount: float,
+            language_code: str = "uk"
     ) -> bool:
-        """
-        Відправка підтвердження замовлення
+        subject = get_text("email_order_subject", language_code, order_id=order_id)
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
 
-        Args:
-            user_email: Email користувача
-            order_id: ID замовлення
-            products: Список товарів
-            total_amount: Загальна сума
-
-        Returns:
-            True при успішній відправці
-        """
-        subject = f"Замовлення #{order_id} - OhMyRevit"
-
-        # Формуємо список товарів
         products_html = ""
         for product in products:
             products_html += f"""
@@ -109,28 +82,28 @@ class EmailService:
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>Підтвердження замовлення</title>
+            <title>{t("email_order_body_title", order_id=order_id)}</title>
         </head>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                             color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                    <h1 style="margin: 0;">OhMyRevit</h1>
-                    <p style="margin: 10px 0 0 0;">Дякуємо за ваше замовлення!</p>
+                    <h1 style="margin: 0;">{t("email_order_header_title")}</h1>
+                    <p style="margin: 10px 0 0 0;">{t("email_order_header_subtitle")}</p>
                 </div>
 
                 <div style="background: #fff; padding: 30px; border: 1px solid #e5e5e5; 
                             border-top: none; border-radius: 0 0 10px 10px;">
-                    <h2 style="color: #667eea;">Замовлення #{order_id}</h2>
+                    <h2 style="color: #667eea;">{t("email_order_body_title", order_id=order_id)}</h2>
 
                     <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
                         <thead>
                             <tr style="background: #f8f9fa;">
                                 <th style="padding: 10px; text-align: left; border-bottom: 2px solid #e5e5e5;">
-                                    Товар
+                                    {t("email_order_table_product")}
                                 </th>
                                 <th style="padding: 10px; text-align: right; border-bottom: 2px solid #e5e5e5;">
-                                    Ціна
+                                    {t("email_order_table_price")}
                                 </th>
                             </tr>
                         </thead>
@@ -140,7 +113,7 @@ class EmailService:
                         <tfoot>
                             <tr>
                                 <td style="padding: 10px; font-weight: bold;">
-                                    Всього:
+                                    {t("email_order_table_total")}
                                 </td>
                                 <td style="padding: 10px; text-align: right; font-weight: bold; color: #667eea;">
                                     ${total_amount}
@@ -150,22 +123,22 @@ class EmailService:
                     </table>
 
                     <p style="margin: 20px 0;">
-                        Після підтвердження оплати ви отримаєте доступ до товарів у вашому профілі.
+                        {t("email_order_access_text")}
                     </p>
 
                     <div style="text-align: center; margin: 30px 0;">
                         <a href="https://t.me/{settings.TELEGRAM_BOT_USERNAME}" 
                            style="display: inline-block; padding: 12px 30px; background: #667eea; 
                                   color: white; text-decoration: none; border-radius: 5px;">
-                            Перейти в додаток
+                            {t("email_order_button")}
                         </a>
                     </div>
 
                     <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 30px 0;">
 
                     <p style="color: #999; font-size: 14px; text-align: center;">
-                        З найкращими побажаннями,<br>
-                        Команда OhMyRevit
+                        {t("email_order_footer_regards")}<br>
+                        {t("email_order_footer_team")}
                     </p>
                 </div>
             </div>
@@ -173,71 +146,67 @@ class EmailService:
         </html>
         """
 
-        return await self.send_email(
-            to=user_email,
-            subject=subject,
-            html_content=html_content
-        )
+        return await self.send_email(to=user_email, subject=subject, html_content=html_content)
 
     async def send_subscription_confirmation(
             self,
             user_email: str,
-            end_date: str
+            end_date: str,
+            language_code: str = "uk"
     ) -> bool:
-        """
-        Відправка підтвердження підписки
+        subject = get_text("email_sub_subject", language_code)
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
 
-        Args:
-            user_email: Email користувача
-            end_date: Дата закінчення підписки
+        features_html = ""
+        features_list = [
+            t("email_sub_feature_1"),
+            t("email_sub_feature_2"),
+            t("email_sub_feature_3"),
+            t("email_sub_feature_4"),
+            t("email_sub_feature_5")
+        ]
 
-        Returns:
-            True при успішній відправці
-        """
-        subject = "Premium підписка активована - OhMyRevit"
+        for feature in features_list:
+            features_html += f"<li>{feature}</li>"
 
         html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>Premium підписка</title>
+            <title>{t("email_sub_header_title")}</title>
         </head>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                 <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
                             color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                    <h1 style="margin: 0;">🎉 Premium активовано!</h1>
+                    <h1 style="margin: 0;">{t("email_sub_header_title")}</h1>
                 </div>
 
                 <div style="background: #fff; padding: 30px; border: 1px solid #e5e5e5; 
                             border-top: none; border-radius: 0 0 10px 10px;">
-                    <h2 style="color: #f5576c;">Вітаємо з Premium підпискою!</h2>
+                    <h2 style="color: #f5576c;">{t("email_sub_body_title")}</h2>
 
-                    <p>Ваша Premium підписка успішно активована та діє до <strong>{end_date}</strong>.</p>
+                    <p>{t("email_sub_body_text", end_date=end_date)}</p>
 
-                    <h3>Що входить в Premium:</h3>
+                    <h3>{t("email_sub_features_title")}</h3>
                     <ul style="line-height: 2;">
-                        <li>✅ Доступ до всіх преміум товарів</li>
-                        <li>✅ Нові товари щотижня</li>
-                        <li>✅ Товари залишаються назавжди</li>
-                        <li>✅ Пріоритетна підтримка</li>
-                        <li>✅ Ексклюзивні знижки</li>
+                        {features_html}
                     </ul>
 
                     <div style="text-align: center; margin: 30px 0;">
                         <a href="https://t.me/{settings.TELEGRAM_BOT_USERNAME}" 
                            style="display: inline-block; padding: 12px 30px; background: #f5576c; 
                                   color: white; text-decoration: none; border-radius: 5px;">
-                            Перейти до товарів
+                            {t("email_sub_button")}
                         </a>
                     </div>
 
                     <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 30px 0;">
 
                     <p style="color: #999; font-size: 14px; text-align: center;">
-                        Дякуємо за довіру!<br>
-                        Команда OhMyRevit
+                        {t("email_sub_footer_thanks")}<br>
+                        {t("email_sub_footer_team")}
                     </p>
                 </div>
             </div>
@@ -245,41 +214,30 @@ class EmailService:
         </html>
         """
 
-        return await self.send_email(
-            to=user_email,
-            subject=subject,
-            html_content=html_content
-        )
+        return await self.send_email(to=user_email, subject=subject, html_content=html_content)
 
     async def send_download_links(
             self,
             user_email: str,
-            products: List[Dict]
+            products: List[Dict],
+            language_code: str = "uk"
     ) -> bool:
-        """
-        Відправка посилань на завантаження
+        subject = get_text("email_download_subject", language_code)
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
 
-        Args:
-            user_email: Email користувача
-            products: Список товарів з посиланнями
-
-        Returns:
-            True при успішній відправці
-        """
-        subject = "Ваші товари готові до завантаження - OhMyRevit"
-
-        # Формуємо список товарів з посиланнями
         products_html = ""
         for product in products:
+            size_text = t("email_download_item_size", file_size=product['file_size_mb'])
+            btn_text = t("email_download_item_button")
             products_html += f"""
             <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px;">
                 <h3 style="margin: 0 0 10px 0; color: #333;">{product['title']}</h3>
-                <p style="margin: 5px 0; color: #666;">Розмір: {product['file_size_mb']} MB</p>
+                <p style="margin: 5px 0; color: #666;">{size_text}</p>
                 <a href="{product['download_url']}" 
                    style="display: inline-block; margin-top: 10px; padding: 8px 20px; 
                           background: #667eea; color: white; text-decoration: none; 
                           border-radius: 3px;">
-                    Завантажити
+                    {btn_text}
                 </a>
             </div>
             """
@@ -289,32 +247,31 @@ class EmailService:
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>Товари готові до завантаження</title>
+            <title>{t("email_download_header_title")}</title>
         </head>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                             color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                    <h1 style="margin: 0;">Ваші товари готові!</h1>
+                    <h1 style="margin: 0;">{t("email_download_header_title")}</h1>
                 </div>
 
                 <div style="background: #fff; padding: 30px; border: 1px solid #e5e5e5; 
                             border-top: none; border-radius: 0 0 10px 10px;">
-                    <p>Дякуємо за покупку! Ваші товари готові до завантаження:</p>
+                    <p>{t("email_download_body_text")}</p>
 
                     {products_html}
 
                     <p style="margin-top: 30px; padding: 15px; background: #fff3cd; 
                               border-left: 4px solid #ffc107; color: #856404;">
-                        <strong>Важливо:</strong> Посилання для завантаження діють протягом 7 днів. 
-                        Рекомендуємо зберегти файли на вашому пристрої.
+                        {t("email_download_warning")}
                     </p>
 
                     <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 30px 0;">
 
                     <p style="color: #999; font-size: 14px; text-align: center;">
-                        Якщо у вас виникли питання, зв'яжіться з нашою підтримкою.<br>
-                        Команда OhMyRevit
+                        {t("email_download_footer_text")}<br>
+                        {t("email_download_footer_team")}
                     </p>
                 </div>
             </div>
@@ -322,12 +279,7 @@ class EmailService:
         </html>
         """
 
-        return await self.send_email(
-            to=user_email,
-            subject=subject,
-            html_content=html_content
-        )
+        return await self.send_email(to=user_email, subject=subject, html_content=html_content)
 
 
-# Створюємо екземпляр сервісу
 email_service = EmailService()

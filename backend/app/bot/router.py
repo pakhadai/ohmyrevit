@@ -1,8 +1,7 @@
 import logging
 from typing import Optional
-from fastapi import APIRouter, Depends, status, Response
+from fastapi import APIRouter, status, Response
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.config import settings
@@ -10,6 +9,7 @@ from app.core.telegram_service import telegram_service
 from app.core.database import AsyncSessionLocal
 from app.users.models import User
 from app.users.auth_service import AuthService
+from app.core.translations import get_text
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhook", tags=["Bot Webhook"])
@@ -42,23 +42,6 @@ class Update(BaseModel):
     message: Optional[Message] = None
 
 
-WELCOME_MESSAGES = {
-    "uk": "👋 *Ласкаво просимо!*\n\nТисни кнопку нижче, щоб відкрити маркет.",
-    "ru": "👋 *Добро пожаловать!*\n\nНажми кнопку ниже, чтобы открыть маркет.",
-    "en": "👋 *Welcome!*\n\nClick the button below to open the market.",
-    "de": "👋 *Willkommen!*\n\nKlicken Sie auf die Schaltfläche unten, um den Markt zu öffnen.",
-    "es": "👋 *¡Bienvenido!*\n\nHaz clic en el botón de abajo para abrir el mercado."
-}
-
-REFERRAL_WELCOME_MESSAGES = {
-    "uk": "👋 *Привіт!*\n\nВас запросив користувач *{name}*.\nТисни кнопку нижче, щоб отримати свій бонус! 🎁",
-    "ru": "👋 *Привет!*\n\nВас пригласил пользователь *{name}*.\nЖми кнопку ниже, чтобы получить свой бонус! 🎁",
-    "en": "👋 *Hi!*\n\nYou were invited by *{name}*.\nClick the button below to claim your bonus! 🎁",
-    "de": "👋 *Hallo!*\n\nSie wurden von Benutzer *{name}* eingeladen.\nKlicken Sie unten, um Ihren Bonus zu erhalten! 🎁",
-    "es": "👋 *¡Hola!*\n\nHas sido invitado por el usuario *{name}*.\n¡Haz clic en el botón de abajo para obtener tu bono! 🎁"
-}
-
-
 @router.post(f"/{settings.TELEGRAM_BOT_TOKEN}")
 async def telegram_webhook(update: Update):
     if not update.message or not update.message.from_user or not update.message.text:
@@ -69,7 +52,7 @@ async def telegram_webhook(update: Update):
     chat_id = message.chat.id
 
     if message.text.startswith("/start"):
-        logger.info(f"📥 Received start command: '{message.text}' from user {user_data.id}")
+        logger.info(f"📥 Received start command from user {user_data.id}")
 
         parts = message.text.split()
         start_param = parts[1].strip() if len(parts) > 1 else None
@@ -81,7 +64,6 @@ async def telegram_webhook(update: Update):
             user = result.scalar_one_or_none()
 
             if not user:
-                logger.info(f"🆕 Creating new user {user_data.id}")
                 user = User(
                     telegram_id=user_data.id,
                     first_name=user_data.first_name,
@@ -91,12 +73,8 @@ async def telegram_webhook(update: Update):
                 )
                 db.add(user)
                 await db.commit()
-            else:
-                logger.info(f"ℹ️ User {user_data.id} already exists")
 
             if start_param:
-                logger.info(f"🔍 Searching for referrer with code: '{start_param}'")
-
                 ref_res = await db.execute(select(User).where(User.referral_code == start_param))
                 referrer = ref_res.scalar_one_or_none()
 
@@ -106,25 +84,20 @@ async def telegram_webhook(update: Update):
                     else:
                         referrer_name = referrer.first_name
 
-                    logger.info(f"✅ FOUND REFERRER: {referrer_name} (ID: {referrer.id})")
-                else:
-                    logger.warning(f"❌ Referrer NOT FOUND for code: '{start_param}'")
-
-        lang = user_data.language_code if user_data.language_code in ["uk", "ru", "en", "de", "es"] else 'en'
+        lang = user_data.language_code or "uk"
 
         if referrer_name:
-            text = REFERRAL_WELCOME_MESSAGES.get(lang, REFERRAL_WELCOME_MESSAGES["en"]).format(name=referrer_name)
+            text = get_text("bot_start_referral_welcome", lang, name=referrer_name)
         else:
-            text = WELCOME_MESSAGES.get(lang, WELCOME_MESSAGES["en"])
+            text = get_text("bot_start_welcome", lang)
 
         web_app_url = settings.FRONTEND_URL
         if start_param:
             base = settings.FRONTEND_URL.rstrip('/')
             web_app_url = f"{base}?startapp={start_param}"
-            logger.info(f"🔗 Button Link: {web_app_url}")
 
         web_app_button = {
-            "text": "🚀 Open App",
+            "text": get_text("bot_button_open_app", lang),
             "web_app": {"url": web_app_url}
         }
 

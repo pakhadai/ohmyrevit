@@ -1,12 +1,8 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
-"""
-Сервіс для роботи з бонусною системою
-"""
 from datetime import date, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from app.users.models import User
 from app.core.config import settings
+from app.core.translations import get_text
 
 
 class BonusService:
@@ -14,51 +10,41 @@ class BonusService:
         self.db = db
 
     async def claim_daily_bonus(self, user_id: int) -> dict:
-        """
-        Нарахування щоденного бонусу
-        Повертає інформацію про нарахування
-        """
-        # Отримуємо користувача
         user = await self.db.get(User, user_id)
+
+        # Якщо користувача немає, використовуємо дефолтну мову
         if not user:
-            raise ValueError("Користувач не знайдений")
+            raise ValueError(get_text("bonus_error_user_not_found", "uk"))
+
+        lang = user.language_code or "uk"
 
         today = date.today()
 
-        # Перевіряємо чи вже отримував бонус сьогодні
         if user.last_bonus_claim_date == today:
             return {
                 "success": False,
-                "message": "Бонус вже отримано сьогодні",
+                "message": get_text("bonus_claim_error_already_claimed", lang),
                 "next_claim_time": "00:00:00"
             }
 
-        # Визначаємо розмір бонусу на основі стріку
-        base_bonus = settings.DAILY_BONUS_BASE  # 10 бонусів базово
+        base_bonus = settings.DAILY_BONUS_BASE
 
-        # Перевіряємо чи зберігається стрік
         if user.last_bonus_claim_date:
             days_diff = (today - user.last_bonus_claim_date).days
 
             if days_diff == 1:
-                # Стрік продовжується
                 user.bonus_streak += 1
             elif days_diff > 1:
-                # Стрік обнуляється
                 user.bonus_streak = 1
         else:
-            # Перший бонус
             user.bonus_streak = 1
 
-        # Розраховуємо бонус з урахуванням стріку
-        streak_multiplier = min(user.bonus_streak, 7)  # Максимум x7
+        streak_multiplier = min(user.bonus_streak, 7)
         bonus_amount = base_bonus * streak_multiplier
 
-        # Додатковий бонус за тиждень без пропусків
         if user.bonus_streak > 0 and user.bonus_streak % 7 == 0:
-            bonus_amount += 50  # Бонус за тиждень
+            bonus_amount += 50
 
-        # Нараховуємо бонуси
         user.bonus_balance += bonus_amount
         user.last_bonus_claim_date = today
 
@@ -69,28 +55,26 @@ class BonusService:
             "success": True,
             "bonus_amount": bonus_amount,
             "new_balance": user.bonus_balance,
-            # OLD: "streak": user.bonus_streak,
             "new_streak": user.bonus_streak,
-            "message": f"Отримано {bonus_amount} бонусів!"
+            "message": get_text("bonus_claim_success_msg", lang, amount=bonus_amount)
         }
 
     async def get_bonus_info(self, user_id: int) -> dict:
-        """
-        Отримання інформації про бонусний статус
-        """
         user = await self.db.get(User, user_id)
+
         if not user:
-            raise ValueError("Користувач не знайдений")
+            raise ValueError(get_text("bonus_error_user_not_found", "uk"))
+
+        lang = user.language_code or "uk"
 
         today = date.today()
         can_claim = user.last_bonus_claim_date != today
 
-        # Розраховуємо наступний можливий час отримання
         if not can_claim:
             tomorrow = today + timedelta(days=1)
             next_claim = tomorrow.strftime("%Y-%m-%d 00:00:00")
         else:
-            next_claim = "Доступно зараз"
+            next_claim = get_text("bonus_info_available_now", lang)
 
         return {
             "balance": user.bonus_balance,

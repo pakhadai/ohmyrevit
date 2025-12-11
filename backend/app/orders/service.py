@@ -1,20 +1,19 @@
-# backend/app/orders/service.py
 from typing import Optional, List
 from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from datetime import datetime, timezone
+import logging
+
 from app.orders.models import Order, OrderItem, PromoCode, DiscountType, OrderStatus
 from app.products.models import Product
 from app.users.models import User
-from datetime import datetime, timezone
-from fastapi import HTTPException
 from app.core.config import settings
-import logging
 from app.subscriptions.models import UserProductAccess, AccessType
 from app.referrals.models import ReferralLog, ReferralBonusType
-# ДОДАНО: Імпорт сервісу телеграм
 from app.core.telegram_service import telegram_service
+from app.core.translations import get_text
 
 logger = logging.getLogger(__name__)
 
@@ -29,19 +28,15 @@ class OrderService:
             user_id: int,
             promo_code: Optional[str],
             bonus_points: int,
+            language_code: str = "uk"
     ) -> dict:
-        """
-        Розрахунок знижки
-        Можна застосувати АБО промокод АБО бонуси, не обидва
-        """
         discount_amount = Decimal("0.00")
         promo_code_id = None
         bonus_used = 0
 
         if promo_code and bonus_points > 0:
-            raise ValueError("Можна застосувати тільки один вид знижки")
+            raise ValueError(get_text("order_error_one_discount", language_code))
 
-        # Перевірка промокоду
         if promo_code:
             result = await self.db.execute(
                 select(PromoCode).where(
@@ -52,17 +47,16 @@ class OrderService:
             promo = result.scalar_one_or_none()
 
             if not promo:
-                raise ValueError("Невалідний або прострочений промокод")
+                raise ValueError(get_text("order_error_promo_invalid", language_code))
 
             if promo.expires_at and promo.expires_at.replace(tzinfo=None) < datetime.now(timezone.utc).replace(
                     tzinfo=None):
-                raise ValueError("Термін дії промокоду закінчився")
+                raise ValueError(get_text("order_error_promo_expired", language_code))
 
             if promo.max_uses and promo.current_uses >= promo.max_uses:
-                raise ValueError("Ліміт використання промокоду вичерпано")
+                raise ValueError(get_text("order_error_promo_limit", language_code))
 
             if promo.discount_type == DiscountType.PERCENTAGE:
-                # ЗМІНЕНО: Безпечне множення з округленням
                 raw_discount = subtotal * (promo.value / Decimal("100"))
                 discount_amount = raw_discount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             else:
@@ -70,28 +64,23 @@ class OrderService:
 
             promo_code_id = promo.id
 
-        # Перевірка бонусів
         elif bonus_points > 0:
             user = await self.db.get(User, user_id)
             if not user:
-                raise ValueError("Користувача не знайдено")
+                raise ValueError(get_text("order_error_user_not_found", language_code))
             if user.bonus_balance < bonus_points:
-                raise ValueError("Недостатньо бонусів на рахунку")
+                raise ValueError(get_text("order_error_insufficient_bonus", language_code))
 
-            # ЗМІНЕНО: Всі константи конвертуємо в Decimal перед операціями
             max_bonus_percent = Decimal(str(settings.MAX_BONUS_DISCOUNT_PERCENT))
             max_bonus_discount = subtotal * max_bonus_percent
 
-            # Конвертація бонусів у гроші: Decimal(points) / Decimal(rate)
             bonus_rate = Decimal(str(settings.BONUS_TO_USD_RATE))
             bonus_value = Decimal(bonus_points) / bonus_rate
 
             actual_discount = min(bonus_value, max_bonus_discount)
 
-            # Округлюємо до копійок
             discount_amount = actual_discount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-            # Перераховуємо скільки бонусів реально списати (якщо округлення змінило суму)
             bonus_used = int(discount_amount * bonus_rate)
 
         return {
@@ -105,32 +94,27 @@ class OrderService:
             user_id: int,
             product_ids: List[int],
             promo_code: Optional[str] = None,
-            use_bonus_points: Optional[int] = None
+            use_bonus_points: Optional[int] = None,
+            language_code: str = "uk"
     ) -> Order:
-        """Створює замовлення з товарами"""
-
         products_result = await self.db.execute(
             select(Product).where(Product.id.in_(product_ids))
         )
         products = products_result.scalars().all()
 
         if not products:
-            raise ValueError("Товари не знайдено")
+            raise ValueError(get_text("order_error_products_not_found", language_code))
 
-        # Сума вже в Decimal з бази даних
         subtotal = sum(p.get_actual_price() for p in products)
 
         if subtotal == 0 and not any(p.product_type == 'free' for p in products):
-            raise ValueError(
-                "Не можна створювати замовлення з нульовою вартістю, якщо в ньому немає безкоштовних товарів.")
+            raise ValueError(get_text("order_error_zero_value", language_code))
 
         discount_data = await self.calculate_discount(
-            subtotal, user_id, promo_code, use_bonus_points or 0
+            subtotal, user_id, promo_code, use_bonus_points or 0, language_code
         )
 
         final_total = subtotal - discount_data["discount_amount"]
-
-        # Гарантуємо, що сума не від'ємна
         final_total = max(final_total, Decimal("0.00"))
 
         order = Order(
@@ -163,10 +147,6 @@ class OrderService:
         return order
 
     async def process_successful_order(self, order_id: int) -> Order:
-        """
-        Централізована обробка успішного замовлення
-        """
-        # ОНОВЛЕНО: Додано завантаження перекладів товарів для коректної назви у повідомленні
         order_res = await self.db.execute(
             select(Order).options(
                 selectinload(Order.user).selectinload(User.referrer),
@@ -208,10 +188,11 @@ class OrderService:
                 logger.info(f"Promo code {promo.code} usage incremented for order {order.id}")
 
         buyer = order.user
+        lang = buyer.language_code if buyer and buyer.language_code else "uk"
+
         if buyer and buyer.referrer_id:
             referrer = buyer.referrer
             if referrer:
-                # ЗМІНЕНО: Decimal розрахунок реферальних
                 ref_percent = Decimal(str(settings.REFERRAL_PURCHASE_PERCENT))
                 commission_amount = int(order.final_total * ref_percent * 100)
 
@@ -231,22 +212,22 @@ class OrderService:
         logger.info(f"Order {order.id} processed successfully as PAID.")
         await self.db.flush()
 
-        # ДОДАНО: Повідомлення покупцю про успішне замовлення
         try:
             items_str = ""
             for item in order.items:
-                # Пробуємо знайти український переклад, інакше беремо будь-який
-                title = "Товар"
+                title = get_text("order_item_default_title", lang)
                 if item.product.translations:
-                    uk_trans = next((t for t in item.product.translations if t.language_code == 'uk'), None)
-                    title = uk_trans.title if uk_trans else item.product.translations[0].title
+                    trans = next((t for t in item.product.translations if t.language_code == lang), None)
+                    if not trans:
+                        trans = next((t for t in item.product.translations if t.language_code == 'uk'), None)
+                    title = trans.title if trans else item.product.translations[0].title
                 items_str += f"- {title}\n"
 
             msg = (
-                f"✅ *Замовлення #{order.id} успішно оплачено!*\n\n"
-                f"Товари:\n{items_str}\n"
-                f"Сума: ${order.final_total}\n\n"
-                f"Доступ до файлів відкрито у вашому профілі."
+                f"{get_text('order_msg_success_title', lang, order_id=order.id)}\n\n"
+                f"{get_text('order_msg_products_label', lang)}\n{items_str}\n"
+                f"{get_text('order_msg_total_label', lang, total=order.final_total)}\n\n"
+                f"{get_text('order_msg_access_granted', lang)}"
             )
             await telegram_service.send_message(buyer.telegram_id, msg)
         except Exception as e:

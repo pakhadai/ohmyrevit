@@ -1,19 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, text
-from sqlalchemy.orm import selectinload, joinedload
-from typing import List, Optional
+from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
+from typing import List
 
 from app.core.database import get_db
 from app.users.dependencies import get_current_user
 from app.users.models import User
 from app.products.models import Product
-# OLD: from app.collections.models import Collection
 from app.collections.models import Collection, collection_products
 from app.collections.schemas import (
-    CollectionCreate, CollectionUpdate, CollectionResponse, CollectionDetailResponse, ProductInCollectionResponse
+    CollectionCreate, CollectionResponse, CollectionDetailResponse, ProductInCollectionResponse
 )
-
+from app.core.translations import get_text
 
 router = APIRouter(prefix="/collections", tags=["Collections"])
 
@@ -23,7 +22,6 @@ async def get_favorited_product_ids(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Отримати унікальні ID всіх товарів у всіх колекціях користувача."""
     query = (
         select(collection_products.c.product_id)
         .join(Collection)
@@ -40,14 +38,6 @@ async def get_user_collections(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Отримати всі колекції поточного користувача."""
-    # OLD: query = (
-    # OLD:     select(Collection, func.count(Collection.products).label("products_count"))
-    # OLD:     .outerjoin(Collection.products)
-    # OLD:     .where(Collection.user_id == current_user.id)
-    # OLD:     .group_by(Collection.id)
-    # OLD:     .order_by(Collection.created_at.desc())
-    # OLD: )
     query = (
         select(Collection, func.count(Product.id).label("products_count"))
         .outerjoin(Collection.products)
@@ -76,21 +66,26 @@ async def create_collection(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Створити нову колекцію."""
-    # Перевірка ліміту колекцій (9)
+    lang = current_user.language_code or "uk"
+
     collections_count_result = await db.execute(
         select(func.count(Collection.id)).where(Collection.user_id == current_user.id)
     )
     collections_count = collections_count_result.scalar_one_or_none() or 0
     if collections_count >= 9:
-        raise HTTPException(status_code=400, detail="Ви досягли ліміту в 9 колекцій.")
+        raise HTTPException(
+            status_code=400,
+            detail=get_text("collection_error_limit_reached", lang)
+        )
 
-    # Перевірка унікальності назви для цього користувача
     existing_collection_result = await db.execute(
         select(Collection).where(Collection.user_id == current_user.id, Collection.name == collection_data.name)
     )
     if existing_collection_result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Колекція з такою назвою вже існує.")
+        raise HTTPException(
+            status_code=400,
+            detail=get_text("collection_error_name_exists", lang)
+        )
 
     new_collection = Collection(**collection_data.model_dump(), user_id=current_user.id)
     db.add(new_collection)
@@ -113,7 +108,8 @@ async def get_collection_details(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Отримати детальну інформацію про колекцію та її товари."""
+    lang = current_user.language_code or "uk"
+
     result = await db.execute(
         select(Collection).options(selectinload(Collection.products).selectinload(Product.translations))
         .where(Collection.id == collection_id, Collection.user_id == current_user.id)
@@ -121,11 +117,14 @@ async def get_collection_details(
     collection = result.scalar_one_or_none()
 
     if not collection:
-        raise HTTPException(status_code=404, detail="Колекцію не знайдено.")
+        raise HTTPException(
+            status_code=404,
+            detail=get_text("collection_error_not_found", lang)
+        )
 
     products_list = []
     for p in collection.products:
-        translation = p.get_translation('uk')  # fallback
+        translation = p.get_translation(lang)
         if translation:
             products_list.append(ProductInCollectionResponse(
                 id=p.id,
@@ -154,18 +153,25 @@ async def add_product_to_collection(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Додати товар до колекції."""
+    lang = current_user.language_code or "uk"
+
     result = await db.execute(
         select(Collection).options(selectinload(Collection.products)).where(Collection.id == collection_id,
                                                                             Collection.user_id == current_user.id))
     collection = result.scalar_one_or_none()
 
     if not collection:
-        raise HTTPException(status_code=404, detail="Колекцію не знайдено.")
+        raise HTTPException(
+            status_code=404,
+            detail=get_text("collection_error_not_found", lang)
+        )
 
     product = await db.get(Product, product_id)
     if not product:
-        raise HTTPException(status_code=404, detail="Товар не знайдено.")
+        raise HTTPException(
+            status_code=404,
+            detail=get_text("collection_error_product_not_found", lang)
+        )
 
     if product not in collection.products:
         collection.products.append(product)
@@ -181,14 +187,18 @@ async def remove_product_from_collection(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Видалити товар з колекції."""
+    lang = current_user.language_code or "uk"
+
     result = await db.execute(
         select(Collection).options(selectinload(Collection.products)).where(Collection.id == collection_id,
                                                                             Collection.user_id == current_user.id))
     collection = result.scalar_one_or_none()
 
     if not collection:
-        raise HTTPException(status_code=404, detail="Колекцію не знайдено.")
+        raise HTTPException(
+            status_code=404,
+            detail=get_text("collection_error_not_found", lang)
+        )
 
     product_to_remove = next((p for p in collection.products if p.id == product_id), None)
 
@@ -205,14 +215,18 @@ async def delete_collection(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Видалити колекцію."""
+    lang = current_user.language_code or "uk"
+
     result = await db.execute(
         select(Collection).where(Collection.id == collection_id, Collection.user_id == current_user.id)
     )
     collection = result.scalar_one_or_none()
 
     if not collection:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Колекцію не знайдено.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=get_text("collection_error_not_found", lang)
+        )
 
     await db.delete(collection)
     await db.commit()

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Header, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload, joinedload
 
 from app.core.database import get_db
 from app.core.auth import require_admin
@@ -16,28 +18,35 @@ from app.products.schemas import (
     CategoryResponse
 )
 from app.products.models import Category, CategoryTranslation
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload, joinedload
+from app.core.translations import get_text
 
-# Створюємо роутери
 router = APIRouter()
 admin_router = APIRouter()
 
 
-# ========== Публічні ендпоінти ==========
+def _parse_language_header(accept_language: str) -> str:
+    if not accept_language:
+        return "uk"
+    lang = accept_language.split(",")[0].split(";")[0].lower()
+    lang = lang.split("-")[0]
+    supported_languages = ["uk", "en", "ru", "de", "es"]
+    if lang not in supported_languages:
+        return "uk"
+    return lang
+
 
 @router.get("", response_model=PaginatedProductsResponse)
 async def get_products(
-    accept_language: Optional[str] = Header(default="uk"),
-    category_id: Optional[int] = Query(None),
-    product_type: Optional[str] = Query(None),
-    is_on_sale: Optional[bool] = Query(None),
-    min_price: Optional[float] = Query(None, ge=0),
-    max_price: Optional[float] = Query(None, ge=0),
-    sort_by: Optional[str] = Query("newest"),
-    limit: int = Query(20, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    db: AsyncSession = Depends(get_db)
+        accept_language: Optional[str] = Header(default="uk"),
+        category_id: Optional[int] = Query(None),
+        product_type: Optional[str] = Query(None),
+        is_on_sale: Optional[bool] = Query(None),
+        min_price: Optional[float] = Query(None, ge=0),
+        max_price: Optional[float] = Query(None, ge=0),
+        sort_by: Optional[str] = Query("newest"),
+        limit: int = Query(20, ge=1, le=100),
+        offset: int = Query(0, ge=0),
+        db: AsyncSession = Depends(get_db)
 ):
     language_code = _parse_language_header(accept_language)
     filters = ProductFilter(
@@ -47,6 +56,7 @@ async def get_products(
     return await product_service.get_products_list(
         language_code=language_code, db=db, filters=filters, limit=limit, offset=offset
     )
+
 
 @router.get("/categories", response_model=List[CategoryResponse])
 async def get_categories(
@@ -79,15 +89,18 @@ async def get_categories(
 
 @router.get("/{product_id}", response_model=ProductResponse)
 async def get_product(
-    product_id: int,
-    accept_language: Optional[str] = Header(default="uk"),
-    db: AsyncSession = Depends(get_db),
-    background_tasks: BackgroundTasks = BackgroundTasks()
+        product_id: int,
+        accept_language: Optional[str] = Header(default="uk"),
+        db: AsyncSession = Depends(get_db),
+        background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     language_code = _parse_language_header(accept_language)
     product = await product_service.get_product(product_id=product_id, language_code=language_code, db=db)
     if not product:
-        raise HTTPException(status_code=404, detail="Товар не знайдено")
+        raise HTTPException(
+            status_code=404,
+            detail=get_text("product_error_not_found", language_code)
+        )
     background_tasks.add_task(product_service.increment_view_count, product_id, db)
     return product
 
@@ -98,10 +111,12 @@ async def get_product_by_slug(
         accept_language: Optional[str] = Header(default="uk"),
         db: AsyncSession = Depends(get_db)
 ):
-    raise HTTPException(status_code=501, detail="Not implemented")
+    language_code = _parse_language_header(accept_language)
+    raise HTTPException(
+        status_code=501,
+        detail=get_text("product_error_not_implemented", language_code)
+    )
 
-
-# ========== Адмін ендпоінти ==========
 
 @admin_router.post("", response_model=ProductResponse)
 async def create_product(
@@ -149,11 +164,12 @@ async def delete_product(
         db: AsyncSession = Depends(get_db),
         admin_user: User = Depends(require_admin)
 ):
-    success = await product_service.delete_product(
+    await product_service.delete_product(
         product_id=product_id,
         db=db
     )
-    return {"success": success, "message": "Товар успішно видалено"}
+    lang = admin_user.language_code or "uk"
+    return {"success": True, "message": get_text("product_success_deleted", lang)}
 
 
 @admin_router.post("/{product_id}/translations")
@@ -175,13 +191,16 @@ async def update_product_translation(
         db=db
     )
 
+    lang = admin_user.language_code or "uk"
+
     if not success:
-        raise HTTPException(status_code=500, detail="Помилка оновлення перекладу")
+        raise HTTPException(
+            status_code=500,
+            detail=get_text("product_error_translation_update", lang)
+        )
 
-    return {"success": True, "message": f"Переклад на {language_code} оновлено"}
+    return {"success": True, "message": get_text("product_success_translation_update", lang, lang=language_code)}
 
-
-# ========== Категорії (Адмін) ==========
 
 @admin_router.post("/categories", response_model=CategoryResponse)
 async def create_category(
@@ -189,13 +208,16 @@ async def create_category(
         db: AsyncSession = Depends(get_db),
         admin_user: User = Depends(require_admin)
 ):
-    from app.products.models import Category
-    from sqlalchemy import select
     existing = await db.execute(
         select(Category).where(Category.slug == category_data.slug)
     )
+
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Категорія з таким slug вже існує")
+        lang = admin_user.language_code or "uk"
+        raise HTTPException(
+            status_code=400,
+            detail=get_text("category_error_slug_exists", lang)
+        )
 
     category = Category(**category_data.dict())
     db.add(category)
@@ -203,16 +225,3 @@ async def create_category(
     await db.refresh(category)
 
     return category
-
-
-# ========== Допоміжні функції ==========
-
-def _parse_language_header(accept_language: str) -> str:
-    if not accept_language:
-        return "uk"
-    lang = accept_language.split(",")[0].split(";")[0].lower()
-    lang = lang.split("-")[0]
-    supported_languages = ["uk", "en", "ru", "de", "es"]
-    if lang not in supported_languages:
-        return "uk"
-    return lang

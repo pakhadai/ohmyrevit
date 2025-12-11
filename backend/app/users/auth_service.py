@@ -18,6 +18,7 @@ from app.users.models import User
 from app.users.schemas import TelegramAuthData
 from app.referrals.models import ReferralLog, ReferralBonusType
 from app.core.telegram_service import telegram_service
+from app.core.translations import get_text
 
 logger = logging.getLogger(__name__)
 
@@ -26,18 +27,11 @@ class AuthService:
 
     @staticmethod
     def verify_telegram_auth(auth_data: dict) -> bool:
-        """
-        Перевірка підпису даних від Telegram.
-        """
-        # 1. Локальна розробка (Development backdoor)
-        # Дозволяємо вхід без валідного підпису ТІЛЬКИ якщо це development оточення.
         if settings.ENVIRONMENT == 'development' and settings.DEBUG:
-            # logger.warning("⚠️ Auth verification SKIPPED (Development Mode)") # Розкоментуйте, якщо хочете бачити це в логах
             return True
 
-        # 2. Перевірка налаштувань для Production
         if not settings.TELEGRAM_BOT_TOKEN:
-            logger.error("⚠️ TELEGRAM_BOT_TOKEN not configured!")
+            logger.error("TELEGRAM_BOT_TOKEN not configured!")
             return False
 
         auth_dict = auth_data.copy()
@@ -46,17 +40,14 @@ class AuthService:
         if not received_hash:
             return False
 
-        # 3. Перевірка актуальності даних (захист від Replay Attack)
         auth_date = auth_dict.get('auth_date', 0)
         try:
-            # Дозволяємо дані не старіші за 1 годину (можна збільшити до 24 годин, якщо є проблеми з часом)
             if time.time() - int(auth_date) > 3600:
-                logger.warning(f"⏰ Auth data is too old. Diff: {time.time() - int(auth_date)}")
+                logger.warning(f"Auth data is too old. Diff: {time.time() - int(auth_date)}")
                 return False
         except (ValueError, TypeError):
             return False
 
-        # 4. Формування рядка перевірки
         check_string_parts = []
         for key in sorted(auth_dict.keys()):
             value = auth_dict[key]
@@ -72,7 +63,7 @@ class AuthService:
         is_valid = hmac.compare_digest(computed_hash, received_hash)
 
         if not is_valid:
-            logger.warning(f"❌ Invalid hash for user {auth_dict.get('id')}")
+            logger.warning(f"Invalid hash for user {auth_dict.get('id')}")
 
         return is_valid
 
@@ -126,10 +117,12 @@ class AuthService:
         db.add(log_entry)
 
         try:
-            message = (
-                f"🎉 *Новий реферал!*\n\n"
-                f"Користувач {user.first_name} зареєструвався за вашим посиланням.\n"
-                f"Вам нараховано *+{bonus_amount}* бонусів! 💎"
+            lang = referrer.language_code or "uk"
+            message = get_text(
+                "auth_new_referral_msg",
+                lang,
+                user_name=user.first_name,
+                bonus_amount=bonus_amount
             )
             await telegram_service.send_message(referrer.telegram_id, message)
         except Exception as e:
@@ -143,7 +136,6 @@ class AuthService:
 
         auth_data_dict = auth_data.model_dump(exclude_none=True)
 
-        # Викликаємо нашу оновлену функцію перевірки
         if not AuthService.verify_telegram_auth(auth_data_dict):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram authentication data")
 

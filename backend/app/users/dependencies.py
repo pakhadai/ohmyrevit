@@ -7,8 +7,8 @@ from typing import Optional
 from app.core.database import get_db
 from app.users.models import User
 from app.users.auth_service import AuthService
+from app.core.translations import get_text
 
-# Security схема для Swagger UI
 security = HTTPBearer(auto_error=False)
 
 
@@ -27,7 +27,7 @@ async def get_current_user(
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
+            detail=get_text("auth_error_not_authenticated", "uk"),
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -36,7 +36,7 @@ async def get_current_user(
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication token",
+            detail=get_text("auth_error_invalid_token", "uk"),
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -48,13 +48,14 @@ async def get_current_user(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            detail=get_text("auth_error_user_not_found", "uk")
         )
 
     if not user.is_active:
+        lang = user.language_code or "uk"
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is disabled"
+            detail=get_text("auth_error_account_disabled", lang)
         )
 
     return user
@@ -65,8 +66,9 @@ async def get_current_admin_user(
 ) -> User:
 
     if not current_user.is_admin:
+        lang = current_user.language_code or "uk"
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
+            detail=get_text("auth_error_not_enough_permissions", lang)
         )
     return current_user

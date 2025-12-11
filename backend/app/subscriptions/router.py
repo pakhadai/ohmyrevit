@@ -9,6 +9,7 @@ from sqlalchemy import select
 from datetime import datetime, timezone
 from app.subscriptions.models import Subscription
 from app.core.config import settings
+from app.core.translations import get_text
 
 router = APIRouter(tags=["subscriptions"])
 
@@ -47,11 +48,18 @@ async def cancel_subscription(
 ):
     service = SubscriptionService(db)
     success = await service.cancel_active_subscription(current_user.id)
+    lang = current_user.language_code or "uk"
 
     if not success:
-        raise HTTPException(status_code=404, detail="Активну підписку не знайдено")
+        raise HTTPException(
+            status_code=404,
+            detail=get_text("sub_error_active_not_found", lang)
+        )
 
-    return {"success": True, "message": "Автопродовження скасовано"}
+    return {
+        "success": True,
+        "message": get_text("sub_cancel_success_msg", lang)
+    }
 
 
 @router.get("/status")

@@ -1,6 +1,3 @@
-"""
-Сервіс для роботи з товарів
-"""
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
@@ -13,6 +10,7 @@ from app.products.models import Product, Category, ProductTranslation
 from app.products.translation_service import translation_service
 from app.products.schemas import ProductCreate, ProductUpdate, ProductFilter
 from app.core.cache import cache
+from app.core.translations import get_text
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +24,6 @@ class ProductService:
         db: AsyncSession,
         background_tasks: BackgroundTasks
     ) -> Product:
-        """Створення нового товару з автоматичним перекладом"""
         try:
             product = Product(
                 price=product_data.price,
@@ -66,8 +63,6 @@ class ProductService:
                 product_data.description_uk
             )
 
-            # 🔥 ОЧИЩЕННЯ КЕШУ: Новий товар змінює списки товарів
-            # Видаляємо всі закешовані сторінки каталогів
             await cache.delete_pattern("products_list:*")
 
             logger.info(f"Створено товар ID: {product.id}")
@@ -76,7 +71,10 @@ class ProductService:
         except Exception as e:
             await db.rollback()
             logger.error(f"Помилка створення товару: {str(e)}")
-            raise HTTPException(status_code=500, detail="Помилка створення товару")
+            raise HTTPException(
+                status_code=500,
+                detail=get_text("product_service_error_create", "uk")
+            )
 
     async def _translate_product_background(
         self,
@@ -97,9 +95,7 @@ class ProductService:
                 successful = sum(1 for success in results.values() if success)
                 logger.info(f"Переклад товару {product_id}: успішно {successful}/{len(results)} мов")
 
-                # 🔥 ОЧИЩЕННЯ КЕШУ: Після перекладу оновлюємо кеш товару для всіх мов
                 await cache.delete_pattern(f"product:{product_id}:*")
-                # І списки, бо там теж є перекладені назви
                 await cache.delete_pattern("products_list:*")
 
             except Exception as e:
@@ -111,19 +107,15 @@ class ProductService:
         language_code: str,
         db: AsyncSession
     ) -> Optional[Dict[str, Any]]:
-        """Отримання товару з кешуванням"""
-
-        # 1. Спробувати отримати з кешу
         cache_key = f"product:{product_id}:{language_code}"
         cached_data = await cache.get(cache_key)
         if cached_data:
             return json.loads(cached_data)
 
-        # 2. Якщо немає в кеші - запит до БД
         result = await db.execute(
             select(Product)
             .options(selectinload(Product.translations))
-            .options(selectinload(Product.categories).selectinload(Category.translations)) # Важливо підгрузити переклади категорій
+            .options(selectinload(Product.categories).selectinload(Category.translations))
             .where(Product.id == product_id)
         )
         product = result.scalar_one_or_none()
@@ -135,10 +127,8 @@ class ProductService:
         if not translation:
             translation = product.get_translation('uk')
             if not translation:
-                # Якщо навіть українського немає (біта база), повертаємо заглушку або None
                 return None
 
-        # Формуємо відповідь
         response = {
             "id": product.id,
             "title": translation.title,
@@ -164,7 +154,6 @@ class ProductService:
             "created_at": product.created_at.isoformat() if product.created_at else None
         }
 
-        # 3. Зберегти в кеш (TTL 5 хвилин)
         await cache.set(cache_key, json.dumps(response), ttl=300)
 
         return response
@@ -177,19 +166,14 @@ class ProductService:
         limit: int = 20,
         offset: int = 0
     ) -> Dict[str, Any]:
-        """Отримання списку товарів з кешуванням"""
-
-        # 1. Формування ключа кешу
         filters_dict = filters.model_dump(exclude_none=True) if filters else {}
         filters_str = json.dumps(filters_dict, sort_keys=True)
         cache_key = f"products_list:{language_code}:{limit}:{offset}:{filters_str}"
 
-        # 2. Перевірка кешу
         cached_data = await cache.get(cache_key)
         if cached_data:
             return json.loads(cached_data)
 
-        # 3. Запит до БД (якщо немає в кеші)
         query = select(Product).options(
             selectinload(Product.translations),
             selectinload(Product.categories).selectinload(Category.translations)
@@ -244,15 +228,12 @@ class ProductService:
                     "file_size_mb": float(product.file_size_mb)
                 })
 
-        # Підрахунок загальної кількості (окремим запитом для пагінації)
-        # Оптимізація: якщо це перша сторінка і кешу немає, count все одно потрібен
         count_query = select(func.count(Product.id))
         if filters and filters.category_id:
             count_query = count_query.join(Product.categories).where(
                 Category.id == filters.category_id
             )
 
-        # Дублюємо фільтри для count_query
         if filters:
             if filters.product_type:
                 count_query = count_query.where(Product.product_type == filters.product_type)
@@ -274,7 +255,6 @@ class ProductService:
             "pages": (total_count + limit - 1) // limit
         }
 
-        # 4. Збереження в кеш (TTL 5 хвилин)
         await cache.set(cache_key, json.dumps(response), ttl=300)
 
         return response
@@ -286,7 +266,6 @@ class ProductService:
         db: AsyncSession,
         background_tasks: Optional[BackgroundTasks] = None
     ) -> Product:
-        """Оновлення товару"""
         result = await db.execute(
             select(Product)
             .options(selectinload(Product.categories))
@@ -295,7 +274,10 @@ class ProductService:
         product = result.scalar_one_or_none()
 
         if not product:
-            raise HTTPException(status_code=404, detail="Товар не знайдено")
+            raise HTTPException(
+                status_code=404,
+                detail=get_text("product_service_not_found", "uk")
+            )
 
         update_fields = update_data.model_dump(exclude_unset=True, exclude={'title_uk', 'description_uk', 'category_ids'})
         for field, value in update_fields.items():
@@ -333,12 +315,11 @@ class ProductService:
                 title_to_translate = uk_trans.title
                 description_to_translate = uk_trans.description
             else:
-                # Якщо раптом немає укр. перекладу
                 uk_trans = ProductTranslation(
                     product_id=product.id,
                     language_code='uk',
-                    title=update_data.title_uk or "Без назви",
-                    description=update_data.description_uk or "Без опису",
+                    title=update_data.title_uk or get_text("product_service_default_title", "uk"),
+                    description=update_data.description_uk or get_text("product_service_default_description", "uk"),
                     is_auto_translated=False
                 )
                 db.add(uk_trans)
@@ -356,10 +337,7 @@ class ProductService:
         await db.commit()
         await db.refresh(product)
 
-        # 🔥 ОЧИЩЕННЯ КЕШУ:
-        # 1. Видаляємо кеш цього конкретного товару (для всіх мов)
         await cache.delete_pattern(f"product:{product_id}:*")
-        # 2. Видаляємо кеш списків, бо ціна/назва/картинка могли змінитись в каталозі
         await cache.delete_pattern("products_list:*")
 
         logger.info(f"Оновлено товар ID: {product_id}, кеш очищено")
@@ -370,19 +348,20 @@ class ProductService:
         product_id: int,
         db: AsyncSession
     ) -> bool:
-        """Видалення товару"""
         result = await db.execute(
             select(Product).where(Product.id == product_id)
         )
         product = result.scalar_one_or_none()
 
         if not product:
-            raise HTTPException(status_code=404, detail="Товар не знайдено")
+            raise HTTPException(
+                status_code=404,
+                detail=get_text("product_service_not_found", "uk")
+            )
 
         await db.delete(product)
         await db.commit()
 
-        # 🔥 ОЧИЩЕННЯ КЕШУ
         await cache.delete_pattern(f"product:{product_id}:*")
         await cache.delete_pattern("products_list:*")
 
@@ -394,13 +373,10 @@ class ProductService:
         product_id: int,
         db: AsyncSession
     ):
-        """Збільшення лічильника переглядів"""
         product = await db.get(Product, product_id)
         if product:
             product.views_count += 1
             await db.commit()
-            # Примітка: Тут ми НЕ чистимо кеш, бо лічильник переглядів не є критичним
-            # для миттєвого відображення, а часті інвалідації "вб'ють" кеш.
 
 
 product_service = ProductService()
