@@ -617,6 +617,72 @@
       }
     }
   },
+
+  "landing": {
+    "title": "Premium Revit Content Marketplace",
+    "subtitle": "Access thousands of high-quality Revit families, templates, and projects directly inside Telegram.",
+    "openApp": "Open App",
+    "openInTg": "Open in Telegram",
+    "learnMore": "Learn More",
+    "rights": "All rights reserved.",
+    "features": {
+      "library": {
+        "title": "Huge Library",
+        "desc": "Thousands of families for any project scale."
+      },
+      "bonuses": {
+        "title": "Daily Bonuses",
+        "desc": "Earn points daily and get discounts."
+      },
+      "payments": {
+        "title": "Crypto Payments",
+        "desc": "Secure payments via Cryptomus."
+      }
+    },
+    "footer": {
+      "terms": "Terms of Service",
+      "privacy": "Privacy Policy",
+      "contact": "Contact"
+    }
+  },
+  "legal": {
+    "updated": "Last updated: {{date}}",
+    "terms": {
+      "title": "Terms of Service",
+      "intro": {
+        "title": "1. Introduction",
+        "text": "Welcome to OhMyRevit. By accessing our Telegram Mini App and website, you agree to these terms."
+      },
+      "service": {
+        "title": "2. Description of Service",
+        "text": "We provide access to digital content for Autodesk Revit. Content is available via direct purchase or subscription."
+      },
+      "license": {
+        "title": "3. License",
+        "text": "Upon purchase, you are granted a non-exclusive license to use files in your projects. Reselling or distributing files is prohibited."
+      },
+      "payments": {
+        "title": "4. Payments & Refunds",
+        "text": "Payments are processed via Cryptomus. All digital sales are final. Refunds are only issued for technical errors."
+      }
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "collection": {
+        "title": "1. Data Collection",
+        "text": "We collect your Telegram ID, name, username, and profile photo provided by Telegram for account identification."
+      },
+      "usage": {
+        "title": "2. Data Usage",
+        "text": "Data is used to process orders, manage subscriptions, and track bonus balances."
+      },
+      "storage": {
+        "title": "3. Data Storage",
+        "text": "Your data is stored securely. We do not sell your personal data to third parties."
+      }
+    }
+  },
+
   "auth": {
     "serverDataError": "Server did not return user data"
   }

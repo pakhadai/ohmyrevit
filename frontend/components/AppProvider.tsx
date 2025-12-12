@@ -6,6 +6,7 @@ import { useCollectionStore } from '@/store/collectionStore';
 import { useLanguageStore } from '@/store/languageStore';
 import { useUIStore } from '@/store/uiStore';
 import Onboarding from './Onboarding';
+import LandingPage from './LandingPage';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
@@ -34,7 +35,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
 
-  // Ініціалізація теми та мови
   useEffect(() => {
     const storedTheme = useUIStore.getState().theme;
     setTheme(storedTheme);
@@ -80,7 +80,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     }
   }, [pathname, router]);
 
-  // Головна логіка Telegram
   useEffect(() => {
     const initializeTelegram = async () => {
       const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
@@ -97,22 +96,14 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         startParam = urlStartApp || hashStartApp || null;
       }
 
-      if (!authAttempted.current) {
-          if (startParam) {
-          } else {
-              console.log('ℹ️ Немає реферального коду. Продовжуємо без нього.');
-          }
-      }
-
       if (authAttempted.current || (isAuthenticated && !startParam)) {
         setAppReady(true);
         if (isAuthenticated) fetchInitialData();
         return;
       }
 
-      console.log('🚀 Initializing Telegram Mini App...');
       let attempts = 0;
-      const maxAttempts = 20;
+      const maxAttempts = 5;
 
       const checkTelegram = async () => {
         attempts++;
@@ -163,15 +154,15 @@ export default function AppProvider({ children }: { children: React.ReactNode })
               setAppReady(true);
 
             } catch (error: any) {
-              console.error('❌ Authorization error:', error);
+              console.error('Authorization error:', error);
               setAuthError(t('appProvider.loginError'));
               toast.error(t('toasts.authError'));
             }
           } else {
-            setAuthError(t('appProvider.telegramOnlyError'));
+            setAuthError('WebAppInitDataMissing');
           }
         } else if (attempts >= maxAttempts) {
-          setAuthError(t('appProvider.telegramConnectionError'));
+          setAuthError('TelegramNotDetected');
           setAppReady(true);
         } else {
           setTimeout(checkTelegram, 500);
@@ -184,7 +175,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     initializeTelegram();
   }, [login, isAuthenticated, fetchInitialData, t, setLanguage]);
 
-  // Onboarding логіка
   useEffect(() => {
     if (isAuthenticated && user && isNewUser) {
       const onboardingKey = `onboarding_${user.telegram_id}`;
@@ -199,6 +189,14 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     setShowOnboarding(false);
     completeOnboarding();
   };
+
+  if (authError && (authError === 'TelegramNotDetected' || authError === 'WebAppInitDataMissing')) {
+    const isLegalPage = pathname === '/terms' || pathname === '/privacy';
+    if (isLegalPage) {
+      return <>{children}</>;
+    }
+    return <LandingPage />;
+  }
 
   if (!appReady || isLoading || !isI18nReady) {
     return (
