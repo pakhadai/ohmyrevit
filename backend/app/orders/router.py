@@ -3,13 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, Body, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-
 from datetime import datetime, timezone
 from decimal import Decimal
 
 from app.core.database import get_db
 from app.orders.models import Order, WebhookProcessed, OrderStatus
-from app.subscriptions.models import UserProductAccess, Subscription, SubscriptionStatus, AccessType
+from app.subscriptions.models import Subscription, SubscriptionStatus, UserProductAccess, AccessType
 from app.products.models import Product, ProductType
 from app.users.models import User
 from app.users.dependencies import get_current_user
@@ -53,7 +52,7 @@ async def create_checkout_order(
 
         cryptomus = CryptomusClient()
         payment_data = await cryptomus.create_payment(
-            amount=float(order.final_total),
+            amount=order.final_total,
             order_id=str(order.id)
         )
         result = payment_data.get("result", {})
@@ -112,8 +111,8 @@ async def apply_discount(
 
         return ApplyDiscountResponse(
             success=True,
-            discount_amount=float(discount_data["discount_amount"]),
-            final_total=float(max(final_total, Decimal(0))),
+            discount_amount=discount_data["discount_amount"],
+            final_total=max(final_total, Decimal(0)),
             bonus_points_used=discount_data["bonus_used"]
         )
 
@@ -126,7 +125,7 @@ async def apply_discount(
         subtotal_on_error = sum(p.get_actual_price() for p in products) if products else 0
         return ApplyDiscountResponse(
             success=False,
-            final_total=float(subtotal_on_error),
+            final_total=subtotal_on_error,
             message=str(e)
         )
     except Exception as e:
@@ -194,15 +193,7 @@ async def cryptomus_webhook(
             if status == "paid" and subscription.status != SubscriptionStatus.ACTIVE:
                 subscription.status = SubscriptionStatus.ACTIVE
                 subscription.payment_id = payment_id
-                products_to_grant = await db.execute(
-                    select(Product).where(Product.product_type == ProductType.PREMIUM))
-                for product in products_to_grant.scalars().all():
-                    existing_access_res = await db.execute(
-                        select(UserProductAccess).where(UserProductAccess.user_id == subscription.user_id,
-                                                        UserProductAccess.product_id == product.id))
-                    if not existing_access_res.scalar_one_or_none():
-                        db.add(UserProductAccess(user_id=subscription.user_id, product_id=product.id,
-                                                 access_type=AccessType.SUBSCRIPTION))
+
                 logger.info(f"Subscription {order_id} activated successfully.")
 
                 try:

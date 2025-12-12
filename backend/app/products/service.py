@@ -3,26 +3,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
 from fastapi import BackgroundTasks, HTTPException
+from datetime import datetime, timezone
 import logging
 import json
 
-from app.products.models import Product, Category, ProductTranslation
+from app.products.models import Product, Category, ProductTranslation, ProductType
 from app.products.translation_service import translation_service
 from app.products.schemas import ProductCreate, ProductUpdate, ProductFilter
 from app.core.cache import cache
 from app.core.translations import get_text
+from app.subscriptions.models import Subscription, SubscriptionStatus, UserProductAccess, AccessType
+from app.core.telegram_service import telegram_service
+from app.users.models import User
 
 logger = logging.getLogger(__name__)
 
 
 class ProductService:
-    """Сервіс для управління товарами"""
-
     async def create_product(
-        self,
-        product_data: ProductCreate,
-        db: AsyncSession,
-        background_tasks: BackgroundTasks
+            self,
+            product_data: ProductCreate,
+            db: AsyncSession,
+            background_tasks: BackgroundTasks
     ) -> Product:
         try:
             product = Product(
@@ -54,6 +56,37 @@ class ProductService:
                 is_auto_translated=False
             )
             db.add(uk_translation)
+
+            if product.product_type == ProductType.PREMIUM:
+                subscribers_result = await db.execute(
+                    select(Subscription.user_id).where(
+                        Subscription.status == SubscriptionStatus.ACTIVE,
+                        Subscription.end_date > datetime.now(timezone.utc)
+                    ).distinct()
+                )
+                active_user_ids = subscribers_result.scalars().all()
+
+                if active_user_ids:
+                    access_records = [
+                        UserProductAccess(
+                            user_id=user_id,
+                            product_id=product.id,
+                            access_type=AccessType.SUBSCRIPTION
+                        ) for user_id in active_user_ids
+                    ]
+
+                    if access_records:
+                        db.add_all(access_records)
+                        logger.info(
+                            f"Granted access to new product {product.id} for {len(access_records)} subscribers.")
+
+                        background_tasks.add_task(
+                            self._notify_subscribers,
+                            active_user_ids,
+                            product.id,
+                            product_data.title_uk
+                        )
+
             await db.commit()
 
             background_tasks.add_task(
@@ -65,22 +98,37 @@ class ProductService:
 
             await cache.delete_pattern("products_list:*")
 
-            logger.info(f"Створено товар ID: {product.id}")
+            logger.info(f"Created product ID: {product.id}")
             return product
 
         except Exception as e:
             await db.rollback()
-            logger.error(f"Помилка створення товару: {str(e)}")
+            logger.error(f"Error creating product: {str(e)}")
             raise HTTPException(
                 status_code=500,
                 detail=get_text("product_service_error_create", "uk")
             )
 
+    async def _notify_subscribers(self, user_ids: List[int], product_id: int, product_title: str):
+        from app.core.database import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as db:
+            users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+            users = users_result.scalars().all()
+
+            for user in users:
+                lang = user.language_code or "uk"
+                try:
+                    msg = get_text("product_new_release_msg", lang, title=product_title)
+                    await telegram_service.send_message(user.telegram_id, msg)
+                except Exception as e:
+                    logger.warning(f"Failed to notify user {user.id} about new product: {e}")
+
     async def _translate_product_background(
-        self,
-        product_id: int,
-        title_uk: str,
-        description_uk: str
+            self,
+            product_id: int,
+            title_uk: str,
+            description_uk: str
     ):
         from app.core.database import AsyncSessionLocal
 
@@ -93,19 +141,19 @@ class ProductService:
                     db=db
                 )
                 successful = sum(1 for success in results.values() if success)
-                logger.info(f"Переклад товару {product_id}: успішно {successful}/{len(results)} мов")
+                logger.info(f"Translate product {product_id}: success {successful}/{len(results)} langs")
 
                 await cache.delete_pattern(f"product:{product_id}:*")
                 await cache.delete_pattern("products_list:*")
 
             except Exception as e:
-                logger.error(f"Помилка фонового перекладу товару {product_id}: {str(e)}")
+                logger.error(f"Error translating product {product_id}: {str(e)}")
 
     async def get_product(
-        self,
-        product_id: int,
-        language_code: str,
-        db: AsyncSession
+            self,
+            product_id: int,
+            language_code: str,
+            db: AsyncSession
     ) -> Optional[Dict[str, Any]]:
         cache_key = f"product:{product_id}:{language_code}"
         cached_data = await cache.get(cache_key)
@@ -159,12 +207,12 @@ class ProductService:
         return response
 
     async def get_products_list(
-        self,
-        language_code: str,
-        db: AsyncSession,
-        filters: Optional[ProductFilter] = None,
-        limit: int = 20,
-        offset: int = 0
+            self,
+            language_code: str,
+            db: AsyncSession,
+            filters: Optional[ProductFilter] = None,
+            limit: int = 20,
+            offset: int = 0
     ) -> Dict[str, Any]:
         filters_dict = filters.model_dump(exclude_none=True) if filters else {}
         filters_str = json.dumps(filters_dict, sort_keys=True)
@@ -223,7 +271,9 @@ class ProductService:
                     "is_on_sale": product.is_on_sale,
                     "sale_price": float(product.sale_price) if product.sale_price else None,
                     "actual_price": float(product.get_actual_price()),
-                    "categories": [cat.get_translation(language_code).name if cat.get_translation(language_code) else cat.slug for cat in product.categories],
+                    "categories": [
+                        cat.get_translation(language_code).name if cat.get_translation(language_code) else cat.slug for
+                        cat in product.categories],
                     "views_count": product.views_count,
                     "file_size_mb": float(product.file_size_mb)
                 })
@@ -260,11 +310,11 @@ class ProductService:
         return response
 
     async def update_product(
-        self,
-        product_id: int,
-        update_data: ProductUpdate,
-        db: AsyncSession,
-        background_tasks: Optional[BackgroundTasks] = None
+            self,
+            product_id: int,
+            update_data: ProductUpdate,
+            db: AsyncSession,
+            background_tasks: Optional[BackgroundTasks] = None
     ) -> Product:
         result = await db.execute(
             select(Product)
@@ -279,7 +329,8 @@ class ProductService:
                 detail=get_text("product_service_not_found", "uk")
             )
 
-        update_fields = update_data.model_dump(exclude_unset=True, exclude={'title_uk', 'description_uk', 'category_ids'})
+        update_fields = update_data.model_dump(exclude_unset=True,
+                                               exclude={'title_uk', 'description_uk', 'category_ids'})
         for field, value in update_fields.items():
             setattr(product, field, value)
 
@@ -340,13 +391,13 @@ class ProductService:
         await cache.delete_pattern(f"product:{product_id}:*")
         await cache.delete_pattern("products_list:*")
 
-        logger.info(f"Оновлено товар ID: {product_id}, кеш очищено")
+        logger.info(f"Updated product ID: {product_id}, cache cleared")
         return product
 
     async def delete_product(
-        self,
-        product_id: int,
-        db: AsyncSession
+            self,
+            product_id: int,
+            db: AsyncSession
     ) -> bool:
         result = await db.execute(
             select(Product).where(Product.id == product_id)
@@ -365,13 +416,13 @@ class ProductService:
         await cache.delete_pattern(f"product:{product_id}:*")
         await cache.delete_pattern("products_list:*")
 
-        logger.info(f"Видалено товар ID: {product_id}, кеш очищено")
+        logger.info(f"Deleted product ID: {product_id}, cache cleared")
         return True
 
     async def increment_view_count(
-        self,
-        product_id: int,
-        db: AsyncSession
+            self,
+            product_id: int,
+            db: AsyncSession
     ):
         product = await db.get(Product, product_id)
         if product:
