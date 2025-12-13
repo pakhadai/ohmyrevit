@@ -6,7 +6,6 @@ from app.core.translations import get_text
 
 logger = logging.getLogger(__name__)
 
-
 class EmailService:
     def __init__(self):
         self.api_key = settings.RESEND_API_KEY
@@ -21,7 +20,7 @@ class EmailService:
             text_content: Optional[str] = None
     ) -> bool:
         if not self.api_key:
-            logger.warning("Resend API key missing")
+            logger.error("RESEND_API_KEY is missing. Email not sent.")
             return False
 
         headers = {
@@ -280,6 +279,5 @@ class EmailService:
         """
 
         return await self.send_email(to=user_email, subject=subject, html_content=html_content)
-
 
 email_service = EmailService()

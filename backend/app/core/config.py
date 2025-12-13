@@ -4,82 +4,78 @@ from functools import lru_cache
 from pydantic import field_validator
 
 class Settings(BaseSettings):
-
-    # Database
     DATABASE_URL: str
     DB_NAME: str
     DB_ECHO: bool = False
+    DB_POOL_SIZE: int = 20
+    DB_MAX_OVERFLOW: int = 10
 
-    # Redis
     REDIS_URL: str = "redis://localhost:6379"
 
-    # Security
     SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # Telegram
     TELEGRAM_BOT_TOKEN: str
     TELEGRAM_BOT_USERNAME: str = ""
 
-    # DeepL API
     DEEPL_API_KEY: Optional[str] = None
     DEEPL_API_FREE: bool = True
     DEEPL_TARGET_LANGUAGES: List[str] = ["EN", "RU", "DE", "ES"]
 
-    # Cryptomus
     CRYPTOMUS_API_KEY: str = ""
     CRYPTOMUS_MERCHANT_ID: str = ""
     CRYPTOMUS_WEBHOOK_SECRET: str = ""
     CRYPTOMUS_API_URL: str = "https://api.cryptomus.com/v1"
 
-    # Resend
     RESEND_API_KEY: str = ""
     FROM_EMAIL: str = "noreply@ohmyrevit.com"
 
-    # URLs
     FRONTEND_URL: str
     BACKEND_URL: str
 
-    # Sentry
     SENTRY_DSN: str = ""
 
-    # Environment
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
 
-    # CORS
     ALLOWED_ORIGINS: str = ""
     ALLOWED_FILE_EXTENSIONS: List[str] = [".zip", ".rar", ".7z"]
 
-    # Files
     MAX_UPLOAD_SIZE_MB: int = 100
     UPLOAD_PATH: str = "/app/uploads"
 
-    # Pagination
     DEFAULT_PAGE_SIZE: int = 20
     MAX_PAGE_SIZE: int = 100
 
-    # Supported languages
     SUPPORTED_LANGUAGES: list = ["uk", "en", "ru", "de", "es"]
     DEFAULT_LANGUAGE: str = "uk"
 
-    # Subscription
     SUBSCRIPTION_PRICE_USD: float = 5.0
 
-    # Bonus system
     REFERRAL_PURCHASE_PERCENT: float = 0.05
     DAILY_BONUS_BASE: int = 10
     BONUS_TO_USD_RATE: int = 100
     MAX_BONUS_DISCOUNT_PERCENT: float = 0.5
     REFERRAL_REGISTRATION_BONUS: int = 30
 
-    # Налаштування для файлів
     UPLOAD_DIR: str = "./uploads"
     MAX_FILE_SIZE_MB: int = 500
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra='ignore')
+
+    @field_validator('SECRET_KEY')
+    def validate_secret_key(cls, v):
+        if not v or len(v) < 32:
+            raise ValueError('SECRET_KEY must be at least 32 characters long')
+        return v
+
+    @field_validator('ALLOWED_ORIGINS')
+    def validate_allowed_origins(cls, v, info):
+        if info.data.get('ENVIRONMENT') == 'production' and not v:
+            raise ValueError('ALLOWED_ORIGINS must be set in production')
+        return v
 
 @lru_cache()
 def get_settings() -> Settings:

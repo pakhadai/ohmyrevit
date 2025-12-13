@@ -160,8 +160,19 @@ async def cryptomus_webhook(
         data: dict = Body(...),
         db: AsyncSession = Depends(get_db)
 ):
+    cryptomus_client = CryptomusClient()
+    sign = request.headers.get("sign")
+
+    if not sign:
+        logger.error("Webhook missing signature header")
+        raise HTTPException(status_code=403, detail="Missing signature")
+
+    if not cryptomus_client.verify_webhook(data, sign):
+        logger.error("Invalid webhook signature provided")
+        raise HTTPException(status_code=403, detail="Invalid signature")
+
     client_ip = request.client.host if request.client else "unknown"
-    logger.info(f"Webhook received from {client_ip}, data: {data}")
+    logger.info(f"Webhook received from {client_ip}, verified signature.")
 
     payment_id = data.get("uuid") or data.get("payment_id")
     order_id_str = data.get("order_id")
@@ -210,7 +221,7 @@ async def cryptomus_webhook(
 
         else:
             order_res = await db.execute(select(Order).where(Order.id == order_id))
-            order = order_res.scalar_one()
+            order = order_res.scalar_one_or_none()
             if not order:
                 logger.error(f"Order {order_id} not found for webhook.")
                 await mark_webhook_processed(payment_id, "error_not_found", db)

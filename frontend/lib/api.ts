@@ -60,7 +60,12 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
+if (!envApiUrl && process.env.NODE_ENV === 'production') {
+  console.error("CRITICAL: NEXT_PUBLIC_API_URL is not defined!");
+}
+
+const API_URL = envApiUrl || 'http://localhost:8000/api/v1';
 
 const createAPIClient = (): AxiosInstance => {
   const instance = axios.create({
