@@ -1,23 +1,23 @@
 from datetime import date, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.users.models import User
 from app.core.config import settings
 from app.core.translations import get_text
-
 
 class BonusService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def claim_daily_bonus(self, user_id: int) -> dict:
-        user = await self.db.get(User, user_id)
+        query = select(User).where(User.id == user_id).with_for_update()
+        result = await self.db.execute(query)
+        user = result.scalar_one_or_none()
 
-        # Якщо користувача немає, використовуємо дефолтну мову
         if not user:
             raise ValueError(get_text("bonus_error_user_not_found", "uk"))
 
         lang = user.language_code or "uk"
-
         today = date.today()
 
         if user.last_bonus_claim_date == today:

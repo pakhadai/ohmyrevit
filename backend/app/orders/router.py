@@ -8,8 +8,8 @@ from decimal import Decimal
 
 from app.core.database import get_db
 from app.orders.models import Order, WebhookProcessed, OrderStatus
-from app.subscriptions.models import Subscription, SubscriptionStatus, UserProductAccess, AccessType
-from app.products.models import Product, ProductType
+from app.subscriptions.models import Subscription, SubscriptionStatus
+from app.products.models import Product
 from app.users.models import User
 from app.users.dependencies import get_current_user
 from app.orders.service import OrderService
@@ -47,7 +47,7 @@ async def create_checkout_order(
             return CheckoutResponse(
                 order_id=order.id,
                 payment_url=None,
-                amount=0.0
+                amount=Decimal("0.0")
             )
 
         cryptomus = CryptomusClient()
@@ -58,11 +58,12 @@ async def create_checkout_order(
         result = payment_data.get("result", {})
         order.payment_url = result.get("url")
         order.payment_id = result.get("uuid")
+        await db.commit()
 
         return CheckoutResponse(
             order_id=order.id,
             payment_url=order.payment_url,
-            amount=float(order.final_total)
+            amount=order.final_total
         )
 
     except ValueError as e:
@@ -105,10 +106,6 @@ async def apply_discount(
 
         final_total = subtotal - discount_data["discount_amount"]
 
-        logger.info(f"Discount applied for user {current_user.id}. "
-                    f"Promo: '{data.promo_code}', Bonuses: {data.use_bonus_points}. "
-                    f"Subtotal: {subtotal}, Discount: {discount_data['discount_amount']}, Final: {final_total}")
-
         return ApplyDiscountResponse(
             success=True,
             discount_amount=discount_data["discount_amount"],
@@ -117,9 +114,6 @@ async def apply_discount(
         )
 
     except ValueError as e:
-        logger.warning(f"Failed to apply discount for user {current_user.id}. "
-                       f"Promo: '{data.promo_code}', Bonuses: {data.use_bonus_points}. Reason: {e}")
-
         products_result = await db.execute(select(Product).where(Product.id.in_(data.product_ids)))
         products = products_result.scalars().all()
         subtotal_on_error = sum(p.get_actual_price() for p in products) if products else 0
@@ -152,6 +146,7 @@ async def mark_webhook_processed(payment_id: str, status: str, db: AsyncSession)
             success=True
         )
         db.add(webhook_record)
+        await db.commit()
 
 
 @router.post("/webhooks/cryptomus")
@@ -171,12 +166,11 @@ async def cryptomus_webhook(
         logger.error("Invalid webhook signature provided")
         raise HTTPException(status_code=403, detail="Invalid signature")
 
-    client_ip = request.client.host if request.client else "unknown"
-    logger.info(f"Webhook received from {client_ip}, verified signature.")
-
     payment_id = data.get("uuid") or data.get("payment_id")
     order_id_str = data.get("order_id")
     status = data.get("status")
+
+    paid_amount = data.get("amount")
 
     if not all([payment_id, order_id_str, status]):
         logger.error(f"Missing required fields in webhook: {data}")
@@ -201,23 +195,22 @@ async def cryptomus_webhook(
                 await mark_webhook_processed(payment_id, "error_not_found", db)
                 return {"status": "error", "message": "Subscription not found"}
 
-            if status == "paid" and subscription.status != SubscriptionStatus.ACTIVE:
-                subscription.status = SubscriptionStatus.ACTIVE
-                subscription.payment_id = payment_id
+            if status == "paid" or status == "paid_over":
+                if subscription.status != SubscriptionStatus.ACTIVE:
+                    subscription.status = SubscriptionStatus.ACTIVE
+                    subscription.payment_id = payment_id
 
-                logger.info(f"Subscription {order_id} activated successfully.")
-
-                try:
                     lang = subscription.user.language_code or "uk"
                     date_str = subscription.end_date.strftime("%d.%m.%Y")
                     msg = get_text("order_sub_activated_msg", lang, date_str=date_str)
                     await telegram_service.send_message(subscription.user.telegram_id, msg)
-                except Exception as e:
-                    logger.error(f"Failed to send sub notification: {e}")
 
-            elif status in ["cancel", "wrong_amount", "fail", "system_fail", "refund"]:
+            elif status == "wrong_amount":
+                logger.critical(f"SUBSCRIPTION {order_id}: Wrong amount paid! Received: {paid_amount}")
+                pass
+
+            elif status in ["cancel", "fail", "system_fail", "refund"]:
                 subscription.status = SubscriptionStatus.CANCELLED
-                logger.warning(f"Subscription {order_id} payment failed with status: {status}")
 
         else:
             order_res = await db.execute(select(Order).where(Order.id == order_id))
@@ -227,22 +220,32 @@ async def cryptomus_webhook(
                 await mark_webhook_processed(payment_id, "error_not_found", db)
                 return {"status": "error", "message": "Order not found"}
 
-            if status == "paid" and order.status != OrderStatus.PAID:
+            if (status == "paid" or status == "paid_over") and order.status != OrderStatus.PAID:
                 order.payment_id = payment_id
                 service = OrderService(db)
                 await service.process_successful_order(order.id)
 
-            elif status in ["cancel", "wrong_amount", "fail", "system_fail"]:
+            elif status == "wrong_amount":
+                logger.critical(
+                    f"ORDER {order_id}: Wrong amount paid! Received: {paid_amount}, Expected: {order.final_total}")
+
+            elif status in ["cancel", "fail", "system_fail"]:
                 order.status = OrderStatus.FAILED
-                user_to_refund = await db.get(User, order.user_id)
-                if order.bonus_used > 0 and user_to_refund:
-                    user_to_refund.bonus_balance += order.bonus_used
-                    logger.info(f"Returned {order.bonus_used} bonus points to user {order.user_id}")
-                logger.warning(f"Order {order_id} payment failed with status: {status}")
+                if order.bonus_used > 0:
+                    user_query = select(User).where(User.id == order.user_id).with_for_update()
+                    user_res = await db.execute(user_query)
+                    user_to_refund = user_res.scalar_one_or_none()
+
+                    if user_to_refund:
+                        user_to_refund.bonus_balance += order.bonus_used
+                        logger.info(
+                            f"Returned {order.bonus_used} bonus points to user {order.user_id} due to failed payment")
 
         await mark_webhook_processed(payment_id, status, db)
+        await db.commit()
 
         return {"status": "ok"}
     except Exception as e:
         logger.error(f"Unexpected error processing webhook: {str(e)}", exc_info=True)
+        await db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error")

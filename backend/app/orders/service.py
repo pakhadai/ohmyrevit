@@ -78,7 +78,6 @@ class OrderService:
             bonus_value = Decimal(bonus_points) / bonus_rate
 
             actual_discount = min(bonus_value, max_bonus_discount)
-
             discount_amount = actual_discount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
             bonus_used = int(discount_amount * bonus_rate)
@@ -97,6 +96,16 @@ class OrderService:
             use_bonus_points: Optional[int] = None,
             language_code: str = "uk"
     ) -> Order:
+        if use_bonus_points and use_bonus_points > 0:
+            user_query = select(User).where(User.id == user_id).with_for_update()
+            user_res = await self.db.execute(user_query)
+            user = user_res.scalar_one_or_none()
+            if not user:
+                raise ValueError(get_text("order_error_user_not_found", language_code))
+
+            if user.bonus_balance < use_bonus_points:
+                raise ValueError(get_text("order_error_insufficient_bonus", language_code))
+
         products_result = await self.db.execute(
             select(Product).where(Product.id.in_(product_ids))
         )
@@ -122,7 +131,7 @@ class OrderService:
             subtotal=subtotal,
             discount_amount=discount_data["discount_amount"],
             final_total=final_total,
-            status="pending",
+            status=OrderStatus.PENDING,
             promo_code_id=discount_data["promo_code_id"],
             bonus_used=discount_data["bonus_used"]
         )
@@ -136,13 +145,15 @@ class OrderService:
             )
 
         self.db.add(order)
-        await self.db.flush()
 
         if discount_data["bonus_used"] > 0:
             user = await self.db.get(User, user_id)
             if user:
                 user.bonus_balance -= discount_data["bonus_used"]
-                await self.db.flush()
+                self.db.add(user)
+
+        await self.db.commit()
+        await self.db.refresh(order)
 
         return order
 
@@ -179,19 +190,20 @@ class OrderService:
                     product_id=item.product_id,
                     access_type=AccessType.PURCHASE
                 ))
-                logger.info(f"ACCESS GRANTED: User {order.user_id}, Product {item.product_id}")
 
         if order.promo_code_id:
             promo = await self.db.get(PromoCode, order.promo_code_id)
             if promo:
                 promo.current_uses += 1
-                logger.info(f"Promo code {promo.code} usage incremented for order {order.id}")
 
         buyer = order.user
         lang = buyer.language_code if buyer and buyer.language_code else "uk"
 
         if buyer and buyer.referrer_id:
-            referrer = buyer.referrer
+            referrer_query = select(User).where(User.id == buyer.referrer_id).with_for_update()
+            referrer_res = await self.db.execute(referrer_query)
+            referrer = referrer_res.scalar_one_or_none()
+
             if referrer:
                 ref_percent = Decimal(str(settings.REFERRAL_PURCHASE_PERCENT))
                 commission_amount = int(order.final_total * ref_percent * 100)
@@ -206,11 +218,8 @@ class OrderService:
                         bonus_amount=commission_amount,
                         purchase_amount=order.final_total
                     ))
-                    logger.info(
-                        f"REFERRAL: User {referrer.id} received {commission_amount} bonuses for purchase from user {buyer.id}")
 
-        logger.info(f"Order {order.id} processed successfully as PAID.")
-        await self.db.flush()
+        await self.db.commit()
 
         try:
             items_str = ""
