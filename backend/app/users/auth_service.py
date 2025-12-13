@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Tuple
+from typing import Tuple, Optional
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -26,9 +26,6 @@ class AuthService:
 
     @staticmethod
     def verify_telegram_auth(auth_data: dict) -> bool:
-        """
-        Перевірка підпису даних від Telegram.
-        """
         if settings.ENVIRONMENT == 'development' and settings.DEBUG:
             return True
 
@@ -62,12 +59,7 @@ class AuthService:
         secret_key = hashlib.sha256(settings.TELEGRAM_BOT_TOKEN.encode()).digest()
         computed_hash = hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
 
-        is_valid = hmac.compare_digest(computed_hash, received_hash)
-
-        if not is_valid:
-            logger.warning(f"Invalid hash for user {auth_dict.get('id')}")
-
-        return is_valid
+        return hmac.compare_digest(computed_hash, received_hash)
 
     @staticmethod
     def create_access_token(user_id: int) -> str:
@@ -137,7 +129,6 @@ class AuthService:
     ) -> Tuple[User, bool]:
 
         auth_data_dict = auth_data.model_dump(exclude_none=True)
-        # Визначаємо мову для помилок (з даних Telegram або дефолтна)
         error_lang = auth_data.language_code if auth_data.language_code in ["uk", "en", "ru", "de", "es"] else "uk"
 
         if not AuthService.verify_telegram_auth(auth_data_dict):
@@ -149,10 +140,10 @@ class AuthService:
         result = await db.execute(select(User).where(User.telegram_id == auth_data.id))
         user = result.scalar_one_or_none()
 
-        is_new_user = not user
+        is_new_user_response = not user or user.last_login_at is None
 
         try:
-            if is_new_user:
+            if not user:
                 user = User(
                     telegram_id=auth_data.id,
                     username=auth_data.username,
@@ -198,7 +189,8 @@ class AuthService:
 
             await db.commit()
             await db.refresh(user)
-            return user, is_new_user
+
+            return user, is_new_user_response
 
         except IntegrityError as e:
             await db.rollback()

@@ -85,11 +85,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     const { user, isNewUser } = useAuthStore.getState();
 
     if (user && isNewUser) {
-      const onboardingKey = `onboarding_${user.telegram_id}`;
-      const hasCompletedOnboarding = localStorage.getItem(onboardingKey) === 'true';
-      if (!hasCompletedOnboarding) {
-        setShowOnboarding(true);
-      }
+      setShowOnboarding(true);
     }
   };
 
