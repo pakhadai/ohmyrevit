@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
 import { usePathname, useRouter } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
 
 declare global {
   interface Window {
@@ -19,7 +20,7 @@ declare global {
 }
 
 export default function AppProvider({ children }: { children: React.ReactNode }) {
-  const { user, login, isLoading, isAuthenticated, isNewUser, completeOnboarding } = useAuthStore();
+  const { login, isLoading, isAuthenticated, completeOnboarding } = useAuthStore();
   const { fetchInitialData } = useCollectionStore();
   const { setLanguage } = useLanguageStore();
   const { setTheme } = useUIStore();
@@ -80,6 +81,18 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     }
   }, [pathname, router]);
 
+  const checkOnboardingStatus = () => {
+    const { user, isNewUser } = useAuthStore.getState();
+
+    if (user && isNewUser) {
+      const onboardingKey = `onboarding_${user.telegram_id}`;
+      const hasCompletedOnboarding = localStorage.getItem(onboardingKey) === 'true';
+      if (!hasCompletedOnboarding) {
+        setShowOnboarding(true);
+      }
+    }
+  };
+
   useEffect(() => {
     const initializeTelegram = async () => {
       const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
@@ -97,6 +110,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
       }
 
       if (authAttempted.current || (isAuthenticated && !startParam)) {
+        checkOnboardingStatus();
         setAppReady(true);
         if (isAuthenticated) fetchInitialData();
         return;
@@ -118,7 +132,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
             tg.setHeaderColor('bg_color');
             tg.setBackgroundColor('bg_color');
           } catch (e) {
-            console.error("Error setting header color", e);
+            console.error(e);
           }
 
           const initData = tg.initDataUnsafe;
@@ -151,6 +165,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
                   toast.success(t('toasts.welcome'), { duration: 4000 });
               }
 
+              checkOnboardingStatus();
               setAppReady(true);
 
             } catch (error: any) {
@@ -175,16 +190,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     initializeTelegram();
   }, [login, isAuthenticated, fetchInitialData, t, setLanguage]);
 
-  useEffect(() => {
-    if (isAuthenticated && user && isNewUser) {
-      const onboardingKey = `onboarding_${user.telegram_id}`;
-      const hasCompletedOnboarding = localStorage.getItem(onboardingKey) === 'true';
-      if (!hasCompletedOnboarding) {
-        setShowOnboarding(true);
-      }
-    }
-  }, [isAuthenticated, user, isNewUser]);
-
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
     completeOnboarding();
@@ -200,7 +205,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
 
   if (!appReady || isLoading || !isI18nReady) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-purple-500 to-blue-600">
+      <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-purple-500 to-blue-600 z-[100]">
         <div className="text-center text-white">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto mb-4"></div>
           <h2 className="text-2xl font-bold mb-2">OhMyRevit</h2>
@@ -211,7 +216,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
 
   if (authError) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-red-500 to-pink-600 p-4">
+      <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-red-500 to-pink-600 p-4 z-[100]">
         <div className="bg-white rounded-2xl p-8 max-w-md text-center shadow-2xl">
           <h2 className="text-2xl font-bold mb-4 text-gray-800">{t('common.oops')}</h2>
           <p className="text-gray-600 mb-6">{authError}</p>
@@ -224,9 +229,24 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   }
 
   return (
-    <>
-      {showOnboarding && <Onboarding onComplete={handleOnboardingComplete} />}
-      {children}
-    </>
+    <AnimatePresence mode="wait">
+      {showOnboarding ? (
+        <Onboarding key="onboarding" onComplete={handleOnboardingComplete} />
+      ) : (
+        <motion.div
+          key="app-content"
+          initial={{ opacity: 0, y: 50, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{
+            duration: 0.6,
+            ease: [0.22, 1, 0.36, 1],
+            delay: 0.1
+          }}
+          className="h-full w-full"
+        >
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
