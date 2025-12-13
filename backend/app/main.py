@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 import httpx
 import sentry_sdk
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -21,6 +21,7 @@ from app.products.router import router as products_router, admin_router as produ
 from app.profile.router import router as profile_router
 from app.subscriptions.router import router as subscriptions_router
 from app.users.router import auth_router
+from app.core.rate_limit import RateLimiter
 
 logging.basicConfig(
     level=logging.INFO if not settings.DEBUG else logging.DEBUG,
@@ -40,6 +41,8 @@ if settings.ENVIRONMENT == "production":
         traces_sample_rate=0.1,
         environment=settings.ENVIRONMENT,
     )
+
+limiter = RateLimiter(max_requests=100, window=60)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -109,7 +112,11 @@ async def health_check():
         "status": "healthy"
     }
 
-api_v1_router = APIRouter(prefix="/api/v1")
+api_v1_router = APIRouter(
+    prefix="/api/v1",
+    dependencies=[Depends(limiter.check_rate_limit)]
+)
+
 api_v1_router.include_router(auth_router)
 api_v1_router.include_router(products_router, prefix="/products")
 api_v1_router.include_router(orders_router, prefix="/orders")

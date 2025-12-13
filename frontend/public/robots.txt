@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ohmyrevit.com/sitemap.xml
