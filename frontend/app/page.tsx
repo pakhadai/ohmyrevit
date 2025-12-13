@@ -32,7 +32,7 @@ export default function HomePage() {
   const fetchData = async () => {
     try {
       const productsData = await productsAPI.getProducts({
-        sort: 'newest',
+        sort_by: 'newest',
         limit: 4
       });
       setNewProducts(productsData.products || []);

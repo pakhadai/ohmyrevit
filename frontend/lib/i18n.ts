@@ -12,7 +12,7 @@ i18n
       read: (language: string, namespace: string, callback: (err: any, data: any) => void) => {
           callback(null, {});
       }
-  })
+  } as any)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
@@ -67,6 +67,6 @@ i18n
     react: {
       useSuspense: false,
     },
-  });
+  } as any);
 
 export default i18n;
