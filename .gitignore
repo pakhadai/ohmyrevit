@@ -97,3 +97,28 @@ coverage.xml
 # Static files
 staticfiles/
 static/
+
+# ============================================
+# КОНФІГУРАЦІЙНІ ФАЙЛИ СЕРВЕРА (НЕ ЗАВАНТАЖУВАТИ!)
+# ============================================
+
+# Docker конфігурація продакшн
+docker-compose.yml
+docker-compose.prod.yml
+
+# Nginx конфігурація
+nginx/nginx.conf
+
+# Cloudflare тунель
+config.yml
+*.json
+cert.pem
+
+# Скрипти налаштування сервера
+clean_restart.sh
+debug.sh
+
+# Makefile (якщо він специфічний для вашого сервера)
+# Makefile
+
+# .env.example залишаємо для документації
