@@ -1,0 +1,4 @@
+.env merge=ours
+docker-compose.yml merge=ours
+config.yml merge=ours
+nginx/nginx.conf merge=ours
