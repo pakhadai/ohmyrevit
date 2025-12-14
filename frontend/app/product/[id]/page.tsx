@@ -107,18 +107,19 @@ export default function ProductDetailPage() {
       return path;
     }
 
+    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ohmyrevit.pp.ua';
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
     if (path.startsWith('/uploads/')) {
-        return path;
+        return `${cleanBaseUrl}${path}`;
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
-    return `${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+    return `${cleanBaseUrl}${path.startsWith('/') ? path : `/${path}`}`;
   };
 
   const hasAccess = product ? checkAccess(product.id) || product.product_type === 'free' : false;
   const isFavorited = product ? favoritedProductIds.has(product.id) : false;
 
-  // ВИПРАВЛЕННЯ: Конвертація цін
   const price = product ? Number(product.price) : 0;
   const salePrice = product?.sale_price ? Number(product.sale_price) : null;
 
@@ -232,7 +233,6 @@ export default function ProductDetailPage() {
             <div className="flex items-center gap-3 mb-6">
               {product.is_on_sale && salePrice ? (
                 <>
-                  {/* ВИПРАВЛЕННЯ: Використовуємо конвертовані змінні */}
                   <span className="text-3xl font-bold text-primary">${salePrice.toFixed(2)}</span>
                   <span className="text-lg text-muted-foreground line-through decoration-2">${price.toFixed(2)}</span>
                 </>

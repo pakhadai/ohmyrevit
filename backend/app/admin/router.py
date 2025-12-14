@@ -8,7 +8,7 @@ import aiofiles
 from pathlib import Path
 import logging
 import os
-import uuid
+import shutil
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -55,13 +55,15 @@ async def save_upload_file(
         old_file_path: Optional[str] = None
 ) -> tuple[str, float]:
     if old_file_path:
-        old_path = Path(settings.UPLOAD_PATH) / old_file_path.lstrip('/')
-        if old_path.exists():
-            try:
+        try:
+            clean_old_path = old_file_path.replace('https://ohmyrevit.pp.ua', '').replace('/uploads/', '')
+            old_path = Path(settings.UPLOAD_PATH) / clean_old_path
+
+            if old_path.exists() and old_path.is_file():
                 old_path.unlink()
                 logger.info(f"Видалено старий файл: {old_path}")
-            except Exception as e:
-                logger.error(f"Помилка видалення файлу {old_path}: {e}")
+        except Exception as e:
+            logger.error(f"Помилка видалення файлу {old_file_path}: {e}")
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     file_size = 0
@@ -85,16 +87,6 @@ async def save_upload_file(
         )
 
 
-def generate_unique_filename(original_filename: str, extension: str) -> str:
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    unique_id = str(uuid.uuid4())[:8]
-    base_name, _ = os.path.splitext(original_filename)
-    safe_name = "".join(c for c in base_name if c.isalnum() or c in "._-")[:50]
-    if not safe_name.endswith(extension):
-        return f"{timestamp}_{unique_id}_{safe_name}{extension}"
-    return f"{timestamp}_{unique_id}_{safe_name}"
-
-
 @router.post("/upload/image", response_model=FileUploadResponse)
 async def upload_image(
         file: UploadFile = File(...),
@@ -107,9 +99,17 @@ async def upload_image(
             detail=get_text("admin_upload_error_type_image", "uk", allowed=', '.join(ALLOWED_IMAGE_TYPES.keys()))
         )
 
-    extension = ALLOWED_IMAGE_TYPES[file.content_type]
-    unique_filename = generate_unique_filename(file.filename, extension)
-    file_path = UPLOAD_DIR / "images" / unique_filename
+    filename = file.filename
+
+    safe_filename = filename.replace(" ", "_")
+
+    file_path = UPLOAD_DIR / "images" / safe_filename
+
+    if file_path.exists():
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        name, ext = os.path.splitext(safe_filename)
+        safe_filename = f"{name}_{timestamp}{ext}"
+        file_path = UPLOAD_DIR / "images" / safe_filename
 
     relative_path, file_size_mb = await save_upload_file(file, file_path, old_path)
 
@@ -118,7 +118,7 @@ async def upload_image(
     return FileUploadResponse(
         file_path=file_url,
         file_size_mb=file_size_mb,
-        filename=unique_filename
+        filename=safe_filename
     )
 
 
@@ -135,8 +135,18 @@ async def upload_archive(
             detail=get_text("admin_upload_error_type_archive", "uk", allowed=".zip, .rar, .7z")
         )
 
-    unique_filename = generate_unique_filename(file.filename, extension)
-    file_path = UPLOAD_DIR / "archives" / unique_filename
+
+    filename = file.filename
+
+    safe_filename = filename.replace(" ", "_")
+
+    file_path = UPLOAD_DIR / "archives" / safe_filename
+
+    if file_path.exists():
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        name, ext = os.path.splitext(safe_filename)
+        safe_filename = f"{name}_{timestamp}{ext}"
+        file_path = UPLOAD_DIR / "archives" / safe_filename
 
     relative_path, file_size_mb = await save_upload_file(file, file_path, old_path)
 
@@ -145,7 +155,7 @@ async def upload_archive(
     return FileUploadResponse(
         file_path=file_url,
         file_size_mb=file_size_mb,
-        filename=unique_filename
+        filename=safe_filename
     )
 
 

@@ -68,7 +68,22 @@ export default function ProductCard({ product }: ProductCardProps) {
     ? Math.round(((price - salePrice) / price) * 100)
     : 0;
 
-  const imageUrl = product.main_image_url || '/placeholder.jpg';
+  const fullImageUrl = (path: string) => {
+    if (!path) return '/placeholder.jpg';
+    if (path.startsWith('http')) return path;
+
+    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ohmyrevit.pp.ua';
+    const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
+    if (path.startsWith('/uploads/')) {
+        return `${cleanBase}${path}`;
+    }
+
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${cleanBase}${cleanPath}`;
+  };
+
+  const imageUrl = fullImageUrl(product.main_image_url);
 
   return (
     <div className="relative bg-card text-card-foreground rounded-2xl overflow-hidden border border-border flex flex-col">
