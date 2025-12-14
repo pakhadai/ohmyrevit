@@ -13,10 +13,13 @@ NC='\033[0m'
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
-# Крок 1: Перевірка git статусу
+# Крок 1: Перевірка git статусу (ігноруємо update.sh)
 echo -e "\n${YELLOW}Крок 1: Перевірка локальних змін...${NC}"
-if [[ -n $(git status -s) ]]; then
+CHANGES=$(git status -s | grep -v "update.sh" | grep -v "get-docker.sh")
+if [[ -n "$CHANGES" ]]; then
     echo -e "${RED}⚠ У вас є незбережені локальні зміни!${NC}"
+    git status -s | grep -v "update.sh" | grep -v "get-docker.sh"
+    echo ""
     echo "Збережіть їх або скасуйте перед оновленням."
     exit 1
 fi
