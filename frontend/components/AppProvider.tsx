@@ -132,19 +132,11 @@ export default function AppProvider({ children }: { children: React.ReactNode })
           }
 
           const initData = tg.initDataUnsafe;
+          const rawInitData = tg.initData;
 
-          if (initData && initData.user) {
+          if (initData && initData.user && rawInitData) {
             const authData = {
-              id: initData.user.id,
-              first_name: initData.user.first_name || t('common.userFallbackName'),
-              last_name: initData.user.last_name || '',
-              username: initData.user.username || '',
-              photo_url: initData.user.photo_url || '',
-              language_code: initData.user.language_code || 'uk',
-              is_premium: initData.user.is_premium || false,
-              auth_date: initData.auth_date || Math.floor(Date.now() / 1000),
-              hash: initData.hash || '',
-              query_id: initData.query_id || '',
+              initData: rawInitData,
               start_param: startParam || null
             };
 
@@ -153,11 +145,11 @@ export default function AppProvider({ children }: { children: React.ReactNode })
               const loginResponse = await login(authData);
               await fetchInitialData();
 
-              if (loginResponse.is_new_user && authData.language_code) {
-                setLanguage(authData.language_code as any);
+              if (loginResponse.is_new_user && initData.user.language_code) {
+                setLanguage(initData.user.language_code as any);
               }
 
-              if (loginResponse.is_new_user && authData.start_param) {
+              if (loginResponse.is_new_user && startParam) {
                   toast.success(t('toasts.welcome'), { duration: 4000 });
               }
 

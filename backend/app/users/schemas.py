@@ -14,12 +14,10 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-
     pass
 
 
 class UserUpdate(BaseModel):
-    """Схема для оновлення користувача"""
     username: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -29,7 +27,6 @@ class UserUpdate(BaseModel):
 
 
 class UserInDB(UserBase):
-    """Схема користувача з бази даних"""
     id: int
     is_admin: bool
     is_active: bool
@@ -45,7 +42,6 @@ class UserInDB(UserBase):
 
 
 class UserResponse(BaseModel):
-    """Схема відповіді для користувача"""
     id: int
     telegram_id: int
     username: Optional[str] = None
@@ -64,26 +60,24 @@ class UserResponse(BaseModel):
 
 
 class TelegramAuthData(BaseModel):
-    """Схема для даних авторизації з Telegram"""
-    id: int = Field(..., description="Telegram user ID")
+    id: Optional[int] = Field(None, description="Telegram user ID")
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     username: Optional[str] = None
     photo_url: Optional[str] = None
-    auth_date: int
-    hash: str
+    auth_date: Optional[int] = None
+    hash: Optional[str] = None
     user: Optional[dict] = None
     query_id: Optional[str] = None
     start_param: Optional[str] = None
-
     language_code: Optional[str] = "uk"
     is_premium: Optional[bool] = False
+    initData: Optional[str] = None
 
     model_config = ConfigDict(extra="allow")
 
 
 class TokenResponse(BaseModel):
-    """Схема відповіді з токеном"""
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
@@ -91,7 +85,6 @@ class TokenResponse(BaseModel):
 
 
 class BonusClaimResponse(BaseModel):
-    """Схема відповіді для отримання бонусу"""
     success: bool
     bonus_amount: Optional[int] = None
     new_balance: Optional[int] = None

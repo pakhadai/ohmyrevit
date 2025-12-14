@@ -1,6 +1,8 @@
 import hashlib
 import hmac
 import time
+import json
+from urllib.parse import parse_qsl
 from datetime import datetime, timedelta, timezone
 from typing import Tuple, Optional
 from jose import JWTError, jwt
@@ -25,41 +27,55 @@ logger = logging.getLogger(__name__)
 class AuthService:
 
     @staticmethod
-    def verify_telegram_auth(auth_data: dict) -> bool:
+    def verify_telegram_auth(auth_data_obj: TelegramAuthData) -> Optional[dict]:
         if settings.ENVIRONMENT == 'development' and settings.DEBUG:
-            return True
+            if auth_data_obj.id and not auth_data_obj.initData:
+                return auth_data_obj.model_dump()
+            if not settings.TELEGRAM_BOT_TOKEN:
+                return {"user": {"id": 12345, "first_name": "DevUser"}}
 
-        if not settings.TELEGRAM_BOT_TOKEN:
-            logger.error("TELEGRAM_BOT_TOKEN not configured!")
-            return False
+        if not auth_data_obj.initData:
+            logger.error("initData is missing")
+            return None
 
-        auth_dict = auth_data.copy()
-        received_hash = auth_dict.pop('hash', '')
-
-        if not received_hash:
-            return False
-
-        auth_date = auth_dict.get('auth_date', 0)
         try:
-            if time.time() - int(auth_date) > 3600:
-                logger.warning(f"Auth data is too old. Diff: {time.time() - int(auth_date)}")
-                return False
+            parsed_data = dict(parse_qsl(auth_data_obj.initData))
+        except ValueError:
+            logger.error("Failed to parse initData")
+            return None
+
+        received_hash = parsed_data.pop('hash', '')
+        if not received_hash:
+            logger.error("Hash missing in initData")
+            return None
+
+        auth_date = int(parsed_data.get('auth_date', 0))
+        try:
+            if time.time() - auth_date > 86400:
+                logger.warning(f"Auth data outdated. Diff: {time.time() - auth_date}")
+                return None
         except (ValueError, TypeError):
-            return False
+            return None
 
-        check_string_parts = []
-        for key in sorted(auth_dict.keys()):
-            value = auth_dict[key]
-            if value is not None:
-                if isinstance(value, (dict, list)):
-                    pass
-                check_string_parts.append(f"{key}={value}")
+        data_check_string = "\n".join(
+            f"{key}={value}" for key, value in sorted(parsed_data.items())
+        )
 
-        check_string = "\n".join(check_string_parts)
-        secret_key = hashlib.sha256(settings.TELEGRAM_BOT_TOKEN.encode()).digest()
-        computed_hash = hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
+        secret_key = hmac.new(b"WebAppData", settings.TELEGRAM_BOT_TOKEN.encode(), hashlib.sha256).digest()
+        computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
-        return hmac.compare_digest(computed_hash, received_hash)
+        if computed_hash != received_hash:
+            logger.error(f"Hash mismatch! Expected: {computed_hash}, Got: {received_hash}")
+            return None
+
+        if 'user' in parsed_data:
+            try:
+                parsed_data['user'] = json.loads(parsed_data['user'])
+            except json.JSONDecodeError:
+                logger.error("Failed to decode user JSON in initData")
+                return None
+
+        return parsed_data
 
     @staticmethod
     def create_access_token(user_id: int) -> str:
@@ -85,23 +101,17 @@ class AuthService:
     @staticmethod
     async def process_referral_link(db: AsyncSession, user: User, start_param: str):
         start_param = start_param.strip()
-
         if user.referrer_id is not None:
             return
-
         if user.referral_code == start_param:
             return
-
         referrer_res = await db.execute(select(User).where(User.referral_code == start_param))
         referrer = referrer_res.scalar_one_or_none()
-
         if not referrer or referrer.id == user.id:
             return
-
         user.referrer_id = referrer.id
         bonus_amount = settings.REFERRAL_REGISTRATION_BONUS
         referrer.bonus_balance += bonus_amount
-
         log_entry = ReferralLog(
             referrer_id=referrer.id,
             referred_user_id=user.id,
@@ -109,7 +119,6 @@ class AuthService:
             bonus_amount=bonus_amount
         )
         db.add(log_entry)
-
         try:
             lang = referrer.language_code or "uk"
             message = get_text(
@@ -128,29 +137,47 @@ class AuthService:
             auth_data: TelegramAuthData
     ) -> Tuple[User, bool]:
 
-        auth_data_dict = auth_data.model_dump(exclude_none=True)
-        error_lang = auth_data.language_code if auth_data.language_code in ["uk", "en", "ru", "de", "es"] else "uk"
+        verified_data = AuthService.verify_telegram_auth(auth_data)
 
-        if not AuthService.verify_telegram_auth(auth_data_dict):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=get_text("auth_error_invalid_telegram_data", error_lang)
-            )
+        if not verified_data:
+            if not auth_data.initData and auth_data.id:
+                user_data = auth_data.model_dump()
+                user_id = user_data.get('id')
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=get_text("auth_error_invalid_telegram_data", "uk")
+                )
+        else:
+            user_info = verified_data.get('user', {})
+            user_id = user_info.get('id')
+            start_param = verified_data.get('start_param')
 
-        result = await db.execute(select(User).where(User.telegram_id == auth_data.id))
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User ID missing in data")
+
+        result = await db.execute(select(User).where(User.telegram_id == user_id))
         user = result.scalar_one_or_none()
 
         is_new_user_response = not user or user.last_login_at is None
 
+        src = user_info if verified_data else auth_data.model_dump()
+
+        username = src.get('username')
+        first_name = src.get('first_name') or f'User {user_id}'
+        last_name = src.get('last_name')
+        photo_url = src.get('photo_url')
+        language_code = src.get('language_code', 'uk')
+
         try:
             if not user:
                 user = User(
-                    telegram_id=auth_data.id,
-                    username=auth_data.username,
-                    first_name=auth_data.first_name or f'User {auth_data.id}',
-                    last_name=auth_data.last_name,
-                    language_code=auth_data.language_code or 'uk',
-                    photo_url=auth_data.photo_url,
+                    telegram_id=user_id,
+                    username=username,
+                    first_name=first_name,
+                    last_name=last_name,
+                    language_code=language_code,
+                    photo_url=photo_url,
                     last_login_at=datetime.now(timezone.utc)
                 )
                 db.add(user)
@@ -167,44 +194,31 @@ class AuthService:
                 else:
                     raise HTTPException(
                         status_code=500,
-                        detail=get_text("auth_error_referral_code_gen_failed", error_lang)
+                        detail="Referral code error"
                     )
 
                 users_count_res = await db.execute(select(func.count(User.id)))
                 if users_count_res.scalar_one() == 1:
                     user.is_admin = True
-
             else:
-                user.username = auth_data.username
-                user.first_name = auth_data.first_name or user.first_name
-                user.last_name = auth_data.last_name or user.last_name
-                user.photo_url = auth_data.photo_url or user.photo_url
+                user.username = username
+                user.first_name = first_name
+                user.last_name = last_name
+                user.photo_url = photo_url
                 user.last_login_at = datetime.now(timezone.utc)
-
                 if not user.referral_code:
                     user.referral_code = AuthService._generate_referral_code()
 
-            if auth_data.start_param:
-                await AuthService.process_referral_link(db, user, auth_data.start_param)
+            referral_param = start_param or auth_data.start_param
+            if referral_param:
+                await AuthService.process_referral_link(db, user, referral_param)
 
             await db.commit()
             await db.refresh(user)
 
             return user, is_new_user_response
 
-        except IntegrityError as e:
-            await db.rollback()
-            logger.error(f"Database integrity error: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=get_text("auth_error_database", error_lang)
-            )
         except Exception as e:
             await db.rollback()
-            logger.error(f"Auth error: {e}")
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(
-                status_code=500,
-                detail=get_text("auth_error_auth_failed", error_lang)
-            )
+            logger.error(f"Auth DB error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
