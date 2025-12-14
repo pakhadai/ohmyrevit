@@ -61,6 +61,32 @@ export default function RootLayout({
             </div>
           </AppProvider>
         </TelegramProvider>
+
+        <Script id="console-cleanup" strategy="beforeInteractive">
+          {`
+            (function() {
+              var originalLog = console.log;
+              console.log = function(...args) {
+
+                if (args[0] && typeof args[0] === 'string' && (
+                    args[0].includes('[Telegram.WebView]') ||
+                    args[0].includes('postEvent') ||
+                    args[0].includes('receiveEvent')
+                )) {
+                  return;
+                }
+
+                originalLog.apply(console, args);
+              };
+
+              console.log(
+                '%c OhMyREVIT ',
+                'background: #667eea; color: white; font-weight: bold; font-size: 16px; padding: 4px 10px; border-radius: 4px;'
+              );
+            })();
+          `}
+        </Script>
+
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
