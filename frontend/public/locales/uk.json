@@ -146,6 +146,15 @@
     "perMonth": "/місяць",
     "checkoutButton": "Оформити підписку",
     "cancelAnytime": "Скасування в будь-який час",
+    "priceCoins": "{{amount}} OMR / місяць",
+    "buyWithCoins": "Оплатити {{amount}} OMR",
+    "insufficientFunds": "Недостатньо монет для підписки",
+    "topUpFirst": "Поповніть баланс",
+    "successPurchase": "Premium активовано!",
+    "successExtension": "Premium продовжено!",
+    "autoRenewal": "Автопродовження",
+    "enabled": "Увімкнено",
+    "disabled": "Вимкнено",
     "management": {
       "title": "Управління підпискою",
       "extend": "Продовжити підписку",
@@ -153,17 +162,15 @@
       "cancel": "Скасувати підписку",
       "cancelDesc": "Вимкнути автопродовження",
       "cancelWarning": "При скасуванні підписки, доступ до преміум контенту зберігається до кінця оплаченого періоду.",
-      "cancelConfirm": "Ви впевнені, що хочете скасувати автопродовження?"
+      "cancelConfirm": "Ви впевнені, що хочете скасувати автопродовження?",
+      "enable": "Увімкнути автопродовження",
+      "enableDesc": "Підписка продовжиться автоматично",
+      "cancelSuccess": "Автопродовження скасовано",
+      "enableSuccess": "Автопродовження увімкнено"
     },
     "toasts": {
       "cancelInfo": "Зв'яжіться з підтримкою для скасування"
-    },
-    "priceCoins": "{{amount}} OMR / місяць",
-    "buyWithCoins": "Оплатити {{amount}} OMR",
-    "insufficientFunds": "Недостатньо монет для підписки",
-    "topUpFirst": "Поповніть баланс",
-    "successPurchase": "Premium активовано!",
-    "successExtension": "Premium продовжено!"
+    }
   },
   "wallet": {
     "title": "Гаманець",
@@ -309,6 +316,7 @@
         "dark": "Темна"
       },
       "menu": {
+        "wallet": "Гаманець",
         "downloads": "Завантаження",
         "collections": "Мої колекції",
         "bonuses": "Бонуси",
@@ -319,6 +327,7 @@
       },
       "stats": {
         "bonuses": "Бонусів",
+        "balance": "Баланс",
         "streakDays": "Днів стріку",
         "downloads": "Завантажень",
         "referrals": "Рефералів"
