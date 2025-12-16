@@ -149,8 +149,12 @@ class AuthService:
                     detail=get_text("auth_error_invalid_telegram_data", "uk")
                 )
         else:
-            user_info = verified_data.get('user', {})
-            user_id = user_info.get('id')
+            user_info = verified_data.get('user')
+            if user_info and isinstance(user_info, dict):
+                user_id = user_info.get('id')
+            else:
+                user_id = verified_data.get('id')
+
             start_param = verified_data.get('start_param')
 
         if not user_id:

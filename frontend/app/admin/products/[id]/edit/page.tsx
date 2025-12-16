@@ -1,67 +1,97 @@
-// frontend/app/admin/products/[id]/edit/page.tsx
-'use client'
+'use client';
 
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter, useParams } from 'next/navigation'
-import { useAuthStore } from '@/store/authStore'
-import { ArrowLeft, Upload, X, Package, Tag, Image as ImageIcon, FileArchive, Loader } from 'lucide-react'
-// OLD: import { adminApi } from '@/lib/api/admin'
-// OLD: import { productsAPI } from '@/lib/api'
-import { adminAPI, productsAPI } from '@/lib/api'
-import toast from 'react-hot-toast'
-import { useTranslation } from 'react-i18next'
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
+import { ArrowLeft, Upload, X, Package, Tag, Image as ImageIcon, FileArchive, Loader, Save, Trash2 } from 'lucide-react';
+import { adminAPI, productsAPI } from '@/lib/api';
+import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 
+// Хелпер для відображення повного шляху картинки
+const fullImageUrl = (path: string) => {
+    if (!path) return '/placeholder.jpg';
+    if (path.startsWith('http')) return path;
+
+    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ohmyrevit.pp.ua';
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
+    if (path.startsWith('/uploads/')) {
+        return `${cleanBaseUrl}${path}`;
+    }
+
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${cleanBaseUrl}${cleanPath}`;
+};
+
+// Компонент завантаження файлів з підтримкою multiple
 function FileUploader({
     onUpload,
     accept,
     label,
-    oldPath
+    multiple = false
 }: {
-    onUpload: (path: string, size: number) => void,
+    onUpload: (result: { path: string; size: number }[]) => void,
     accept: string,
     label: string,
-    oldPath?: string
+    multiple?: boolean
 }) {
-    const { t } = useTranslation();
     const [isUploading, setIsUploading] = useState(false);
 
-    const handleFileUpload = async (file: File) => {
-        setIsUploading(true);
-        try {
-            const isImage = accept.includes('image');
-            const uploadFunction = isImage ? adminAPI.uploadImage : adminAPI.uploadArchive;
-            const response = await uploadFunction(file, oldPath);
+    const handleFileUpload = async (files: FileList) => {
+        if (!files || files.length === 0) return;
 
-            onUpload(response.file_path, response.file_size_mb);
-            toast.success(t('admin.products.form.toasts.fileUploaded'));
+        setIsUploading(true);
+        const results: { path: string; size: number }[] = [];
+        const isImage = accept.includes('image');
+        const uploadFunction = isImage ? adminAPI.uploadImage : adminAPI.uploadArchive;
+
+        try {
+            // Завантажуємо файли по черзі
+            for (let i = 0; i < files.length; i++) {
+                const response = await uploadFunction(files[i]);
+                results.push({
+                    path: response.file_path,
+                    size: response.file_size_mb
+                });
+            }
+
+            onUpload(results);
+            toast.success(files.length > 1 ? 'Файли успішно завантажено!' : 'Файл успішно завантажено!');
         } catch (error: any) {
-            toast.error(error.message || t('admin.products.form.toasts.fileUploadError'));
+            toast.error(error.message || 'Помилка завантаження файлу.');
         } finally {
             setIsUploading(false);
         }
     };
 
     return (
-        <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center h-full flex flex-col justify-center">
+        <div className="border-2 border-dashed border-border bg-muted/20 hover:bg-muted/40 rounded-xl transition-all cursor-pointer group h-full min-h-[120px]">
             <input
                 type="file"
                 accept={accept}
+                multiple={multiple}
                 className="hidden"
                 id={label}
-                onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
+                onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
                 disabled={isUploading}
             />
-            <label htmlFor={label} className="cursor-pointer">
+            <label htmlFor={label} className="cursor-pointer w-full h-full flex flex-col items-center justify-center p-6">
                 {isUploading ? (
-                    <div className="flex flex-col items-center">
-                        <Loader className="w-8 h-8 text-purple-500 animate-spin mb-2" />
-                        <span className="text-sm font-semibold">{t('common.loading')}</span>
+                    <div className="flex flex-col items-center animate-pulse">
+                        <Loader className="w-8 h-8 text-primary animate-spin mb-3" />
+                        <span className="text-sm font-semibold text-muted-foreground">Завантаження...</span>
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center">
-                        <Upload className="w-10 h-10 text-gray-400 mb-2" />
-                        <span className="text-sm font-semibold">{label}</span>
-                        <p className="text-xs text-gray-500">{t('admin.products.form.toasts.clickToSelect')}</p>
+                    <div className="flex flex-col items-center text-center">
+                        <div className="w-12 h-12 bg-background rounded-full flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform border border-border">
+                            <Upload className="w-6 h-6 text-primary" />
+                        </div>
+                        <span className="text-sm font-semibold text-foreground mb-1">{label}</span>
+                        <p className="text-xs text-muted-foreground">
+                            {multiple ? 'Можна обрати декілька файлів' : 'Натисніть для вибору'}
+                        </p>
                     </div>
                 )}
             </label>
@@ -78,6 +108,7 @@ export default function EditProductPage() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
+
   const [formData, setFormData] = useState({
     title_uk: '',
     description_uk: '',
@@ -123,7 +154,6 @@ export default function EditProductPage() {
       const response = await adminAPI.getCategories();
       setCategories(response);
     } catch (error) {
-      console.error('Error loading categories:', error);
       toast.error(t('admin.products.form.toasts.categoriesLoadError'));
     }
   }, [t]);
@@ -179,141 +209,275 @@ export default function EditProductPage() {
   };
 
   const toggleCategory = (categoryId: number) => {
-    setFormData((prev) => ({ ...prev, category_ids: prev.category_ids.includes(categoryId) ? prev.category_ids.filter(id => id !== categoryId) : [...prev.category_ids, categoryId] }));
+    setFormData((prev) => ({
+        ...prev,
+        category_ids: prev.category_ids.includes(categoryId)
+            ? prev.category_ids.filter(id => id !== categoryId)
+            : [...prev.category_ids, categoryId]
+    }));
   };
 
-  if (fetching) {
-    return (
-      <div className="min-h-screen flex items-center justify-center"><Loader className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500" /></div>
-    );
-  }
+  // Styles
+  const inputClass = "w-full px-4 py-3 bg-muted/50 border border-transparent rounded-xl text-foreground text-sm placeholder:text-muted-foreground focus:bg-background focus:border-primary/30 focus:ring-0 outline-none transition-all";
+  const labelClass = "block text-xs font-bold text-muted-foreground mb-2 uppercase tracking-wider";
+
+  if (fetching) return <div className="min-h-screen flex items-center justify-center"><Loader className="animate-spin h-10 w-10 text-primary" /></div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
-        <div className="flex items-center gap-4 mb-8">
-            <button onClick={() => router.push('/admin/products')} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"><ArrowLeft size={20} /></button>
-            <h1 className="text-2xl font-bold">{t('admin.products.form.editTitle', { id: productId })}</h1>
+    <div className="space-y-6 pb-20 max-w-5xl mx-auto">
+        <div className="flex items-center gap-4">
+            <button onClick={() => router.push('/admin/products')} className="p-2 hover:bg-muted rounded-xl transition-colors">
+                <ArrowLeft size={24} className="text-muted-foreground" />
+            </button>
+            <h1 className="text-2xl font-bold text-foreground">{t('admin.products.form.editTitle', { id: productId })}</h1>
         </div>
 
-        <div className="space-y-6">
-           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Package size={20} /> {t('admin.products.form.mainInfo')}</h2>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div>
-                        <label className="block text-sm font-medium mb-2">{t('admin.products.form.titleUk')}</label>
-                        <input type="text" value={formData.title_uk} onChange={(e) => setFormData({ ...formData, title_uk: e.target.value })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" required />
-                     </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">{t('admin.products.form.productType')}</label>
-                        <select value={formData.product_type} onChange={(e) => setFormData({ ...formData, product_type: e.target.value })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
-                          <option value="premium">{t('admin.products.form.premium')}</option>
-                          <option value="free">{t('admin.products.form.free')}</option>
-                        </select>
-                      </div>
-                 </div>
-                 <div className="mt-4">
-                    <label className="block text-sm font-medium mb-2">{t('admin.products.form.descriptionUk')}</label>
-                    <textarea value={formData.description_uk} onChange={(e) => setFormData({ ...formData, description_uk: e.target.value })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" rows={5}></textarea>
-                 </div>
-                 <div className="mt-4">
-                     <label className="block text-sm font-medium mb-2">{t('admin.products.form.compatibility')}</label>
-                     <input type="text" value={formData.compatibility} onChange={(e) => setFormData({ ...formData, compatibility: e.target.value })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
-                 </div>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Tag size={20} /> {t('admin.products.form.pricing')}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-2">{t('admin.products.form.price')}</label>
-                        <input type="number" step="0.01" min="0" value={formData.price} onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" required />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-2">{t('admin.products.form.salePrice')}</label>
-                        <input type="number" step="0.01" min="0" placeholder={t('admin.products.form.optional')} disabled={!formData.is_on_sale} value={formData.sale_price || ''} onChange={(e) => setFormData({ ...formData, sale_price: e.target.value ? Number(e.target.value) : null })} className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 disabled:opacity-50" />
+            {/* Ліва колонка - Основна інформація */}
+            <div className="lg:col-span-2 space-y-6">
+                <div className="card-minimal p-6">
+                    <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-foreground">
+                        <Package size={20} className="text-primary" />
+                        {t('admin.products.form.mainInfo')}
+                    </h2>
+                    <div className="space-y-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label className={labelClass}>{t('admin.products.form.titleUk')}</label>
+                                <input
+                                    type="text"
+                                    value={formData.title_uk}
+                                    onChange={(e) => setFormData({ ...formData, title_uk: e.target.value })}
+                                    className={inputClass}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className={labelClass}>{t('admin.products.form.productType')}</label>
+                                <div className="relative">
+                                    <select
+                                        value={formData.product_type}
+                                        onChange={(e) => setFormData({ ...formData, product_type: e.target.value })}
+                                        className={`${inputClass} appearance-none cursor-pointer`}
+                                    >
+                                        <option value="premium">{t('admin.products.form.premium')}</option>
+                                        <option value="free">{t('admin.products.form.free')}</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label className={labelClass}>{t('admin.products.form.descriptionUk')}</label>
+                            <textarea
+                                value={formData.description_uk}
+                                onChange={(e) => setFormData({ ...formData, description_uk: e.target.value })}
+                                className={inputClass}
+                                rows={6}
+                            />
+                        </div>
+                        <div>
+                            <label className={labelClass}>{t('admin.products.form.compatibility')}</label>
+                            <input
+                                type="text"
+                                value={formData.compatibility}
+                                onChange={(e) => setFormData({ ...formData, compatibility: e.target.value })}
+                                className={inputClass}
+                            />
+                        </div>
                     </div>
                 </div>
-                 <div className="mt-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={formData.is_on_sale} onChange={(e) => setFormData({ ...formData, is_on_sale: e.target.checked, sale_price: e.target.checked ? formData.sale_price : null })} className="w-4 h-4" />
-                        <span>{t('admin.products.form.onSale')}</span>
-                    </label>
-                 </div>
-            </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><ImageIcon size={20} /> {t('admin.products.form.images')}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <h3 className="font-medium mb-2">{t('admin.products.form.mainImage')}</h3>
-                        {formData.main_image_url ? (
-                             <div className="relative group">
-                                <img src={formData.main_image_url} alt="Main image" className="w-full h-40 object-cover rounded-lg border dark:border-gray-600"/>
-                                <button type="button" onClick={() => setFormData({...formData, main_image_url: ''})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
-                             </div>
-                        ) : (
-                             <FileUploader onUpload={(path) => setFormData({...formData, main_image_url: path})} accept="image/*" label={t('admin.products.form.uploadMain')} oldPath={formData.main_image_url} />
-                        )}
-                    </div>
-                    <div>
-                        <h3 className="font-medium mb-2">{t('admin.products.form.gallery')}</h3>
-                        <div className="grid grid-cols-3 gap-2">
-                             {formData.gallery_image_urls.map((url, index) => (
-                              <div key={index} className="relative group"><img src={url} alt={`Gallery ${index + 1}`} className="w-full h-20 object-cover rounded-lg border dark:border-gray-600" /><button type="button" onClick={() => removeGalleryImage(index)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button></div>
-                            ))}
-                            {formData.gallery_image_urls.length < 6 && (
-                                <div className="h-20">
-                                    <FileUploader onUpload={(path) => setFormData({...formData, gallery_image_urls: [...formData.gallery_image_urls, path]})} accept="image/*" label={t('admin.products.form.addImage')}/>
+                <div className="card-minimal p-6">
+                    <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-foreground">
+                        <ImageIcon size={20} className="text-primary" />
+                        {t('admin.products.form.images')}
+                    </h2>
+
+                    <div className="space-y-6">
+                        {/* Головне фото */}
+                        <div>
+                            <h3 className="text-sm font-semibold mb-3">Головне зображення</h3>
+                            {formData.main_image_url ? (
+                                <div className="relative group rounded-xl overflow-hidden border border-border aspect-video max-w-md bg-muted">
+                                    <img src={fullImageUrl(formData.main_image_url)} alt="Main" className="w-full h-full object-cover" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({...formData, main_image_url: ''})}
+                                        className="absolute top-2 right-2 p-2 bg-destructive/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive shadow-lg transform translate-y-2 group-hover:translate-y-0"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="max-w-md">
+                                    <FileUploader
+                                        onUpload={(results) => setFormData({...formData, main_image_url: results[0].path})}
+                                        accept="image/*"
+                                        label={t('admin.products.form.uploadMain')}
+                                    />
                                 </div>
                             )}
+                        </div>
+
+                        {/* Галерея */}
+                        <div>
+                            <div className="flex justify-between items-center mb-3">
+                                <h3 className="text-sm font-semibold">{t('admin.products.form.gallery')}</h3>
+                                <span className="text-xs text-muted-foreground">{formData.gallery_image_urls.length}/6</span>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                {formData.gallery_image_urls.map((url, index) => (
+                                    <div key={index} className="relative group rounded-xl overflow-hidden border border-border aspect-square bg-muted">
+                                        <img src={fullImageUrl(url)} alt={`Gallery ${index + 1}`} className="w-full h-full object-cover" />
+                                        <button
+                                            type="button"
+                                            onClick={() => removeGalleryImage(index)}
+                                            className="absolute top-1 right-1 p-1.5 bg-destructive/90 text-white rounded-md opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {formData.gallery_image_urls.length < 6 && (
+                                    <FileUploader
+                                        onUpload={(results) => {
+                                            const newUrls = results.map(r => r.path);
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                gallery_image_urls: [...prev.gallery_image_urls, ...newUrls].slice(0, 6)
+                                            }));
+                                        }}
+                                        accept="image/*"
+                                        label={t('admin.products.form.addImage')}
+                                        multiple={true}
+                                    />
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><FileArchive size={20} /> {t('admin.products.form.files')}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                     <div>
-                        <label className="block text-sm font-medium mb-2">{t('admin.products.form.archive')}</label>
-                        {formData.zip_file_path ? (
-                            <div className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                                <FileArchive className="text-gray-500" />
-                                <span className="text-sm truncate">{formData.zip_file_path.split('/').pop()}</span>
-                                <button onClick={() => setFormData({...formData, zip_file_path: '', file_size_mb: 0})} className="ml-auto text-red-500"><X size={16}/></button>
-                            </div>
-                        ) : (
-                            <FileUploader onUpload={(path, size) => setFormData({...formData, zip_file_path: path, file_size_mb: size})} accept=".zip,.rar,.7z,application/octet-stream" label={t('admin.products.form.uploadArchive')} oldPath={formData.zip_file_path}/>
-                        )}
-                     </div>
-                     <div>
-                        <label className="block text-sm font-medium mb-2">{t('admin.products.form.calculatedSize')}</label>
-                        <input type="number" value={formData.file_size_mb} disabled className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 bg-gray-100 cursor-not-allowed" />
-                     </div>
+            {/* Права колонка - Налаштування та файли */}
+            <div className="space-y-6">
+                <div className="card-minimal p-6">
+                    <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-foreground">
+                        <Tag size={20} className="text-primary" />
+                        {t('admin.products.form.pricing')}
+                    </h2>
+                    <div className="space-y-4">
+                        <div>
+                            <label className={labelClass}>{t('admin.products.form.price')}</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={formData.price}
+                                onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                                className={inputClass}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className={labelClass}>{t('admin.products.form.salePrice')}</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder={t('admin.products.form.optional')}
+                                disabled={!formData.is_on_sale}
+                                value={formData.sale_price || ''}
+                                onChange={(e) => setFormData({ ...formData, sale_price: e.target.value ? Number(e.target.value) : null })}
+                                className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+                            />
+                        </div>
+                        <label className="flex items-center gap-3 cursor-pointer group p-3 rounded-xl hover:bg-muted/30 transition-colors border border-transparent hover:border-border/50">
+                            <input
+                                type="checkbox"
+                                checked={formData.is_on_sale}
+                                onChange={(e) => setFormData({ ...formData, is_on_sale: e.target.checked, sale_price: e.target.checked ? formData.sale_price : null })}
+                                className="w-5 h-5 rounded text-primary focus:ring-primary border-border bg-muted"
+                            />
+                            <span className="text-sm font-medium">{t('admin.products.form.onSale')}</span>
+                        </label>
+                    </div>
                 </div>
-            </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4">{t('admin.products.form.categories')}</h2>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((category) => (
-                    <label key={category.id} className={`px-4 py-2 rounded-lg border cursor-pointer transition-colors ${formData.category_ids.includes(category.id) ? 'bg-purple-500 text-white border-purple-500' : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:border-purple-400'}`}>
-                      <input type="checkbox" checked={formData.category_ids.includes(category.id)} onChange={() => toggleCategory(category.id)} className="hidden" />{category.name}
-                    </label>
-                  ))}
+                <div className="card-minimal p-6">
+                    <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-foreground">
+                        <FileArchive size={20} className="text-primary" />
+                        {t('admin.products.form.files')}
+                    </h2>
+
+                    {formData.zip_file_path ? (
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-xl border border-border">
+                                <div className="p-2.5 bg-primary/10 text-primary rounded-lg">
+                                    <FileArchive size={24} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-mono truncate" title={formData.zip_file_path}>{formData.zip_file_path.split('/').pop()}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{formData.file_size_mb} MB</p>
+                                </div>
+                                <button onClick={() => setFormData({...formData, zip_file_path: '', file_size_mb: 0})} className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors">
+                                    <Trash2 size={18}/>
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <FileUploader
+                            onUpload={(results) => setFormData({...formData, zip_file_path: results[0].path, file_size_mb: results[0].size})}
+                            accept=".zip,.rar,.7z,application/octet-stream"
+                            label={t('admin.products.form.uploadArchive')}
+                        />
+                    )}
+                </div>
+
+                <div className="card-minimal p-6">
+                    <h2 className="text-lg font-bold mb-6 text-foreground">{t('admin.products.form.categories')}</h2>
+                    <div className="flex flex-wrap gap-2">
+                        {categories.map((category) => (
+                            <label key={category.id} className={`px-3 py-2 rounded-lg border cursor-pointer transition-all text-xs font-medium select-none ${
+                                formData.category_ids.includes(category.id)
+                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                : 'bg-muted/30 border-transparent hover:bg-muted text-foreground'
+                            }`}>
+                                <input
+                                    type="checkbox"
+                                    checked={formData.category_ids.includes(category.id)}
+                                    onChange={() => toggleCategory(category.id)}
+                                    className="hidden"
+                                />
+                                {category.name}
+                            </label>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-3 pt-2">
+                    <button
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        className="btn-primary w-full flex items-center justify-center gap-2"
+                    >
+                        {loading ? <Loader className="animate-spin" size={18} /> : <Save size={18} />}
+                        {t('common.save')}
+                    </button>
+
+                    <button
+                        onClick={handleDelete}
+                        disabled={loading}
+                        className="w-full py-3.5 bg-destructive/10 text-destructive rounded-xl font-semibold hover:bg-destructive/20 transition-colors flex items-center justify-center gap-2"
+                    >
+                        <Trash2 size={18} />
+                        {t('common.delete')}
+                    </button>
                 </div>
             </div>
         </div>
-
-        <div className="flex justify-between mt-8">
-            <button onClick={handleDelete} disabled={loading} className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors">{t('common.delete')}</button>
-            <div className="flex gap-4">
-              <button type="button" onClick={() => router.push('/admin/products')} className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">{t('common.cancel')}</button>
-              <button onClick={handleSubmit} disabled={loading} className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-colors">{loading ? t('common.processing') : t('common.save')}</button>
-            </div>
-          </div>
-      </div>
     </div>
-  )
+  );
 }

@@ -55,11 +55,14 @@ async def save_upload_file(
         old_file_path: Optional[str] = None
 ) -> tuple[str, float]:
     if old_file_path:
+        # Безпечне видалення старого файлу
         try:
+            # Очищаємо шлях від можливого URL домену, якщо він там є
             clean_old_path = old_file_path.replace('https://ohmyrevit.pp.ua', '').replace('/uploads/', '')
             old_path = Path(settings.UPLOAD_PATH) / clean_old_path
 
-            if old_path.exists() and old_path.is_file():
+            # Перевіряємо, що шлях дійсно веде до папки uploads, щоб уникнути видалення системних файлів
+            if old_path.exists() and old_path.is_file() and settings.UPLOAD_PATH in str(old_path.resolve()):
                 old_path.unlink()
                 logger.info(f"Видалено старий файл: {old_path}")
         except Exception as e:
@@ -99,12 +102,14 @@ async def upload_image(
             detail=get_text("admin_upload_error_type_image", "uk", allowed=', '.join(ALLOWED_IMAGE_TYPES.keys()))
         )
 
+    # Зберігаємо оригінальне ім'я файлу
     filename = file.filename
-
+    # Заміна пробілів на підкреслення для безпеки URL
     safe_filename = filename.replace(" ", "_")
 
     file_path = UPLOAD_DIR / "images" / safe_filename
 
+    # Якщо файл з таким іменем існує, додаємо timestamp, щоб не перезаписати
     if file_path.exists():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         name, ext = os.path.splitext(safe_filename)
@@ -135,13 +140,14 @@ async def upload_archive(
             detail=get_text("admin_upload_error_type_archive", "uk", allowed=".zip, .rar, .7z")
         )
 
-
+    # Зберігаємо оригінальне ім'я файлу
     filename = file.filename
-
+    # Заміна пробілів на підкреслення для безпеки URL
     safe_filename = filename.replace(" ", "_")
 
     file_path = UPLOAD_DIR / "archives" / safe_filename
 
+    # Якщо файл з таким іменем існує, додаємо timestamp
     if file_path.exists():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         name, ext = os.path.splitext(safe_filename)
@@ -159,6 +165,7 @@ async def upload_archive(
     )
 
 
+# ... (решта коду роутера, як-от /dashboard/stats, /users і т.д. залишається без змін) ...
 @router.get("/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats(
         admin: User = Depends(get_current_admin_user),
