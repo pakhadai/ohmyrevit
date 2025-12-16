@@ -24,7 +24,8 @@ export default function OrderDetailPage() {
         if (!orderId) return;
         setLoading(true);
         try {
-            const orderData = await adminAPI.getOrderDetail(orderId);
+            // ВИПРАВЛЕНО: getOrderDetail -> getOrderDetails
+            const orderData = await adminAPI.getOrderDetails(orderId);
             setOrder(orderData);
         } catch (error) {
             toast.error(t('admin.orders.loadError'));

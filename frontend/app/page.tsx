@@ -39,7 +39,8 @@ export default function HomePage() {
 
       if (isAuthenticated) {
         const subData = await subscriptionsAPI.getStatus();
-        if (subData.has_active_subscription) {
+        // ВИПРАВЛЕНО: Додано перевірку && subData.subscription
+        if (subData.has_active_subscription && subData.subscription) {
           setSubStatus({
             isActive: true,
             endDate: subData.subscription.end_date,

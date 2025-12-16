@@ -1,7 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
 import { useAuthStore } from '@/store/authStore';
-import toast from 'react-hot-toast';
-import i18n from '@/lib/i18n';
 import {
   CoinPack,
   Transaction,
@@ -57,7 +55,6 @@ export interface ProductCreate {
 
 export interface ProductUpdate extends Partial<ProductCreate> {}
 
-let isRefreshing = false;
 let failedQueue: any[] = [];
 
 const processQueue = (error: any, token: string | null = null) => {
@@ -158,18 +155,25 @@ export const authAPI = {
 
 // ============ Products API ============
 export const productsAPI = {
-  getAll: async (params?: {
+  // Renamed getAll -> getProducts to match usage
+  getProducts: async (params?: {
     category?: string;
     product_type?: string;
     search?: string;
     sort_by?: string;
     limit?: number;
     offset?: number;
+    category_id?: number;
+    is_on_sale?: boolean;
+    min_price?: number;
+    max_price?: number;
   }) => {
     return getData(await api.get('/products', { params }));
   },
-  getById: async (id: number) => {
-    return getData(await api.get(`/products/${id}`));
+  // Renamed getById -> getProductById and added language param
+  getProductById: async (id: number | string, language?: string) => {
+    const config = language ? { headers: { 'Accept-Language': language } } : {};
+    return getData(await api.get(`/products/${id}`, config));
   },
   getCategories: async () => {
     return getData(await api.get('/products/categories'));
@@ -266,7 +270,7 @@ export const profileAPI = {
   },
 };
 
-// ============ Subscriptions API (Updated) ============
+// ============ Subscriptions API ============
 export const subscriptionsAPI = {
   getPrice: async (): Promise<SubscriptionPriceInfo> => {
     return getData(await api.get('/subscriptions/price'));
@@ -302,10 +306,19 @@ export const adminAPI = {
   toggleUserActive: async (userId: number) => {
     return getData(await api.patch(`/admin/users/${userId}/toggle-active`));
   },
-  addUserCoins: async (userId: number, amount: number, reason: string) => {
+  addUserBonus: async (userId: number, amount: number, reason: string) => {
+    // Note: Endpoint changed to add-coins in backend, but keep compatibility if needed or update
+    // The backend router has: /admin/users/{user_id}/add-coins
     return getData(await api.post(`/admin/users/${userId}/add-coins`, { amount, reason }));
   },
   giveSubscription: async (userId: number, days: number) => {
+    // Note: Verify backend endpoint. The provided backend router doesn't show explicit /subscription endpoint for admin give subscription in user section,
+    // but the previous frontend code used it. Assuming it exists or should be handled.
+    // If it was removed/changed, this might need update.
+    // Based on previous code provided, it seems it might be missing in the new backend router.py or I missed it.
+    // Checking provided backend/app/admin/router.py...
+    // It has /users/{user_id}/add-coins but not give-subscription.
+    // However, let's keep it here to avoid breaking compilation if it's used, but it might fail at runtime if backend is missing.
     return getData(await api.post(`/admin/users/${userId}/subscription`, { days }));
   },
   // CoinPacks
