@@ -111,7 +111,7 @@ class AuthService:
             return
         user.referrer_id = referrer.id
         bonus_amount = settings.REFERRAL_REGISTRATION_BONUS
-        referrer.bonus_balance += bonus_amount
+        referrer.balance += bonus_amount
         log_entry = ReferralLog(
             referrer_id=referrer.id,
             referred_user_id=user.id,

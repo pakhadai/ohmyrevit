@@ -1,44 +1,40 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  Download, Heart, Users, HelpCircle,
-  FileText, Gift, Mail, Save, Settings,
-  Shield, ChevronDown, ChevronUp, Globe, Moon, Sun, LogOut
-} from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { profileAPI } from '@/lib/api';
-import toast from 'react-hot-toast';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
-import { useLanguageStore } from '@/store/languageStore';
 import { useUIStore } from '@/store/uiStore';
+import { useLanguageStore } from '@/store/languageStore';
+import { profileAPI } from '@/lib/api';
+import { motion } from 'framer-motion';
+import {
+  Settings, LogOut, Download, Heart, Gift, Users, HelpCircle, FileText,
+  ChevronRight, Mail, Globe, Moon, Sun, Shield, Wallet, Coins
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
+import Image from 'next/image';
 
 export default function ProfilePage() {
-  const router = useRouter();
-  const { user, setUser, logout } = useAuthStore();
-  const [email, setEmail] = useState('');
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
-  const { t, i18n } = useTranslation();
-
-  const { setLanguage } = useLanguageStore();
+  const { user, logout, setUser } = useAuthStore();
   const { theme, setTheme } = useUIStore();
+  const { language, setLanguage } = useLanguageStore();
+  const [email, setEmail] = useState(user?.email || '');
+  const [isHydrated, setIsHydrated] = useState(false);
+  const router = useRouter();
+  const { t } = useTranslation();
 
   useEffect(() => {
-    if (user) {
-      setEmail(user.email || '');
-    }
     setIsHydrated(true);
+    if (user?.email) setEmail(user.email);
   }, [user]);
 
-  const handleEmailSave = async () => {
+  const handleSaveEmail = async () => {
     try {
-      const updatedUser = await profileAPI.updateProfile({ email });
-      setUser(updatedUser);
+      const updated = await profileAPI.updateProfile({ email });
+      setUser({ ...user!, email: updated.email });
       toast.success(t('profilePages.main.toasts.emailSaved'));
-    } catch (error) {
+    } catch {
       toast.error(t('profilePages.main.toasts.emailError'));
     }
   };
@@ -57,6 +53,8 @@ export default function ProfilePage() {
   ];
 
   const menuItems = [
+    // NEW: Wallet as first item
+    { href: '/profile/wallet', label: t('profilePages.main.menu.wallet') || 'Гаманець', icon: Wallet, highlight: true },
     { href: '/profile/downloads', label: t('profilePages.main.menu.downloads'), icon: Download },
     { href: '/profile/collections', label: t('profilePages.main.menu.collections'), icon: Heart },
     { href: '/profile/bonuses', label: t('profilePages.main.menu.bonuses'), icon: Gift },
@@ -70,6 +68,7 @@ export default function ProfilePage() {
   return (
     <div className="container mx-auto px-5 pt-14 pb-24 space-y-6">
 
+      {/* Profile Header */}
       <div className="flex flex-col items-center text-center pt-2">
         <div className="relative mb-4">
           <div className="w-24 h-24 rounded-full p-1 bg-background border-2 border-primary/20 shadow-lg shadow-primary/10">
@@ -86,153 +85,209 @@ export default function ProfilePage() {
           )}
         </div>
 
-        <h1 className="text-2xl font-bold text-foreground">{user?.first_name} {user?.last_name}</h1>
-        <p className="text-sm text-muted-foreground font-medium">@{user?.username || 'user'}</p>
-
-        <div className="flex items-center gap-3 mt-5">
-          {user?.is_admin && (
-            <button
-              onClick={() => router.push('/admin')}
-              className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-medium hover:border-primary/30 transition-colors shadow-sm"
-            >
-              <Shield size={16} className="text-primary" />
-              <span>{t('profilePages.main.adminPanel')}</span>
-            </button>
-          )}
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-medium hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-colors shadow-sm"
-          >
-            <LogOut size={16} />
-            <span>{t('profilePages.main.logout')}</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="card-minimal overflow-hidden">
-        <button
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          className="w-full p-5 flex items-center justify-between hover:bg-muted/30 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-muted rounded-lg text-foreground">
-              <Settings size={20} />
-            </div>
-            <span className="font-semibold text-foreground">{t('profilePages.main.settings.title')}</span>
-          </div>
-          {settingsOpen ? (
-            <ChevronUp size={20} className="text-muted-foreground" />
-          ) : (
-            <ChevronDown size={20} className="text-muted-foreground" />
-          )}
-        </button>
-
-        {settingsOpen && (
-          <div className="border-t border-border">
-            <div className="p-5 space-y-6">
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
-                  {t('profilePages.main.settings.contactInfo')}
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-grow">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder={t('profilePages.main.settings.emailPlaceholder')}
-                      className="w-full pl-10 pr-4 py-2.5 bg-muted/50 border border-transparent focus:bg-background focus:border-primary/30 rounded-xl text-sm outline-none transition-all"
-                    />
-                  </div>
-                  <button
-                    onClick={handleEmailSave}
-                    className="p-2.5 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
-                  >
-                    <Save size={18} />
-                  </button>
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-2 ml-1">
-                  {t('profilePages.main.settings.emailDescription')}
-                </p>
-              </div>
-
-              <div className="h-px bg-border w-full"></div>
-
-              <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1.5">
-                    <Globe size={12} /> {t('profilePages.main.settings.language')}
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={i18n.language}
-                      onChange={(e) => setLanguage(e.target.value as any)}
-                      className="w-full appearance-none px-4 py-2.5 bg-muted/50 border border-transparent rounded-xl text-sm focus:bg-background focus:border-primary/30 outline-none cursor-pointer"
-                    >
-                      {languages.map(lang => (
-                        <option key={lang.code} value={lang.code}>
-                          {lang.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none w-4 h-4" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1.5">
-                    {theme === 'light' ? <Sun size={12} /> : <Moon size={12} />}
-                    {t('profilePages.main.settings.theme')}
-                  </label>
-                  <div className="flex bg-muted/50 p-1 rounded-xl">
-                    <button
-                      onClick={() => setTheme('light')}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-lg transition-all ${theme === 'light' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                    >
-                      <Sun size={14} /> {t('profilePages.main.settings.light')}
-                    </button>
-                    <button
-                      onClick={() => setTheme('dark')}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-lg transition-all ${theme === 'dark' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                    >
-                      <Moon size={14} /> {t('profilePages.main.settings.dark')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <h1 className="text-2xl font-bold text-foreground">
+          {user?.first_name} {user?.last_name}
+        </h1>
+        {user?.username && (
+          <p className="text-muted-foreground text-sm">@{user.username}</p>
         )}
       </div>
 
-      <div>
-        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">
-          {t('profilePages.main.menu.goToSection')}
+      {/* Balance Card - NEW */}
+      <motion.button
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        onClick={() => router.push('/profile/wallet')}
+        className="w-full p-4 rounded-2xl bg-gradient-to-r from-primary to-primary/80 text-white shadow-lg shadow-primary/20 flex items-center justify-between group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <Image
+              src="/omr_coin.png"
+              alt="OMR"
+              width={32}
+              height={32}
+            />
+          </div>
+          <div className="text-left">
+            <p className="text-white/80 text-xs">{t('profilePages.main.stats.balance') || 'Баланс'}</p>
+            <p className="text-2xl font-bold">{user?.balance?.toLocaleString() || 0} <span className="text-sm font-normal opacity-80">OMR</span></p>
+          </div>
+        </div>
+        <ChevronRight size={24} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+      </motion.button>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="card-minimal p-4 text-center"
+        >
+          <Gift className="w-5 h-5 mx-auto mb-1 text-primary" />
+          <p className="text-lg font-bold text-foreground">{user?.bonus_streak || 0}</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{t('profilePages.main.stats.streakDays')}</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="card-minimal p-4 text-center"
+        >
+          <Download className="w-5 h-5 mx-auto mb-1 text-green-500" />
+          <p className="text-lg font-bold text-foreground">-</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{t('profilePages.main.stats.downloads')}</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="card-minimal p-4 text-center"
+        >
+          <Users className="w-5 h-5 mx-auto mb-1 text-blue-500" />
+          <p className="text-lg font-bold text-foreground">-</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{t('profilePages.main.stats.referrals')}</p>
+        </motion.div>
+      </div>
+
+      {/* Admin Panel Button */}
+      {user?.is_admin && (
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={() => router.push('/admin')}
+          className="w-full p-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <Shield size={24} />
+            <span className="font-bold">{t('profilePages.main.adminPanel')}</span>
+          </div>
+          <ChevronRight size={20} />
+        </motion.button>
+      )}
+
+      {/* Menu Items */}
+      <div className="card-minimal divide-y divide-border">
+        {menuItems.map((item, index) => (
+          <motion.button
+            key={item.href}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 + index * 0.05 }}
+            onClick={() => router.push(item.href)}
+            className={`w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors first:rounded-t-2xl last:rounded-b-2xl ${
+              item.highlight ? 'bg-primary/5' : ''
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <item.icon size={20} className={item.highlight ? 'text-primary' : 'text-muted-foreground'} />
+              <span className={`font-medium ${item.highlight ? 'text-primary' : 'text-foreground'}`}>
+                {item.label}
+              </span>
+            </div>
+            <ChevronRight size={18} className="text-muted-foreground" />
+          </motion.button>
+        ))}
+      </div>
+
+      {/* Settings */}
+      <div className="card-minimal p-5 space-y-4">
+        <h3 className="font-bold text-foreground flex items-center gap-2">
+          <Settings size={18} className="text-muted-foreground" />
+          {t('profilePages.main.settings.title')}
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} href={item.href}>
-                <div
-                  className="card-minimal p-4 flex items-center gap-4 cursor-pointer group hover:border-primary/30 transition-all"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-secondary/50 flex items-center justify-center text-secondary-foreground group-hover:scale-110 transition-transform duration-200">
-                    <Icon size={20} />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground text-sm">{item.label}</h3>
-                  </div>
-                  <div className="text-muted-foreground group-hover:text-primary transition-colors">
-                    <ChevronDown size={16} className="-rotate-90" />
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+
+        {/* Email */}
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            {t('profilePages.main.settings.contactInfo')}
+          </label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t('profilePages.main.settings.emailPlaceholder')}
+                className="w-full pl-9 pr-4 py-2.5 bg-muted/50 border border-transparent rounded-xl text-foreground text-sm focus:border-primary/30 focus:bg-background outline-none transition-all"
+              />
+            </div>
+            <button
+              onClick={handleSaveEmail}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              {t('common.save')}
+            </button>
+          </div>
+        </div>
+
+        {/* Language */}
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1">
+            <Globe size={14} />
+            {t('profilePages.main.settings.language')}
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {languages.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => setLanguage(lang.code as any)}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
+                  language === lang.code
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {lang.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Theme */}
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            {t('profilePages.main.settings.theme')}
+          </label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTheme('light')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm transition-all ${
+                theme === 'light'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              <Sun size={16} />
+              {t('profilePages.main.settings.light')}
+            </button>
+            <button
+              onClick={() => setTheme('dark')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm transition-all ${
+                theme === 'dark'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              <Moon size={16} />
+              {t('profilePages.main.settings.dark')}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Logout */}
+      <button
+        onClick={handleLogout}
+        className="w-full flex items-center justify-center gap-2 p-4 text-red-500 hover:bg-red-500/10 rounded-2xl transition-colors"
+      >
+        <LogOut size={20} />
+        <span className="font-medium">{t('profilePages.main.logout')}</span>
+      </button>
     </div>
   );
 }

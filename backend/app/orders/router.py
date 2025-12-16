@@ -1,22 +1,21 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Body, Request
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
-from datetime import datetime, timezone
 from decimal import Decimal
 
 from app.core.database import get_db
-from app.orders.models import Order, WebhookProcessed, OrderStatus
-from app.subscriptions.models import Subscription, SubscriptionStatus
 from app.products.models import Product
 from app.users.models import User
 from app.users.dependencies import get_current_user
-from app.orders.service import OrderService
-from app.orders.schemas import CreateOrderRequest, ApplyDiscountRequest, ApplyDiscountResponse, CheckoutResponse
-from app.payments.cryptomus import CryptomusClient
-from app.core.config import settings
-from app.core.telegram_service import telegram_service
+from app.orders.service import OrderService, COINS_PER_USD
+from app.orders.schemas import (
+    CreateOrderRequest,
+    ApplyDiscountRequest,
+    ApplyDiscountResponse,
+    CheckoutResponse,
+    InsufficientFundsResponse
+)
 from app.core.translations import get_text
 
 logger = logging.getLogger(__name__)
@@ -24,55 +23,72 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Orders"])
 
 
-@router.post("/checkout", response_model=CheckoutResponse)
+@router.post("/checkout")
 async def create_checkout_order(
         data: CreateOrderRequest,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
+    """
+    Створює замовлення та миттєво списує монети з балансу.
+
+    Нова логіка (OMR Coins):
+    1. Перевіряємо баланс користувача
+    2. Якщо достатньо — списуємо монети та надаємо доступ
+    3. Якщо недостатньо — повертаємо помилку з інформацією скільки не вистачає
+    """
     service = OrderService(db)
+    lang = current_user.language_code or "uk"
+
     try:
-        lang = current_user.language_code or "uk"
-        order = await service.create_order(
+        result = await service.create_order(
             user_id=current_user.id,
             product_ids=data.product_ids,
             promo_code=data.promo_code,
-            use_bonus_points=data.use_bonus_points,
             language_code=lang
         )
 
-        if order.final_total <= 0:
-            order = await service.process_successful_order(order.id)
-            logger.info(f"Order {order.id} was fully covered by discount. Access granted immediately.")
-            return CheckoutResponse(
-                order_id=order.id,
-                payment_url=None,
-                amount=Decimal("0.0")
-            )
-
-        cryptomus = CryptomusClient()
-        payment_data = await cryptomus.create_payment(
-            amount=order.final_total,
-            order_id=str(order.id)
-        )
-        result = payment_data.get("result", {})
-        order.payment_url = result.get("url")
-        order.payment_id = result.get("uuid")
-        await db.commit()
-
         return CheckoutResponse(
-            order_id=order.id,
-            payment_url=order.payment_url,
-            amount=order.final_total
+            success=True,
+            order_id=result["order"].id,
+            coins_spent=result["coins_spent"],
+            new_balance=result["new_balance"],
+            message="Покупка успішна! Перейдіть в 'Мої покупки' для завантаження.",
+            payment_url=None,  # Deprecated - оплата миттєва
+            amount=result["order"].final_total  # Deprecated - для сумісності
         )
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        error_msg = str(e)
+
+        # Перевіряємо чи це помилка недостатнього балансу
+        if error_msg.startswith("INSUFFICIENT_FUNDS|"):
+            parts = error_msg.split("|")
+            required = int(parts[1])
+            current = int(parts[2])
+            shortfall = int(parts[3])
+
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail={
+                    "error": "insufficient_funds",
+                    "required_coins": required,
+                    "current_balance": current,
+                    "shortfall": shortfall,
+                    "message": f"Недостатньо монет. Потрібно: {required}, у вас: {current}. Поповніть баланс на {shortfall} монет."
+                }
+            )
+
+        # Інші помилки валідації
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
+        )
+
     except Exception as e:
         logger.error(f"Error creating checkout: {e}", exc_info=True)
-        lang = current_user.language_code or "uk"
         raise HTTPException(
-            status_code=500,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=get_text("order_error_create_internal", lang)
         )
 
@@ -83,169 +99,175 @@ async def apply_discount(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
+    """
+    Розраховує знижку та перевіряє баланс користувача.
+    Використовується для preview перед checkout.
+    """
     service = OrderService(db)
     lang = current_user.language_code or "uk"
 
     try:
+        # Отримуємо товари
         products_result = await db.execute(
             select(Product).where(Product.id.in_(data.product_ids))
         )
-        products = products_result.scalars().all()
+        products = list(products_result.scalars().all())
+
         if not products:
             raise ValueError(get_text("order_error_products_not_found", lang))
 
-        subtotal = sum(p.get_actual_price() for p in products)
+        # Рахуємо суму в монетах
+        subtotal_usd = sum(p.get_actual_price() for p in products)
+        subtotal_coins = service.usd_to_coins(subtotal_usd)
 
+        # Розраховуємо знижку
         discount_data = await service.calculate_discount(
-            subtotal=subtotal,
+            subtotal_coins=subtotal_coins,
             user_id=current_user.id,
             promo_code=data.promo_code,
-            bonus_points=data.use_bonus_points or 0,
             language_code=lang
         )
 
-        final_total = subtotal - discount_data["discount_amount"]
+        final_coins = subtotal_coins - discount_data["discount_coins"]
+        final_coins = max(final_coins, 0)
+
+        # Перевіряємо баланс
+        has_enough, current_balance = await service.check_user_balance(
+            current_user.id,
+            final_coins
+        )
 
         return ApplyDiscountResponse(
             success=True,
-            discount_amount=discount_data["discount_amount"],
-            final_total=max(final_total, Decimal(0)),
-            bonus_points_used=discount_data["bonus_used"]
+            subtotal_coins=subtotal_coins,
+            discount_coins=discount_data["discount_coins"],
+            final_coins=final_coins,
+            user_balance=current_balance,
+            has_enough_balance=has_enough,
+            message=None if has_enough else f"Недостатньо монет. Потрібно ще {final_coins - current_balance}"
         )
 
     except ValueError as e:
-        products_result = await db.execute(select(Product).where(Product.id.in_(data.product_ids)))
-        products = products_result.scalars().all()
-        subtotal_on_error = sum(p.get_actual_price() for p in products) if products else 0
+        # При помилці валідації повертаємо базову інформацію
+        products_result = await db.execute(
+            select(Product).where(Product.id.in_(data.product_ids))
+        )
+        products = list(products_result.scalars().all())
+        subtotal_usd = sum(p.get_actual_price() for p in products) if products else Decimal("0")
+        subtotal_coins = int(subtotal_usd * COINS_PER_USD)
+
+        # Отримуємо баланс
+        user = await db.get(User, current_user.id)
+        current_balance = user.balance if user else 0
+
         return ApplyDiscountResponse(
             success=False,
-            final_total=subtotal_on_error,
+            subtotal_coins=subtotal_coins,
+            discount_coins=0,
+            final_coins=subtotal_coins,
+            user_balance=current_balance,
+            has_enough_balance=current_balance >= subtotal_coins,
             message=str(e)
         )
+
     except Exception as e:
         logger.error(f"Error applying discount: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=get_text("order_error_internal", lang)
         )
 
 
-async def check_webhook_processed(payment_id: str, db: AsyncSession) -> bool:
-    if not payment_id:
-        return False
-    result = await db.get(WebhookProcessed, payment_id)
-    return result is not None
-
-
-async def mark_webhook_processed(payment_id: str, status: str, db: AsyncSession):
-    if not await db.get(WebhookProcessed, payment_id):
-        webhook_record = WebhookProcessed(
-            processed_at=datetime.now(timezone.utc),
-            payment_id=payment_id,
-            status=status,
-            success=True
-        )
-        db.add(webhook_record)
-        await db.commit()
-
-
-@router.post("/webhooks/cryptomus")
-async def cryptomus_webhook(
-        request: Request,
-        data: dict = Body(...),
+@router.get("/preview")
+async def preview_order(
+        product_ids: str,  # Comma-separated: "1,2,3"
+        promo_code: str = None,
+        current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    cryptomus_client = CryptomusClient()
-    sign = request.headers.get("sign")
-
-    if not sign:
-        logger.error("Webhook missing signature header")
-        raise HTTPException(status_code=403, detail="Missing signature")
-
-    if not cryptomus_client.verify_webhook(data, sign):
-        logger.error("Invalid webhook signature provided")
-        raise HTTPException(status_code=403, detail="Invalid signature")
-
-    payment_id = data.get("uuid") or data.get("payment_id")
-    order_id_str = data.get("order_id")
-    status = data.get("status")
-
-    paid_amount = data.get("amount")
-
-    if not all([payment_id, order_id_str, status]):
-        logger.error(f"Missing required fields in webhook: {data}")
-        raise HTTPException(status_code=400, detail="Missing required fields")
-
-    if await check_webhook_processed(payment_id, db):
-        logger.info(f"Webhook {payment_id} already processed, skipping")
-        return {"status": "already_processed"}
+    """
+    Попередній перегляд замовлення перед оплатою.
+    Показує ціни в монетах та чи достатньо балансу.
+    """
+    service = OrderService(db)
+    lang = current_user.language_code or "uk"
 
     try:
-        is_subscription = order_id_str.startswith("sub_")
-        order_id = int(order_id_str.replace("sub_", "")) if is_subscription else int(order_id_str)
-    except (ValueError, TypeError):
-        logger.error(f"Invalid order_id format: {order_id_str}")
-        raise HTTPException(status_code=400, detail="Invalid order_id format")
+        # Парсимо product_ids
+        ids = [int(x.strip()) for x in product_ids.split(",") if x.strip()]
 
-    try:
-        if is_subscription:
-            subscription = await db.get(Subscription, order_id, options=[selectinload(Subscription.user)])
-            if not subscription:
-                logger.error(f"Subscription {order_id} not found for webhook.")
-                await mark_webhook_processed(payment_id, "error_not_found", db)
-                return {"status": "error", "message": "Subscription not found"}
+        if not ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="product_ids is required"
+            )
 
-            if status == "paid" or status == "paid_over":
-                if subscription.status != SubscriptionStatus.ACTIVE:
-                    subscription.status = SubscriptionStatus.ACTIVE
-                    subscription.payment_id = payment_id
+        # Отримуємо товари
+        products_result = await db.execute(
+            select(Product).where(Product.id.in_(ids))
+        )
+        products = list(products_result.scalars().all())
 
-                    lang = subscription.user.language_code or "uk"
-                    date_str = subscription.end_date.strftime("%d.%m.%Y")
-                    msg = get_text("order_sub_activated_msg", lang, date_str=date_str)
-                    await telegram_service.send_message(subscription.user.telegram_id, msg)
+        if not products:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=get_text("order_error_products_not_found", lang)
+            )
 
-            elif status == "wrong_amount":
-                logger.critical(f"SUBSCRIPTION {order_id}: Wrong amount paid! Received: {paid_amount}")
-                pass
+        # Формуємо інформацію про товари
+        items = []
+        for p in products:
+            translation = p.get_translation(lang)
+            price_usd = p.get_actual_price()
+            price_coins = service.usd_to_coins(price_usd)
 
-            elif status in ["cancel", "fail", "system_fail", "refund"]:
-                subscription.status = SubscriptionStatus.CANCELLED
+            items.append({
+                "id": p.id,
+                "title": translation.title if translation else f"Product #{p.id}",
+                "price_usd": float(price_usd),
+                "price_coins": price_coins,
+                "main_image_url": p.main_image_url
+            })
 
-        else:
-            order_res = await db.execute(select(Order).where(Order.id == order_id))
-            order = order_res.scalar_one_or_none()
-            if not order:
-                logger.error(f"Order {order_id} not found for webhook.")
-                await mark_webhook_processed(payment_id, "error_not_found", db)
-                return {"status": "error", "message": "Order not found"}
+        # Рахуємо суми
+        subtotal_usd = sum(p.get_actual_price() for p in products)
+        subtotal_coins = service.usd_to_coins(subtotal_usd)
 
-            if (status == "paid" or status == "paid_over") and order.status != OrderStatus.PAID:
-                order.payment_id = payment_id
-                service = OrderService(db)
-                await service.process_successful_order(order.id)
+        # Знижка
+        discount_coins = 0
+        if promo_code:
+            try:
+                discount_data = await service.calculate_discount(
+                    subtotal_coins, current_user.id, promo_code, lang
+                )
+                discount_coins = discount_data["discount_coins"]
+            except ValueError:
+                pass  # Ігноруємо невалідний промокод
 
-            elif status == "wrong_amount":
-                logger.critical(
-                    f"ORDER {order_id}: Wrong amount paid! Received: {paid_amount}, Expected: {order.final_total}")
+        final_coins = max(subtotal_coins - discount_coins, 0)
 
-            elif status in ["cancel", "fail", "system_fail"]:
-                order.status = OrderStatus.FAILED
-                if order.bonus_used > 0:
-                    user_query = select(User).where(User.id == order.user_id).with_for_update()
-                    user_res = await db.execute(user_query)
-                    user_to_refund = user_res.scalar_one_or_none()
+        # Баланс
+        user = await db.get(User, current_user.id)
+        current_balance = user.balance if user else 0
+        has_enough = current_balance >= final_coins
 
-                    if user_to_refund:
-                        user_to_refund.bonus_balance += order.bonus_used
-                        logger.info(
-                            f"Returned {order.bonus_used} bonus points to user {order.user_id} due to failed payment")
+        return {
+            "items": items,
+            "subtotal_coins": subtotal_coins,
+            "subtotal_usd": float(subtotal_usd),
+            "discount_coins": discount_coins,
+            "final_coins": final_coins,
+            "final_usd": float(service.coins_to_usd(final_coins)),
+            "user_balance": current_balance,
+            "has_enough_balance": has_enough,
+            "shortfall": max(final_coins - current_balance, 0) if not has_enough else 0
+        }
 
-        await mark_webhook_processed(payment_id, status, db)
-        await db.commit()
-
-        return {"status": "ok"}
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Unexpected error processing webhook: {str(e)}", exc_info=True)
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Error previewing order: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to preview order"
+        )

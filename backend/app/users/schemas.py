@@ -30,7 +30,7 @@ class UserInDB(UserBase):
     id: int
     is_admin: bool
     is_active: bool
-    bonus_balance: int
+    balance: int  # CHANGED: bonus_balance -> balance (OMR Coins)
     bonus_streak: int
     last_bonus_claim_date: Optional[date] = None
     photo_url: Optional[str] = None
@@ -51,7 +51,7 @@ class UserResponse(BaseModel):
     email: Optional[EmailStr] = None
     photo_url: Optional[str] = None
     is_admin: bool
-    bonus_balance: int
+    balance: int  # CHANGED: bonus_balance -> balance (OMR Coins)
     bonus_streak: int
     created_at: datetime
     referral_code: Optional[str] = None

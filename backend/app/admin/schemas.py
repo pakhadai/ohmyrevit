@@ -1,4 +1,3 @@
-# ЗАМІНА БЕЗ ВИДАЛЕНЬ: старі рядки — закоментовано, нові — додано нижче
 """
 Pydantic схеми для адмін-панелі
 """
@@ -22,6 +21,8 @@ class DashboardStats(BaseModel):
     subscriptions: Dict[str, int]
     orders: Dict[str, Any]
     revenue: Dict[str, float]
+    # NEW: Статистика по монетах
+    coins: Optional[Dict[str, Any]] = None
 
 
 class UserBrief(BaseModel):
@@ -34,7 +35,7 @@ class UserBrief(BaseModel):
     email: Optional[str]
     is_admin: bool
     is_active: bool = True
-    bonus_balance: int
+    balance: int  # CHANGED: bonus_balance -> balance (OMR Coins)
     bonus_streak: int
     created_at: datetime
     photo_url: Optional[str] = None
@@ -59,6 +60,8 @@ class CategoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# ============ Promo Code Schemas ============
+
 class PromoCodeCreate(BaseModel):
     """Схема створення промокоду"""
     code: str = Field(..., min_length=3, max_length=50)
@@ -76,6 +79,7 @@ class PromoCodeUpdate(BaseModel):
     max_uses: Optional[int] = Field(None, gt=0)
     expires_at: Optional[datetime] = None
     is_active: Optional[bool] = None
+
 
 class PromoCodeResponse(BaseModel):
     """Відповідь для промокоду"""
@@ -97,13 +101,16 @@ class OrderForPromoCode(BaseModel):
     final_total: float
     created_at: datetime
     user: UserBrief
-    # ДОДАНО: Конфігурація для роботи з ORM
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class PromoCodeDetailResponse(PromoCodeResponse):
     """Детальна відповідь для промокоду з історією замовлень"""
     orders_used_in: List[OrderForPromoCode] = []
 
+
+# ============ Order Schemas ============
 
 class OrderBrief(BaseModel):
     """Скорочена інформація про замовлення"""
@@ -124,13 +131,46 @@ class OrderListResponse(BaseModel):
     skip: int
     limit: int
 
-# ДОДАНО: Схеми для детального профілю користувача
+
+class ProductInOrder(BaseModel):
+    id: int
+    title: str
+    price_at_purchase: float
+    main_image_url: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderDetailResponse(BaseModel):
+    id: int
+    user: UserBrief
+    subtotal: float
+    discount_amount: float
+    bonus_used: int  # Legacy field
+    coins_spent: Optional[int] = None  # NEW: витрачено монет
+    final_total: float
+    status: str
+    promo_code: Optional[PromoCodeResponse] = None
+    payment_url: Optional[str] = None  # Deprecated
+    payment_id: Optional[str] = None  # Deprecated
+    created_at: datetime
+    paid_at: Optional[datetime] = None
+    items: List[ProductInOrder] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============ User Detail Schemas ============
+
 class SubscriptionForUser(BaseModel):
     id: int
     start_date: datetime
     end_date: datetime
     status: str
+    is_auto_renewal: bool = True
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class OrderForUser(BaseModel):
     id: int
@@ -138,7 +178,9 @@ class OrderForUser(BaseModel):
     status: str
     created_at: datetime
     items_count: int
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class ReferralForUser(BaseModel):
     id: int
@@ -146,7 +188,21 @@ class ReferralForUser(BaseModel):
     last_name: Optional[str]
     username: Optional[str]
     created_at: datetime
+
     model_config = ConfigDict(from_attributes=True)
+
+
+class TransactionForUser(BaseModel):
+    """Транзакція для перегляду в профілі користувача"""
+    id: int
+    type: str
+    amount: int
+    balance_after: int
+    description: Optional[str]
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
 
 class UserDetailResponse(UserBrief):
     """Повна інформація про користувача для адмін-панелі"""
@@ -159,30 +215,84 @@ class UserDetailResponse(UserBrief):
     subscriptions: List[SubscriptionForUser] = []
     orders: List[OrderForUser] = []
     referrals: List[ReferralForUser] = []
+    recent_transactions: List[TransactionForUser] = []  # NEW
 
     model_config = ConfigDict(from_attributes=True)
 
-# ДОДАНО: Схеми для детального замовлення
-class ProductInOrder(BaseModel):
-    id: int
-    title: str
-    price_at_purchase: float
-    main_image_url: str
-    model_config = ConfigDict(from_attributes=True)
 
-class OrderDetailResponse(BaseModel):
+# ============ CoinPack Schemas (NEW) ============
+
+class CoinPackCreate(BaseModel):
+    """Схема створення пакету монет"""
+    name: str = Field(..., min_length=2, max_length=100)
+    price_usd: float = Field(..., gt=0)
+    coins_amount: int = Field(..., gt=0)
+    bonus_percent: int = Field(0, ge=0, le=100)
+    gumroad_permalink: str = Field(..., min_length=3, max_length=100)
+    description: Optional[str] = Field(None, max_length=255)
+    is_active: bool = True
+    is_featured: bool = False
+    sort_order: int = 0
+
+
+class CoinPackUpdate(BaseModel):
+    """Схема оновлення пакету монет"""
+    name: Optional[str] = Field(None, min_length=2, max_length=100)
+    price_usd: Optional[float] = Field(None, gt=0)
+    coins_amount: Optional[int] = Field(None, gt=0)
+    bonus_percent: Optional[int] = Field(None, ge=0, le=100)
+    gumroad_permalink: Optional[str] = Field(None, min_length=3, max_length=100)
+    description: Optional[str] = Field(None, max_length=255)
+    is_active: Optional[bool] = None
+    is_featured: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+class CoinPackResponse(BaseModel):
+    """Відповідь для пакету монет"""
     id: int
-    user: UserBrief
-    subtotal: float
-    discount_amount: float
-    bonus_used: int
-    final_total: float
-    status: str
-    promo_code: Optional[PromoCodeResponse] = None
-    payment_url: Optional[str] = None
-    payment_id: Optional[str] = None
+    name: str
+    price_usd: float
+    coins_amount: int
+    bonus_percent: int
+    total_coins: int  # coins_amount + bonus
+    gumroad_permalink: str
+    gumroad_url: str  # Full URL
+    description: Optional[str]
+    is_active: bool
+    is_featured: bool
+    sort_order: int
     created_at: datetime
-    paid_at: Optional[datetime] = None
-    items: List[ProductInOrder] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CoinPackListResponse(BaseModel):
+    """Список пакетів монет"""
+    packs: List[CoinPackResponse]
+    total: int
+
+
+# ============ Admin Actions Schemas ============
+
+class AdminAddCoinsRequest(BaseModel):
+    """Запит на ручне нарахування монет"""
+    amount: int = Field(..., gt=0, description="Кількість монет")
+    reason: str = Field(..., min_length=3, max_length=200, description="Причина")
+
+
+class AdminAddCoinsResponse(BaseModel):
+    """Відповідь після нарахування монет"""
+    success: bool
+    user_id: int
+    coins_added: int
+    new_balance: int
+    transaction_id: int
+
+
+class TriggerSchedulerResponse(BaseModel):
+    """Відповідь після ручного запуску scheduler"""
+    expired: int
+    cancelled_pending: int
+    renewals: Dict[str, int]
+    timestamp: str

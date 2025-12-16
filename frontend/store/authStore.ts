@@ -16,6 +16,7 @@ interface AuthState {
   login: (initData: object) => Promise<any>;
   logout: () => void;
   setUser: (user: User) => void;
+  updateBalance: (newBalance: number) => void;
   checkTokenValidity: () => void;
   completeOnboarding: () => void;
 }
@@ -77,6 +78,16 @@ export const useAuthStore = create<AuthState>()(
 
       setUser: (user: User) => {
         set({ user });
+      },
+
+      // NEW: Метод для оновлення балансу без перезавантаження всього user
+      updateBalance: (newBalance: number) => {
+        const currentUser = get().user;
+        if (currentUser) {
+          set({
+            user: { ...currentUser, balance: newBalance }
+          });
+        }
       },
 
       completeOnboarding: () => {

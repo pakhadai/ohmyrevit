@@ -3,6 +3,7 @@ from typing import List, Optional, Any
 from functools import lru_cache
 from pydantic import field_validator
 
+
 class Settings(BaseSettings):
     DATABASE_URL: str
     DB_NAME: str
@@ -24,6 +25,11 @@ class Settings(BaseSettings):
     DEEPL_API_FREE: bool = True
     DEEPL_TARGET_LANGUAGES: List[str] = ["EN", "RU", "DE", "ES"]
 
+    # Gumroad Integration (замість Cryptomus)
+    GUMROAD_WEBHOOK_SECRET: str = ""  # Для верифікації вебхуків
+    GUMROAD_STORE_URL: str = "https://ohmyrevit.gumroad.com"  # URL вашого магазину
+
+    # Deprecated: Cryptomus settings (можна видалити пізніше)
     CRYPTOMUS_API_KEY: str = ""
     CRYPTOMUS_MERCHANT_ID: str = ""
     CRYPTOMUS_WEBHOOK_SECRET: str = ""
@@ -52,8 +58,12 @@ class Settings(BaseSettings):
     SUPPORTED_LANGUAGES: list = ["uk", "en", "ru", "de", "es"]
     DEFAULT_LANGUAGE: str = "uk"
 
-    SUBSCRIPTION_PRICE_USD: float = 5.0
+    # OMR Coins система
+    COINS_PER_USD: int = 100  # 100 монет = $1
+    SUBSCRIPTION_PRICE_COINS: int = 500  # Ціна підписки в монетах (= $5)
 
+    # Legacy (використовується в бонусній системі)
+    SUBSCRIPTION_PRICE_USD: float = 5.0
     REFERRAL_PURCHASE_PERCENT: float = 0.05
     DAILY_BONUS_BASE: int = 10
     BONUS_TO_USD_RATE: int = 100
@@ -77,8 +87,10 @@ class Settings(BaseSettings):
             raise ValueError('ALLOWED_ORIGINS must be set in production')
         return v
 
+
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
+
 
 settings = get_settings()

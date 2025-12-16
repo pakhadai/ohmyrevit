@@ -24,8 +24,10 @@ from app.products.models import Product, ProductTranslation, Category, CategoryT
 from app.orders.models import Order, OrderItem, PromoCode
 from app.subscriptions.models import Subscription, UserProductAccess
 from app.collections.models import Collection
-# ДОДАНО: Імпорт нової моделі для реферальної системи
 from app.referrals.models import ReferralLog
+
+# NEW: Імпорт моделей гаманця
+from app.wallet.models import CoinPack, Transaction
 
 
 # this is the Alembic Config object

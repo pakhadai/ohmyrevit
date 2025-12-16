@@ -2,6 +2,17 @@ import axios, { AxiosInstance } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import i18n from '@/lib/i18n';
+import {
+  CoinPack,
+  Transaction,
+  WalletInfo,
+  TransactionListResponse,
+  CheckoutResponse,
+  ApplyDiscountResponse,
+  SubscriptionCheckoutResponse,
+  SubscriptionPriceInfo,
+  SubscriptionStatus
+} from '@/types';
 
 export interface Category {
   id: number;
@@ -120,67 +131,9 @@ const createAPIClient = (): AxiosInstance => {
       }
 
       if (error.response?.status === 401 && !originalRequest._retry) {
-        if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initData) {
-          if (isRefreshing) {
-            return new Promise(function (resolve, reject) {
-              failedQueue.push({ resolve, reject });
-            })
-              .then((token) => {
-                originalRequest.headers['Authorization'] = 'Bearer ' + token;
-                return instance(originalRequest);
-              })
-              .catch((err) => {
-                return Promise.reject(err);
-              });
-          }
-
-          originalRequest._retry = true;
-          isRefreshing = true;
-
-          try {
-            const tgData = window.Telegram.WebApp.initDataUnsafe;
-            const authData = {
-              id: tgData.user?.id,
-              first_name: tgData.user?.first_name,
-              last_name: tgData.user?.last_name,
-              username: tgData.user?.username,
-              photo_url: tgData.user?.photo_url,
-              language_code: tgData.user?.language_code,
-              auth_date: tgData.auth_date,
-              hash: tgData.hash,
-              query_id: tgData.query_id,
-              start_param: tgData.start_param || null,
-            };
-
-            const { data } = await axios.post(
-              `${API_URL}/auth/telegram`,
-              authData
-            );
-
-            if (data.access_token) {
-              useAuthStore.getState().login(authData);
-              instance.defaults.headers.common['Authorization'] = 'Bearer ' + data.access_token;
-              originalRequest.headers['Authorization'] = 'Bearer ' + data.access_token;
-              processQueue(null, data.access_token);
-              return instance(originalRequest);
-            }
-          } catch (refreshError) {
-            processQueue(refreshError, null);
-            useAuthStore.getState().logout();
-            if (window.location.pathname !== '/') {
-              toast.error(i18n.t('toasts.sessionExpired'));
-            }
-          } finally {
-            isRefreshing = false;
-          }
-        } else {
-          useAuthStore.getState().logout();
-        }
-      } else if (error.response?.status === 403) {
-      } else if (error.response?.status === 500) {
-        if (!originalRequest.url?.includes('/auth/telegram')) {
-          toast.error(i18n.t('toasts.serverError'));
-        }
+        originalRequest._retry = true;
+        useAuthStore.getState().logout();
+        return Promise.reject(error);
       }
 
       return Promise.reject(error);
@@ -191,57 +144,80 @@ const createAPIClient = (): AxiosInstance => {
 };
 
 const api = createAPIClient();
-const getData = (response: any) => response.data;
 
+export const getData = (response: any) => response.data;
+
+export default api;
+
+// ============ Auth API ============
 export const authAPI = {
-  loginTelegram: async (initData: any) => {
-    const response = await api.post('/auth/telegram', initData);
-    return getData(response);
+  loginTelegram: async (initData: object) => {
+    return getData(await api.post('/auth/telegram', initData));
   },
 };
 
+// ============ Products API ============
 export const productsAPI = {
-  getProducts: async (params?: {
-    category_id?: number;
+  getAll: async (params?: {
+    category?: string;
     product_type?: string;
-    is_on_sale?: boolean;
-    min_price?: number;
-    max_price?: number;
+    search?: string;
     sort_by?: string;
     limit?: number;
     offset?: number;
   }) => {
     return getData(await api.get('/products', { params }));
   },
-  getProductById: async (id: string | number, lang?: string) => {
-    const config: any = {};
-    if (lang) {
-      config.headers = { 'Accept-Language': lang };
-    }
-    return getData(await api.get(`/products/${id}`, config));
+  getById: async (id: number) => {
+    return getData(await api.get(`/products/${id}`));
   },
   getCategories: async () => {
     return getData(await api.get('/products/categories'));
   },
 };
 
+// ============ Orders API ============
 export const ordersAPI = {
-  createCheckout: async (data: {
+  checkout: async (data: {
     product_ids: number[];
     promo_code?: string | null;
-    use_bonus_points?: number | null;
-  }) => {
+  }): Promise<CheckoutResponse> => {
     return getData(await api.post('/orders/checkout', data));
   },
   applyDiscount: async (data: {
     product_ids: number[];
     promo_code?: string | null;
-    use_bonus_points?: number;
-  }) => {
+  }): Promise<ApplyDiscountResponse> => {
     return getData(await api.post('/orders/promo/apply', data));
+  },
+  preview: async (productIds: number[], promoCode?: string) => {
+    const params: any = { product_ids: productIds.join(',') };
+    if (promoCode) params.promo_code = promoCode;
+    return getData(await api.get('/orders/preview', { params }));
   },
 };
 
+// ============ Wallet API (NEW) ============
+export const walletAPI = {
+  getBalance: async (): Promise<{ balance: number; balance_usd: number }> => {
+    return getData(await api.get('/wallet/balance'));
+  },
+  getInfo: async (): Promise<WalletInfo> => {
+    return getData(await api.get('/wallet/info'));
+  },
+  getCoinPacks: async (): Promise<CoinPack[]> => {
+    return getData(await api.get('/wallet/coin-packs'));
+  },
+  getTransactions: async (params?: {
+    page?: number;
+    size?: number;
+    type?: string;
+  }): Promise<TransactionListResponse> => {
+    return getData(await api.get('/wallet/transactions', { params }));
+  },
+};
+
+// ============ Profile API ============
 export const profileAPI = {
   getProfile: async () => {
     return getData(await api.get('/profile/me'));
@@ -290,18 +266,26 @@ export const profileAPI = {
   },
 };
 
+// ============ Subscriptions API (Updated) ============
 export const subscriptionsAPI = {
-  checkout: async () => {
+  getPrice: async (): Promise<SubscriptionPriceInfo> => {
+    return getData(await api.get('/subscriptions/price'));
+  },
+  checkout: async (): Promise<SubscriptionCheckoutResponse> => {
     return getData(await api.post('/subscriptions/checkout'));
   },
   cancel: async () => {
     return getData(await api.delete('/subscriptions/cancel'));
   },
-  getStatus: async () => {
+  enableAutoRenewal: async () => {
+    return getData(await api.post('/subscriptions/auto-renewal/enable'));
+  },
+  getStatus: async (): Promise<SubscriptionStatus> => {
     return getData(await api.get('/subscriptions/status'));
   },
 };
 
+// ============ Admin API ============
 export const adminAPI = {
   getDashboardStats: async () => {
     return getData(await api.get('/admin/dashboard/stats'));
@@ -318,18 +302,26 @@ export const adminAPI = {
   toggleUserActive: async (userId: number) => {
     return getData(await api.patch(`/admin/users/${userId}/toggle-active`));
   },
-  addUserBonus: async (userId: number, amount: number, reason?: string) => {
-    const formData = new FormData();
-    formData.append('amount', amount.toString());
-    if (reason) formData.append('reason', reason);
-    const response = await api.post(`/admin/users/${userId}/add-bonus`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    return getData(response);
+  addUserCoins: async (userId: number, amount: number, reason: string) => {
+    return getData(await api.post(`/admin/users/${userId}/add-coins`, { amount, reason }));
   },
   giveSubscription: async (userId: number, days: number) => {
     return getData(await api.post(`/admin/users/${userId}/subscription`, { days }));
   },
+  // CoinPacks
+  getCoinPacks: async (includeInactive = false) => {
+    return getData(await api.get('/admin/coin-packs', { params: { include_inactive: includeInactive } }));
+  },
+  createCoinPack: async (data: any) => {
+    return getData(await api.post('/admin/coin-packs', data));
+  },
+  updateCoinPack: async (id: number, data: any) => {
+    return getData(await api.put(`/admin/coin-packs/${id}`, data));
+  },
+  deleteCoinPack: async (id: number, hardDelete = false) => {
+    return getData(await api.delete(`/admin/coin-packs/${id}`, { params: { hard_delete: hardDelete } }));
+  },
+  // Products
   createProduct: async (data: any) => {
     return getData(await api.post('/admin/products', data));
   },
@@ -361,22 +353,10 @@ export const adminAPI = {
     return getData(await api.get('/admin/categories'));
   },
   createCategory: async (name: string, slug: string) => {
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('slug', slug);
-    const response = await api.post('/admin/categories', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    return getData(response);
+    return getData(await api.post('/admin/categories', { name, slug }));
   },
   updateCategory: async (id: number, name?: string, slug?: string) => {
-    const formData = new FormData();
-    if (name) formData.append('name', name);
-    if (slug) formData.append('slug', slug);
-    const response = await api.put(`/admin/categories/${id}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    return getData(response);
+    return getData(await api.put(`/admin/categories/${id}`, { name, slug }));
   },
   deleteCategory: async (id: number) => {
     return getData(await api.delete(`/admin/categories/${id}`));
@@ -402,23 +382,12 @@ export const adminAPI = {
   getOrders: async (params?: { skip?: number; limit?: number; status?: string }) => {
     return getData(await api.get('/admin/orders', { params }));
   },
-  getOrderDetail: async (id: number) => {
+  getOrderDetails: async (id: number) => {
     return getData(await api.get(`/admin/orders/${id}`));
   },
   updateOrderStatus: async (id: number, status: string) => {
     const formData = new FormData();
     formData.append('status', status);
-    const response = await api.patch(`/admin/orders/${id}/status`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    return getData(response);
-  },
-  exportUsersCSV: async () => {
-    const response = await api.get('/admin/export/users', {
-      responseType: 'blob'
-    });
-    return getData(response);
+    return getData(await api.patch(`/admin/orders/${id}/status`, formData));
   },
 };
-
-export default api;

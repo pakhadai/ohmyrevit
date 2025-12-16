@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Body
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, String, and_, or_
+from sqlalchemy import select, func, String, and_, or_, desc
 from sqlalchemy.orm import selectinload, joinedload
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta, timezone
@@ -16,13 +16,18 @@ from app.users.dependencies import get_current_admin_user
 from app.users.models import User
 from app.products.models import Product, Category, CategoryTranslation
 from app.orders.models import Order, OrderItem, PromoCode
-from app.subscriptions.models import Subscription
+from app.subscriptions.models import Subscription, SubscriptionStatus
+from app.wallet.models import CoinPack, Transaction, TransactionType
+from app.wallet.service import WalletAdminService
 from app.admin.schemas import (
     DashboardStats, UserListResponse, CategoryResponse,
     PromoCodeCreate, PromoCodeResponse, OrderListResponse,
     FileUploadResponse, UserDetailResponse, SubscriptionForUser,
     OrderForUser, ReferralForUser, OrderDetailResponse, ProductInOrder, UserBrief,
-    PromoCodeDetailResponse, PromoCodeUpdate, OrderForPromoCode
+    PromoCodeDetailResponse, PromoCodeUpdate, OrderForPromoCode,
+    CoinPackCreate, CoinPackUpdate, CoinPackResponse, CoinPackListResponse,
+    AdminAddCoinsRequest, AdminAddCoinsResponse, TransactionForUser,
+    TriggerSchedulerResponse
 )
 from app.core.telegram_service import telegram_service
 from app.core.translations import get_text
@@ -38,134 +43,51 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
-    "image/webp": ".webp"
-}
-
-ALLOWED_ARCHIVE_TYPES = {
-    "application/zip": ".zip",
-    "application/x-rar-compressed": ".rar",
-    "application/x-7z-compressed": ".7z",
-    "application/octet-stream": ".zip"
+    "image/webp": ".webp",
+    "image/gif": ".gif"
 }
 
 
-async def save_upload_file(
-        upload_file: UploadFile,
-        destination: Path,
-        old_file_path: Optional[str] = None
-) -> tuple[str, float]:
-    if old_file_path:
-        # Безпечне видалення старого файлу
-        try:
-            # Очищаємо шлях від можливого URL домену, якщо він там є
-            clean_old_path = old_file_path.replace('https://ohmyrevit.pp.ua', '').replace('/uploads/', '')
-            old_path = Path(settings.UPLOAD_PATH) / clean_old_path
+# ============ Helper Functions ============
 
-            # Перевіряємо, що шлях дійсно веде до папки uploads, щоб уникнути видалення системних файлів
-            if old_path.exists() and old_path.is_file() and settings.UPLOAD_PATH in str(old_path.resolve()):
-                old_path.unlink()
-                logger.info(f"Видалено старий файл: {old_path}")
-        except Exception as e:
-            logger.error(f"Помилка видалення файлу {old_file_path}: {e}")
+async def save_upload_file(file: UploadFile, file_path: Path, old_path: Optional[str] = None) -> tuple:
+    """Зберігає файл та повертає відносний шлях і розмір"""
+    content = await file.read()
+    file_size_mb = round(len(content) / (1024 * 1024), 2)
 
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    file_size = 0
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(content)
 
-    try:
-        async with aiofiles.open(destination, 'wb') as out_file:
-            while content := await upload_file.read(1024 * 1024):
-                await out_file.write(content)
-                file_size += len(content)
+    if old_path and old_path.startswith("/uploads/"):
+        old_file_path = UPLOAD_DIR / old_path.replace("/uploads/", "")
+        if old_file_path.exists() and old_file_path != file_path:
+            old_file_path.unlink()
 
-        file_size_mb = round(file_size / (1024 * 1024), 2)
-        logger.info(f"Збережено файл: {destination} ({file_size_mb} MB)")
-
-        return str(destination.relative_to(Path(settings.UPLOAD_PATH))), file_size_mb
-
-    except Exception as e:
-        logger.error(f"Помилка збереження файлу {upload_file.filename}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=get_text("admin_upload_error_save", "uk", error=str(e))
-        )
+    relative_path = str(file_path.relative_to(UPLOAD_DIR))
+    return relative_path, file_size_mb
 
 
-@router.post("/upload/image", response_model=FileUploadResponse)
-async def upload_image(
-        file: UploadFile = File(...),
-        old_path: Optional[str] = Form(None),
-        admin: User = Depends(get_current_admin_user)
-):
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=get_text("admin_upload_error_type_image", "uk", allowed=', '.join(ALLOWED_IMAGE_TYPES.keys()))
-        )
-
-    # Зберігаємо оригінальне ім'я файлу
-    filename = file.filename
-    # Заміна пробілів на підкреслення для безпеки URL
-    safe_filename = filename.replace(" ", "_")
-
-    file_path = UPLOAD_DIR / "images" / safe_filename
-
-    # Якщо файл з таким іменем існує, додаємо timestamp, щоб не перезаписати
-    if file_path.exists():
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        name, ext = os.path.splitext(safe_filename)
-        safe_filename = f"{name}_{timestamp}{ext}"
-        file_path = UPLOAD_DIR / "images" / safe_filename
-
-    relative_path, file_size_mb = await save_upload_file(file, file_path, old_path)
-
-    file_url = f"/uploads/{relative_path}"
-
-    return FileUploadResponse(
-        file_path=file_url,
-        file_size_mb=file_size_mb,
-        filename=safe_filename
+def coin_pack_to_response(pack: CoinPack) -> CoinPackResponse:
+    """Конвертує CoinPack в response"""
+    return CoinPackResponse(
+        id=pack.id,
+        name=pack.name,
+        price_usd=pack.price_usd,
+        coins_amount=pack.coins_amount,
+        bonus_percent=pack.bonus_percent,
+        total_coins=pack.get_total_coins(),
+        gumroad_permalink=pack.gumroad_permalink,
+        gumroad_url=f"{settings.GUMROAD_STORE_URL}/l/{pack.gumroad_permalink}",
+        description=pack.description,
+        is_active=pack.is_active,
+        is_featured=pack.is_featured,
+        sort_order=pack.sort_order,
+        created_at=pack.created_at
     )
 
 
-@router.post("/upload/archive", response_model=FileUploadResponse)
-async def upload_archive(
-        file: UploadFile = File(...),
-        old_path: Optional[str] = Form(None),
-        admin: User = Depends(get_current_admin_user)
-):
-    _, extension = os.path.splitext(file.filename)
-    if extension not in [".zip", ".rar", ".7z"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=get_text("admin_upload_error_type_archive", "uk", allowed=".zip, .rar, .7z")
-        )
+# ============ Dashboard ============
 
-    # Зберігаємо оригінальне ім'я файлу
-    filename = file.filename
-    # Заміна пробілів на підкреслення для безпеки URL
-    safe_filename = filename.replace(" ", "_")
-
-    file_path = UPLOAD_DIR / "archives" / safe_filename
-
-    # Якщо файл з таким іменем існує, додаємо timestamp
-    if file_path.exists():
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        name, ext = os.path.splitext(safe_filename)
-        safe_filename = f"{name}_{timestamp}{ext}"
-        file_path = UPLOAD_DIR / "archives" / safe_filename
-
-    relative_path, file_size_mb = await save_upload_file(file, file_path, old_path)
-
-    file_url = f"/uploads/{relative_path}"
-
-    return FileUploadResponse(
-        file_path=file_url,
-        file_size_mb=file_size_mb,
-        filename=safe_filename
-    )
-
-
-# ... (решта коду роутера, як-от /dashboard/stats, /users і т.д. залишається без змін) ...
 @router.get("/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats(
         admin: User = Depends(get_current_admin_user),
@@ -182,7 +104,7 @@ async def get_dashboard_stats(
 
     active_subscriptions = await db.scalar(
         select(func.count(Subscription.id)).where(
-            Subscription.status == "active",
+            Subscription.status == SubscriptionStatus.ACTIVE,
             Subscription.end_date > datetime.now(timezone.utc)
         )
     )
@@ -204,6 +126,17 @@ async def get_dashboard_stats(
         )
     ) or 0
 
+    # NEW: Статистика по монетах
+    total_coins_balance = await db.scalar(
+        select(func.sum(User.balance))
+    ) or 0
+
+    total_deposits = await db.scalar(
+        select(func.sum(Transaction.amount)).where(
+            Transaction.type == TransactionType.DEPOSIT
+        )
+    ) or 0
+
     return DashboardStats(
         users={
             "total": users_count,
@@ -218,16 +151,22 @@ async def get_dashboard_stats(
         orders={
             "total": total_orders,
             "paid": paid_orders,
-            "conversion_rate": round((paid_orders / total_orders * 100) if total_orders > 0 else 0, 2)
+            "conversion": round(paid_orders / total_orders * 100, 1) if total_orders > 0 else 0
         },
         revenue={
             "total": float(total_revenue),
             "monthly": float(monthly_revenue)
+        },
+        coins={
+            "total_in_circulation": total_coins_balance,
+            "total_deposited": total_deposits
         }
     )
 
 
-@router.get("/users", response_model=UserListResponse, tags=["Admin Users"])
+# ============ Users ============
+
+@router.get("/users", response_model=UserListResponse)
 async def get_users(
         skip: int = 0,
         limit: int = 50,
@@ -238,33 +177,30 @@ async def get_users(
     query = select(User)
 
     if search:
-        search_term = f"%{search}%"
-        query = query.where(
-            or_(
-                func.coalesce(User.username, '').ilike(search_term),
-                func.coalesce(User.first_name, '').ilike(search_term),
-                func.coalesce(User.last_name, '').ilike(search_term),
-                func.coalesce(User.email, '').ilike(search_term),
-                User.telegram_id.cast(String).ilike(search_term)
-            )
+        search_filter = or_(
+            User.username.ilike(f"%{search}%"),
+            User.first_name.ilike(f"%{search}%"),
+            User.email.ilike(f"%{search}%"),
+            User.telegram_id.cast(String).ilike(f"%{search}%")
         )
+        query = query.where(search_filter)
 
     count_query = select(func.count()).select_from(query.subquery())
     total = await db.scalar(count_query) or 0
 
-    query = query.offset(skip).limit(limit).order_by(User.id.asc())
+    query = query.offset(skip).limit(limit).order_by(User.created_at.desc())
     result = await db.execute(query)
     users = result.scalars().all()
 
     return UserListResponse(
-        users=users,
+        users=[UserBrief.model_validate(u) for u in users],
         total=total,
         skip=skip,
         limit=limit
     )
 
 
-@router.get("/users/{user_id}", response_model=UserDetailResponse, tags=["Admin Users"])
+@router.get("/users/{user_id}", response_model=UserDetailResponse)
 async def get_user_details(
         user_id: int,
         admin: User = Depends(get_current_admin_user),
@@ -273,184 +209,281 @@ async def get_user_details(
     query = (
         select(User)
         .options(
-            joinedload(User.referrals),
             selectinload(User.subscriptions),
-            selectinload(User.orders).selectinload(Order.items)
+            selectinload(User.referrals)
         )
         .where(User.id == user_id)
     )
-
     result = await db.execute(query)
     user = result.unique().scalar_one_or_none()
 
     if not user:
-        raise HTTPException(status_code=404, detail=get_text("admin_user_not_found", "uk"))
+        raise HTTPException(status_code=404, detail="User not found")
 
-    user_data = UserDetailResponse.model_validate(user)
+    # Отримуємо замовлення
+    orders_query = (
+        select(Order)
+        .options(selectinload(Order.items))
+        .where(Order.user_id == user_id)
+        .order_by(Order.created_at.desc())
+        .limit(10)
+    )
+    orders_result = await db.execute(orders_query)
+    orders = orders_result.scalars().all()
 
-    user_data.subscriptions = [
-        SubscriptionForUser.model_validate(sub) for sub in user.subscriptions
-    ]
-    user_data.orders = [
-        OrderForUser(
-            id=order.id,
-            final_total=float(order.final_total),
-            status=order.status.value,
-            created_at=order.created_at,
-            items_count=len(order.items)
-        ) for order in user.orders
-    ]
-    user_data.referrals = [
-        ReferralForUser.model_validate(ref) for ref in user.referrals
-    ]
+    # Отримуємо останні транзакції
+    transactions_query = (
+        select(Transaction)
+        .where(Transaction.user_id == user_id)
+        .order_by(Transaction.created_at.desc())
+        .limit(10)
+    )
+    transactions_result = await db.execute(transactions_query)
+    transactions = transactions_result.scalars().all()
 
-    return user_data
+    return UserDetailResponse(
+        id=user.id,
+        telegram_id=user.telegram_id,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        email=user.email,
+        phone=user.phone,
+        is_admin=user.is_admin,
+        is_active=user.is_active,
+        balance=user.balance,
+        bonus_streak=user.bonus_streak,
+        language_code=user.language_code,
+        last_login_at=user.last_login_at,
+        last_bonus_claim_date=user.last_bonus_claim_date,
+        created_at=user.created_at,
+        photo_url=user.photo_url,
+        subscriptions=[
+            SubscriptionForUser(
+                id=s.id,
+                start_date=s.start_date,
+                end_date=s.end_date,
+                status=s.status.value if hasattr(s.status, 'value') else s.status,
+                is_auto_renewal=s.is_auto_renewal
+            ) for s in user.subscriptions
+        ],
+        orders=[
+            OrderForUser(
+                id=o.id,
+                final_total=float(o.final_total),
+                status=o.status.value if hasattr(o.status, 'value') else o.status,
+                created_at=o.created_at,
+                items_count=len(o.items)
+            ) for o in orders
+        ],
+        referrals=[
+            ReferralForUser(
+                id=r.id,
+                first_name=r.first_name,
+                last_name=r.last_name,
+                username=r.username,
+                created_at=r.created_at
+            ) for r in user.referrals
+        ],
+        recent_transactions=[
+            TransactionForUser(
+                id=t.id,
+                type=t.type.value if hasattr(t.type, 'value') else t.type,
+                amount=t.amount,
+                balance_after=t.balance_after,
+                description=t.description,
+                created_at=t.created_at
+            ) for t in transactions
+        ]
+    )
 
 
-@router.patch("/users/{user_id}/toggle-admin", tags=["Admin Users"])
+@router.post("/users/{user_id}/add-coins", response_model=AdminAddCoinsResponse)
+async def admin_add_coins(
+        user_id: int,
+        data: AdminAddCoinsRequest,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Ручне нарахування монет користувачу"""
+    service = WalletAdminService(db)
+
+    try:
+        transaction = await service.manual_add_coins(
+            user_id=user_id,
+            amount=data.amount,
+            reason=data.reason,
+            admin_id=admin.id
+        )
+
+        # Сповіщаємо користувача
+        user = await db.get(User, user_id)
+        if user and user.telegram_id:
+            try:
+                await telegram_service.send_message(
+                    user.telegram_id,
+                    f"🎁 Вам нараховано {data.amount} OMR Coins!\n\n"
+                    f"💬 Причина: {data.reason}\n"
+                    f"💵 Новий баланс: {transaction.balance_after} монет"
+                )
+            except Exception as e:
+                logger.error(f"Failed to notify user: {e}")
+
+        return AdminAddCoinsResponse(
+            success=True,
+            user_id=user_id,
+            coins_added=data.amount,
+            new_balance=transaction.balance_after,
+            transaction_id=transaction.id
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.patch("/users/{user_id}/toggle-admin")
 async def toggle_user_admin(
         user_id: int,
         admin: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
     if user_id == admin.id:
-        raise HTTPException(
-            status_code=400,
-            detail=get_text("admin_user_error_self_admin", "uk")
-        )
+        raise HTTPException(status_code=400, detail="Cannot change own admin status")
 
     user = await db.get(User, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail=get_text("admin_user_not_found", "uk"))
+        raise HTTPException(status_code=404, detail="User not found")
 
     user.is_admin = not user.is_admin
     await db.commit()
 
-    return {
-        "success": True,
-        "user_id": user_id,
-        "is_admin": user.is_admin
-    }
+    return {"success": True, "user_id": user_id, "is_admin": user.is_admin}
 
 
-@router.patch("/users/{user_id}/toggle-active", tags=["Admin Users"])
-async def toggle_user_active(
-        user_id: int,
+# ============ CoinPacks (NEW) ============
+
+@router.get("/coin-packs", response_model=CoinPackListResponse)
+async def get_all_coin_packs(
+        include_inactive: bool = False,
         admin: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
-    if user_id == admin.id:
+    """Отримати всі пакети монет"""
+    query = select(CoinPack).order_by(CoinPack.sort_order)
+
+    if not include_inactive:
+        query = query.where(CoinPack.is_active == True)
+
+    result = await db.execute(query)
+    packs = list(result.scalars().all())
+
+    return CoinPackListResponse(
+        packs=[coin_pack_to_response(p) for p in packs],
+        total=len(packs)
+    )
+
+
+@router.get("/coin-packs/{pack_id}", response_model=CoinPackResponse)
+async def get_coin_pack(
+        pack_id: int,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Отримати пакет монет за ID"""
+    pack = await db.get(CoinPack, pack_id)
+    if not pack:
+        raise HTTPException(status_code=404, detail="CoinPack not found")
+
+    return coin_pack_to_response(pack)
+
+
+@router.post("/coin-packs", response_model=CoinPackResponse)
+async def create_coin_pack(
+        data: CoinPackCreate,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Створити новий пакет монет"""
+    # Перевіряємо унікальність permalink
+    existing = await db.execute(
+        select(CoinPack).where(CoinPack.gumroad_permalink == data.gumroad_permalink)
+    )
+    if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=400,
-            detail=get_text("admin_user_error_self_block", "uk")
+            detail="CoinPack with this permalink already exists"
         )
 
-    user = await db.get(User, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail=get_text("admin_user_not_found", "uk"))
-
-    if not hasattr(user, 'is_active'):
-        user.is_active = True
-
-    user.is_active = not user.is_active
+    pack = CoinPack(**data.model_dump())
+    db.add(pack)
     await db.commit()
+    await db.refresh(pack)
 
-    return {
-        "success": True,
-        "user_id": user_id,
-        "is_active": user.is_active
-    }
+    return coin_pack_to_response(pack)
 
 
-@router.post("/users/{user_id}/add-bonus", tags=["Admin Users"])
-async def add_user_bonus(
-        user_id: int,
-        amount: int = Form(...),
-        reason: Optional[str] = Form(None),
+@router.put("/coin-packs/{pack_id}", response_model=CoinPackResponse)
+async def update_coin_pack(
+        pack_id: int,
+        data: CoinPackUpdate,
         admin: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
-    user = await db.get(User, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail=get_text("admin_user_not_found", "uk"))
+    """Оновити пакет монет"""
+    pack = await db.get(CoinPack, pack_id)
+    if not pack:
+        raise HTTPException(status_code=404, detail="CoinPack not found")
 
-    user.bonus_balance += amount
+    update_data = data.model_dump(exclude_unset=True)
+
+    # Перевіряємо унікальність permalink якщо змінюється
+    if 'gumroad_permalink' in update_data:
+        existing = await db.execute(
+            select(CoinPack).where(
+                CoinPack.gumroad_permalink == update_data['gumroad_permalink'],
+                CoinPack.id != pack_id
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail="CoinPack with this permalink already exists"
+            )
+
+    for key, value in update_data.items():
+        setattr(pack, key, value)
+
     await db.commit()
-    await db.refresh(user)
+    await db.refresh(pack)
 
-    logger.info(f"Admin {admin.id} added {amount} bonuses to user {user_id}. Reason: {reason}")
-
-    try:
-        lang = user.language_code or "uk"
-        msg = get_text("admin_bonus_msg_title", lang, amount=amount)
-        if reason:
-            msg += get_text("admin_bonus_msg_comment", lang, reason=reason)
-        msg += get_text("admin_bonus_msg_balance", lang, balance=user.bonus_balance)
-        await telegram_service.send_message(user.telegram_id, msg)
-    except Exception as e:
-        logger.error(f"Failed to send bonus notification: {e}")
-
-    return {
-        "success": True,
-        "user_id": user_id,
-        "new_balance": user.bonus_balance,
-        "added": amount,
-        "reason": reason
-    }
+    return coin_pack_to_response(pack)
 
 
-@router.post("/users/{user_id}/subscription", tags=["Admin Users"])
-async def give_user_subscription(
-        user_id: int,
-        days: int = Body(..., embed=True),
+@router.delete("/coin-packs/{pack_id}")
+async def delete_coin_pack(
+        pack_id: int,
+        hard_delete: bool = False,
         admin: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
-    user = await db.get(User, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail=get_text("admin_user_not_found", "uk"))
+    """Видалити/деактивувати пакет монет"""
+    pack = await db.get(CoinPack, pack_id)
+    if not pack:
+        raise HTTPException(status_code=404, detail="CoinPack not found")
 
-    from datetime import datetime, timedelta, timezone
-    from app.subscriptions.models import Subscription
-
-    existing = await db.execute(
-        select(Subscription).where(
-            Subscription.user_id == user_id,
-            Subscription.status == "active"
-        )
-    )
-    subscription = existing.scalar_one_or_none()
-
-    if subscription:
-        if subscription.end_date < datetime.now(timezone.utc):
-            subscription.end_date = datetime.now(timezone.utc) + timedelta(days=days)
-        else:
-            subscription.end_date += timedelta(days=days)
+    if hard_delete:
+        await db.delete(pack)
+        message = "CoinPack permanently deleted"
     else:
-        subscription = Subscription(
-            user_id=user_id,
-            start_date=datetime.now(timezone.utc),
-            end_date=datetime.now(timezone.utc) + timedelta(days=days),
-            status="active"
-        )
-        db.add(subscription)
+        pack.is_active = False
+        message = "CoinPack deactivated"
 
     await db.commit()
 
-    try:
-        lang = user.language_code or "uk"
-        date_str = subscription.end_date.strftime("%d.%m.%Y")
-        msg = get_text("admin_sub_msg_title", lang, days=days, date_str=date_str)
-        await telegram_service.send_message(user.telegram_id, msg)
-    except Exception as e:
-        logger.error(f"Failed to send subscription notification: {e}")
+    return {"success": True, "message": message}
 
-    return {
-        "success": True,
-        "message": get_text("admin_sub_success_response", "uk", days=days, name=user.first_name),
-        "end_date": subscription.end_date.isoformat()
-    }
 
+# ============ Categories ============
 
 @router.get("/categories", response_model=List[CategoryResponse])
 async def get_categories(
@@ -460,28 +493,31 @@ async def get_categories(
     result = await db.execute(
         select(Category).options(selectinload(Category.translations))
     )
-    categories = result.scalars().unique().all()
+    categories = result.scalars().all()
 
-    return [
-        CategoryResponse(
+    response = []
+    for cat in categories:
+        uk_translation = next(
+            (t for t in cat.translations if t.language_code == 'uk'),
+            None
+        )
+        response.append(CategoryResponse(
             id=cat.id,
             slug=cat.slug,
-            name=next((t.name for t in cat.translations if t.language_code == 'uk'), cat.slug)
-        )
-        for cat in categories
-    ]
+            name=uk_translation.name if uk_translation else cat.slug
+        ))
+
+    return response
 
 
 @router.post("/categories", response_model=CategoryResponse)
 async def create_category(
-        name: str = Form(...),
-        slug: str = Form(...),
+        slug: str = Body(...),
+        name: str = Body(...),
         admin: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
-    existing = await db.execute(
-        select(Category).where(Category.slug == slug)
-    )
+    existing = await db.execute(select(Category).where(Category.slug == slug))
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=400,
@@ -498,22 +534,17 @@ async def create_category(
         name=name
     )
     db.add(translation)
-
     await db.commit()
     await db.refresh(category)
 
-    return CategoryResponse(
-        id=category.id,
-        slug=category.slug,
-        name=name
-    )
+    return CategoryResponse(id=category.id, slug=category.slug, name=name)
 
 
 @router.put("/categories/{category_id}", response_model=CategoryResponse)
 async def update_category(
         category_id: int,
-        name: Optional[str] = Form(None),
-        slug: Optional[str] = Form(None),
+        slug: Optional[str] = Body(None),
+        name: Optional[str] = Body(None),
         admin: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
@@ -571,6 +602,8 @@ async def delete_category(
     return {"success": True, "message": get_text("admin_category_deleted", "uk")}
 
 
+# ============ Promo Codes ============
+
 @router.get("/promo-codes", response_model=List[PromoCodeResponse])
 async def get_promo_codes(
         admin: User = Depends(get_current_admin_user),
@@ -581,10 +614,7 @@ async def get_promo_codes(
     )
     promo_codes = result.scalars().all()
 
-    return [
-        PromoCodeResponse.model_validate(promo)
-        for promo in promo_codes
-    ]
+    return [PromoCodeResponse.model_validate(promo) for promo in promo_codes]
 
 
 @router.get("/promo-codes/{promo_id}", response_model=PromoCodeDetailResponse)
@@ -687,11 +717,7 @@ async def toggle_promo_code(
     promo.is_active = not promo.is_active
     await db.commit()
 
-    return {
-        "success": True,
-        "promo_id": promo_id,
-        "is_active": promo.is_active
-    }
+    return {"success": True, "promo_id": promo_id, "is_active": promo.is_active}
 
 
 @router.delete("/promo-codes/{promo_id}")
@@ -709,6 +735,8 @@ async def delete_promo_code(
 
     return {"success": True, "message": get_text("admin_promo_deleted", "uk")}
 
+
+# ============ Orders ============
 
 @router.get("/orders", response_model=OrderListResponse)
 async def get_orders(
@@ -791,14 +819,14 @@ async def get_order_details(
             )
         )
 
-    order_details = OrderDetailResponse(
+    return OrderDetailResponse(
         id=order.id,
         user=UserBrief.model_validate(order.user),
         subtotal=float(order.subtotal),
         discount_amount=float(order.discount_amount),
         bonus_used=order.bonus_used,
         final_total=float(order.final_total),
-        status=order.status.value,
+        status=order.status.value if hasattr(order.status, 'value') else order.status,
         promo_code=PromoCodeResponse.model_validate(order.promo_code) if order.promo_code else None,
         payment_url=order.payment_url,
         payment_id=order.payment_id,
@@ -807,81 +835,84 @@ async def get_order_details(
         items=items_data
     )
 
-    return order_details
 
+# ============ Scheduler Trigger ============
 
-@router.patch("/orders/{order_id}/status")
-async def update_order_status(
-        order_id: int,
-        status: str = Form(...),
+@router.post("/trigger-scheduler", response_model=TriggerSchedulerResponse)
+async def trigger_subscription_scheduler(
         admin: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
-    order = await db.get(Order, order_id)
-    if not order:
-        raise HTTPException(status_code=404, detail=get_text("admin_order_not_found", "uk"))
+    """Ручний запуск scheduler для тестування"""
+    from app.core.scheduler import trigger_subscription_check
 
-    valid_statuses = ["pending", "paid", "failed"]
-    if status not in valid_statuses:
+    result = await trigger_subscription_check()
+    return TriggerSchedulerResponse(**result)
+
+
+# ============ File Uploads ============
+
+@router.post("/upload/image", response_model=FileUploadResponse)
+async def upload_image(
+        file: UploadFile = File(...),
+        old_path: Optional[str] = Form(None),
+        admin: User = Depends(get_current_admin_user)
+):
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
-            status_code=400,
-            detail=get_text("admin_order_error_status_invalid", "uk", allowed=', '.join(valid_statuses))
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=get_text("admin_upload_error_invalid_type", "uk", allowed=", ".join(ALLOWED_IMAGE_TYPES.keys()))
         )
 
-    order.status = status
+    extension = ALLOWED_IMAGE_TYPES[file.content_type]
+    filename = file.filename.replace(" ", "_")
+    if not filename.lower().endswith(extension):
+        name, _ = os.path.splitext(filename)
+        filename = f"{name}{extension}"
 
-    if status == "paid" and not order.paid_at:
-        order.paid_at = datetime.now(timezone.utc)
+    file_path = UPLOAD_DIR / "images" / filename
 
-    await db.commit()
+    if file_path.exists():
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        name, ext = os.path.splitext(filename)
+        filename = f"{name}_{timestamp}{ext}"
+        file_path = UPLOAD_DIR / "images" / filename
 
-    return {
-        "success": True,
-        "order_id": order_id,
-        "new_status": status
-    }
+    relative_path, file_size_mb = await save_upload_file(file, file_path, old_path)
 
-
-@router.get("/export/users")
-async def export_users_csv(
-        admin: User = Depends(get_current_admin_user),
-        db: AsyncSession = Depends(get_db)
-):
-    import csv
-    import io
-    from fastapi.responses import StreamingResponse
-
-    result = await db.execute(
-        select(User).order_by(User.created_at.desc())
+    return FileUploadResponse(
+        file_path=f"/uploads/{relative_path}",
+        file_size_mb=file_size_mb,
+        filename=filename
     )
-    users = result.scalars().all()
 
-    output = io.StringIO()
-    writer = csv.writer(output)
 
-    writer.writerow([
-        'ID', 'Telegram ID', 'Username', 'First Name', 'Last Name',
-        'Email', 'Is Admin', 'Bonus Balance', 'Created At'
-    ])
+@router.post("/upload/archive", response_model=FileUploadResponse)
+async def upload_archive(
+        file: UploadFile = File(...),
+        old_path: Optional[str] = Form(None),
+        admin: User = Depends(get_current_admin_user)
+):
+    _, extension = os.path.splitext(file.filename)
+    if extension.lower() not in [".zip", ".rar", ".7z"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=get_text("admin_upload_error_type_archive", "uk", allowed=".zip, .rar, .7z")
+        )
 
-    for user in users:
-        writer.writerow([
-            user.id,
-            user.telegram_id,
-            user.username or '',
-            user.first_name,
-            user.last_name or '',
-            user.email or '',
-            'Yes' if user.is_admin else 'No',
-            user.bonus_balance,
-            user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else ''
-        ])
+    filename = file.filename.replace(" ", "_")
+    file_path = UPLOAD_DIR / "archives" / filename
 
-    output.seek(0)
-    return StreamingResponse(
-        io.BytesIO(output.getvalue().encode('utf-8-sig')),
-        media_type='text/csv',
-        headers={
-            "Content-Disposition": f"attachment; filename=users_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        }
+    if file_path.exists():
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        name, ext = os.path.splitext(filename)
+        filename = f"{name}_{timestamp}{ext}"
+        file_path = UPLOAD_DIR / "archives" / filename
+
+    relative_path, file_size_mb = await save_upload_file(file, file_path, old_path)
+
+    return FileUploadResponse(
+        file_path=f"/uploads/{relative_path}",
+        file_size_mb=file_size_mb,
+        filename=filename
     )

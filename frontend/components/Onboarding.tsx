@@ -17,20 +17,29 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
   const router = useRouter();
 
   const slides = [
+    // 1. Оригінальний слайд "Welcome"
     {
       icon: '📦',
       title: t('onboarding.welcome.title'),
       description: t('onboarding.welcome.description'),
     },
+    // 2. Оригінальний слайд "Features"
     {
       icon: '✨',
       title: t('onboarding.features.title'),
       description: t('onboarding.features.description'),
     },
+    // 3. НОВИЙ слайд про валюту (Замість Subscription)
     {
       icon: '💎',
-      title: t('onboarding.subscription.title'),
-      description: t('onboarding.subscription.description'),
+      title: 'OMR Coins',
+      description: 'Ми використовуємо внутрішню валюту: 100 монет = $1.00. Купуйте товари та підписки миттєво!',
+    },
+    // 4. НОВИЙ слайд про поповнення
+    {
+      icon: '💳',
+      title: 'Зручне поповнення',
+      description: 'Поповнюйте гаманець через Gumroad, отримуйте бонуси за великі пакети та забудьте про комісії при кожній покупці.',
     },
   ];
 
@@ -42,13 +51,10 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
     }
   };
 
-  const handleSubscription = () => {
-    onComplete();
-    router.push('/subscription');
-  };
-
   const handleFinish = () => {
     onComplete();
+    // Після онбордингу можна перекинути на гаманець, щоб юзер одразу побачив нову систему
+    router.push('/profile/wallet');
   };
 
   return (
@@ -88,6 +94,7 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
       </AnimatePresence>
 
       <div className="flex flex-col items-center w-full">
+        {/* Індикатор прогресу */}
         <div className="flex justify-center space-x-3 mb-8">
             {slides.map((_, i) => (
             <motion.div
@@ -101,29 +108,23 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
             ))}
         </div>
 
-        {step === slides.length - 1 ? (
-          <div className="w-full space-y-3">
+        <div className="w-full space-y-3">
             <button
-              onClick={handleSubscription}
-              className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/30 text-lg"
+                onClick={handleNext}
+                className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/30 text-lg"
             >
-              {t('onboarding.subscription.cta')}
+                {step === slides.length - 1 ? t('onboarding.buttons.finish') : t('onboarding.buttons.next')}
             </button>
-            <button
-              onClick={handleFinish}
-              className="w-full text-zinc-500 dark:text-zinc-400 font-medium py-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-            >
-              {t('onboarding.buttons.skip')}
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={handleNext}
-            className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/30 text-lg"
-          >
-            {t('onboarding.buttons.next')}
-          </button>
-        )}
+
+            {step < slides.length - 1 && (
+                <button
+                    onClick={handleFinish}
+                    className="w-full text-zinc-500 dark:text-zinc-400 font-medium py-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                    {t('onboarding.buttons.skip')}
+                </button>
+            )}
+        </div>
       </div>
     </motion.div>
   );

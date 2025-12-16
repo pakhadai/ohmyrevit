@@ -5,40 +5,45 @@ from datetime import datetime
 
 
 class CreateOrderRequest(BaseModel):
+    """Запит на створення замовлення з оплатою монетами"""
     product_ids: List[int]
     promo_code: Optional[str] = None
-    use_bonus_points: Optional[int] = Field(None, ge=0)
+    # Видалено use_bonus_points - тепер все оплачується монетами
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "product_ids": [1, 2, 3],
-                "promo_code": "WINTER2025",
-                "use_bonus_points": 500
+                "promo_code": "WINTER2025"
             }
         }
     )
 
+
 class ApplyDiscountRequest(BaseModel):
+    """Запит на розрахунок знижки"""
     product_ids: List[int]
     promo_code: Optional[str] = None
-    use_bonus_points: Optional[int] = Field(None, ge=0)
+
 
 class ApplyDiscountResponse(BaseModel):
+    """Відповідь з інформацією про знижку"""
     success: bool
-    # ЗМІНЕНО: float -> Decimal
-    discount_amount: Decimal = Decimal("0.00")
-    final_total: Decimal
+    subtotal_coins: int  # Сума в монетах до знижки
+    discount_coins: int = 0  # Знижка в монетах
+    final_coins: int  # Фінальна сума в монетах
+    user_balance: int  # Поточний баланс користувача
+    has_enough_balance: bool  # Чи вистачає монет
     message: Optional[str] = None
-    bonus_points_used: int = 0
 
 
 class OrderResponse(BaseModel):
+    """Базова відповідь замовлення"""
     id: int
     user_id: int
-    subtotal: Decimal
-    discount_amount: Decimal
-    final_total: Decimal
+    subtotal_coins: int
+    discount_coins: int
+    final_coins: int
     status: str
     created_at: datetime
 
@@ -46,15 +51,43 @@ class OrderResponse(BaseModel):
 
 
 class OrderItemResponse(BaseModel):
+    """Елемент замовлення"""
     id: int
     product_id: int
-    price_at_purchase: Decimal
+    price_coins: int  # Ціна в монетах
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class CheckoutResponse(BaseModel):
+    """Відповідь checkout - миттєва оплата монетами"""
+    success: bool
+    order_id: int
+    coins_spent: int  # Списано монет
+    new_balance: int  # Новий баланс
+    message: str
+
+    # Для сумісності з фронтендом (поки що)
+    payment_url: Optional[str] = None  # Завжди None - оплата миттєва
+    amount: Optional[Decimal] = None  # Deprecated
+
+
+class InsufficientFundsResponse(BaseModel):
+    """Відповідь при недостатньому балансі"""
+    success: bool = False
+    error: str = "insufficient_funds"
+    required_coins: int  # Скільки потрібно
+    current_balance: int  # Поточний баланс
+    shortfall: int  # Скільки не вистачає
+    message: str
+
+
+# ============ Legacy schemas for compatibility ============
+
+class LegacyCheckoutResponse(BaseModel):
+    """Стара схема для сумісності"""
     order_id: int
     payment_url: Optional[str] = None
-    # ЗМІНЕНО: float -> Decimal
     amount: Decimal
+
+    model_config = ConfigDict(from_attributes=True)

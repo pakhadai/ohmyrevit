@@ -8,7 +8,6 @@ from app.core.database import Base
 
 
 class User(Base):
-
     __tablename__ = "users"
 
     # Основні поля
@@ -28,8 +27,10 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True, server_default='true')
 
-    # Бонусна система
-    bonus_balance = Column(Integer, default=0)
+    # OMR Coins система (100 монет = $1)
+    balance = Column(Integer, default=0)
+
+    # Бонусна система (streak для щоденних бонусів)
     bonus_streak = Column(Integer, default=0)
     last_bonus_claim_date = Column(Date, nullable=True)
 
@@ -39,7 +40,6 @@ class User(Base):
 
     referrer = relationship("User", remote_side=[id], back_populates="referrals")
     referrals = relationship("User", back_populates="referrer", foreign_keys=[referrer_id])
-
 
     # Зв'язок з колекціями
     collections: Mapped[List["Collection"]] = relationship("Collection", back_populates="user",

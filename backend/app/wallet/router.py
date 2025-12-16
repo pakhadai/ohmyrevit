@@ -1,0 +1,417 @@
+import logging
+import hashlib
+import hmac
+from typing import Optional, List
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.core.config import settings
+from app.users.dependencies import get_current_user, get_current_admin_user
+from app.users.models import User
+from app.wallet.service import WalletService, WalletAdminService
+from app.wallet.schemas import (
+    CoinPackResponse, CoinPackCreate, CoinPackUpdate,
+    TransactionResponse, TransactionListResponse,
+    WalletBalanceResponse, WalletInfoResponse,
+    GumroadWebhookPayload, GumroadWebhookResponse,
+    TransactionTypeEnum
+)
+from app.wallet.models import TransactionType
+from app.core.telegram_service import telegram_service
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(tags=["Wallet"])
+admin_router = APIRouter(tags=["Admin - Wallet"])
+webhook_router = APIRouter(tags=["Webhooks"])
+
+
+# ============ Helper Functions ============
+
+def coin_pack_to_response(pack) -> CoinPackResponse:
+    """Конвертує CoinPack модель в response схему"""
+    return CoinPackResponse(
+        id=pack.id,
+        name=pack.name,
+        price_usd=pack.price_usd,
+        coins_amount=pack.coins_amount,
+        bonus_percent=pack.bonus_percent,
+        gumroad_permalink=pack.gumroad_permalink,
+        description=pack.description,
+        is_active=pack.is_active,
+        is_featured=pack.is_featured,
+        sort_order=pack.sort_order,
+        total_coins=pack.get_total_coins(),
+        gumroad_url=f"https://ohmyrevit.gumroad.com/l/{pack.gumroad_permalink}",
+        created_at=pack.created_at
+    )
+
+
+# ============ User Wallet Endpoints ============
+
+@router.get("/balance", response_model=WalletBalanceResponse)
+async def get_my_balance(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Отримати поточний баланс гаманця"""
+    service = WalletService(db)
+    balance = await service.get_balance(current_user.id)
+
+    return WalletBalanceResponse(
+        balance=balance,
+        balance_usd=balance / 100  # 100 монет = $1
+    )
+
+
+@router.get("/info", response_model=WalletInfoResponse)
+async def get_wallet_info(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Отримати повну інформацію про гаманець"""
+    service = WalletService(db)
+
+    balance = await service.get_balance(current_user.id)
+    coin_packs = await service.get_active_coin_packs()
+    transactions, _ = await service.get_user_transactions(current_user.id, limit=5)
+
+    return WalletInfoResponse(
+        balance=balance,
+        balance_usd=balance / 100,
+        coin_packs=[coin_pack_to_response(p) for p in coin_packs],
+        recent_transactions=[
+            TransactionResponse(
+                id=t.id,
+                type=TransactionTypeEnum(t.type.value),
+                amount=t.amount,
+                balance_after=t.balance_after,
+                description=t.description,
+                order_id=t.order_id,
+                subscription_id=t.subscription_id,
+                external_id=t.external_id,
+                created_at=t.created_at
+            ) for t in transactions
+        ]
+    )
+
+
+@router.get("/coin-packs", response_model=List[CoinPackResponse])
+async def get_coin_packs(
+        db: AsyncSession = Depends(get_db)
+):
+    """Отримати список доступних пакетів монет для покупки"""
+    service = WalletService(db)
+    packs = await service.get_active_coin_packs()
+    return [coin_pack_to_response(p) for p in packs]
+
+
+@router.get("/transactions", response_model=TransactionListResponse)
+async def get_my_transactions(
+        page: int = Query(1, ge=1),
+        size: int = Query(20, ge=1, le=100),
+        type: Optional[TransactionTypeEnum] = None,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Отримати історію транзакцій"""
+    service = WalletService(db)
+
+    offset = (page - 1) * size
+    transaction_type = TransactionType(type.value) if type else None
+
+    transactions, total = await service.get_user_transactions(
+        user_id=current_user.id,
+        limit=size,
+        offset=offset,
+        transaction_type=transaction_type
+    )
+
+    return TransactionListResponse(
+        items=[
+            TransactionResponse(
+                id=t.id,
+                type=TransactionTypeEnum(t.type.value),
+                amount=t.amount,
+                balance_after=t.balance_after,
+                description=t.description,
+                order_id=t.order_id,
+                subscription_id=t.subscription_id,
+                external_id=t.external_id,
+                created_at=t.created_at
+            ) for t in transactions
+        ],
+        total=total,
+        page=page,
+        size=size
+    )
+
+
+# ============ Gumroad Webhook ============
+
+@webhook_router.post("/gumroad", response_model=GumroadWebhookResponse)
+async def gumroad_webhook(
+        request: Request,
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Вебхук для обробки покупок з Gumroad
+
+    Gumroad надсилає POST-запит при кожній покупці.
+    URL для налаштування в Gumroad: {BACKEND_URL}/webhooks/gumroad
+    """
+    try:
+        # Отримуємо дані форми (Gumroad надсилає form-data)
+        form_data = await request.form()
+        data = dict(form_data)
+
+        logger.info(f"Gumroad webhook received: {data}")
+
+        # Перевірка підпису (якщо налаштовано)
+        if settings.GUMROAD_WEBHOOK_SECRET:
+            signature = request.headers.get("X-Gumroad-Signature")
+            if not verify_gumroad_signature(data, signature):
+                logger.warning("Invalid Gumroad webhook signature")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid signature"
+                )
+
+        # Парсимо дані
+        sale_id = data.get("sale_id")
+        permalink = data.get("permalink") or data.get("product_permalink")
+        email = data.get("email")
+        price = int(data.get("price", 0))  # В центах
+        refunded = data.get("refunded", "false").lower() == "true"
+        test = data.get("test", "false").lower() == "true"
+
+        # Ігноруємо рефанди та тестові покупки
+        if refunded:
+            logger.info(f"Skipping refunded transaction: {sale_id}")
+            return GumroadWebhookResponse(
+                success=True,
+                message="Refund processed, no action taken"
+            )
+
+        if test and settings.ENVIRONMENT == "production":
+            logger.info(f"Skipping test transaction in production: {sale_id}")
+            return GumroadWebhookResponse(
+                success=True,
+                message="Test transaction ignored"
+            )
+
+        # Отримуємо user_id з кастомних полів
+        # В Gumroad потрібно додати custom field "user_id"
+        # або передавати через URL параметр: ?user_id=123
+        user_id = None
+
+        # Спочатку шукаємо в custom_fields
+        custom_fields_str = data.get("custom_fields", "{}")
+        if custom_fields_str:
+            try:
+                import json
+                custom_fields = json.loads(custom_fields_str) if isinstance(custom_fields_str,
+                                                                            str) else custom_fields_str
+                user_id = custom_fields.get("user_id")
+            except:
+                pass
+
+        # Потім в url_params
+        if not user_id:
+            url_params_str = data.get("url_params", "{}")
+            if url_params_str:
+                try:
+                    import json
+                    url_params = json.loads(url_params_str) if isinstance(url_params_str, str) else url_params_str
+                    user_id = url_params.get("user_id")
+                except:
+                    pass
+
+        # Також перевіряємо прямі поля (Gumroad може передавати по-різному)
+        if not user_id:
+            user_id = data.get("user_id")
+
+        if not user_id:
+            logger.error(f"No user_id in Gumroad webhook: {sale_id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing user_id in webhook data"
+            )
+
+        user_id = int(user_id)
+
+        # Обробляємо покупку
+        service = WalletService(db)
+
+        try:
+            transaction = await service.process_gumroad_purchase(
+                user_id=user_id,
+                permalink=permalink,
+                sale_id=sale_id,
+                amount_cents=price
+            )
+        except ValueError as e:
+            if "already processed" in str(e):
+                return GumroadWebhookResponse(
+                    success=True,
+                    message="Transaction already processed"
+                )
+            raise
+
+        # Надсилаємо сповіщення в Telegram
+        try:
+            from app.users.models import User
+            user = await db.get(User, user_id)
+            if user and user.telegram_id:
+                coin_pack = await service.get_coin_pack_by_permalink(permalink)
+                message = (
+                    f"✅ Баланс поповнено!\n\n"
+                    f"💰 +{transaction.amount} OMR Coins\n"
+                    f"📦 Пакет: {coin_pack.name if coin_pack else permalink}\n"
+                    f"💵 Новий баланс: {transaction.balance_after} монет"
+                )
+                await telegram_service.send_message(user.telegram_id, message)
+        except Exception as e:
+            logger.error(f"Failed to send Telegram notification: {e}")
+
+        logger.info(
+            f"Gumroad purchase successful: user={user_id}, "
+            f"coins={transaction.amount}, balance={transaction.balance_after}"
+        )
+
+        return GumroadWebhookResponse(
+            success=True,
+            message="Coins added successfully",
+            user_id=user_id,
+            coins_added=transaction.amount,
+            new_balance=transaction.balance_after
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Gumroad webhook error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+def verify_gumroad_signature(data: dict, signature: str) -> bool:
+    """
+    Перевіряє підпис Gumroad webhook
+    https://help.gumroad.com/article/200-ping
+    """
+    if not signature or not settings.GUMROAD_WEBHOOK_SECRET:
+        return False
+
+    # Gumroad використовує HMAC-SHA256
+    # Підпис = HMAC(webhook_secret, raw_post_body)
+    # Для form-data потрібно відтворити тіло запиту
+
+    # Сортуємо параметри та створюємо рядок
+    sorted_params = "&".join(f"{k}={v}" for k, v in sorted(data.items()))
+
+    expected_signature = hmac.new(
+        settings.GUMROAD_WEBHOOK_SECRET.encode(),
+        sorted_params.encode(),
+        hashlib.sha256
+    ).hexdigest()
+
+    return hmac.compare_digest(signature, expected_signature)
+
+
+# ============ Admin Endpoints ============
+
+@admin_router.get("/coin-packs", response_model=List[CoinPackResponse])
+async def admin_get_all_coin_packs(
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """[Admin] Отримати всі пакети монет"""
+    service = WalletAdminService(db)
+    packs = await service.get_all_coin_packs()
+    return [coin_pack_to_response(p) for p in packs]
+
+
+@admin_router.post("/coin-packs", response_model=CoinPackResponse)
+async def admin_create_coin_pack(
+        data: CoinPackCreate,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """[Admin] Створити новий пакет монет"""
+    service = WalletAdminService(db)
+    pack = await service.create_coin_pack(**data.model_dump())
+    return coin_pack_to_response(pack)
+
+
+@admin_router.patch("/coin-packs/{pack_id}", response_model=CoinPackResponse)
+async def admin_update_coin_pack(
+        pack_id: int,
+        data: CoinPackUpdate,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """[Admin] Оновити пакет монет"""
+    service = WalletAdminService(db)
+    pack = await service.update_coin_pack(pack_id, **data.model_dump(exclude_unset=True))
+
+    if not pack:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="CoinPack not found"
+        )
+
+    return coin_pack_to_response(pack)
+
+
+@admin_router.delete("/coin-packs/{pack_id}")
+async def admin_delete_coin_pack(
+        pack_id: int,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """[Admin] Деактивувати пакет монет"""
+    service = WalletAdminService(db)
+    success = await service.delete_coin_pack(pack_id)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="CoinPack not found"
+        )
+
+    return {"success": True, "message": "CoinPack deactivated"}
+
+
+@admin_router.post("/users/{user_id}/add-coins")
+async def admin_add_coins_to_user(
+        user_id: int,
+        amount: int = Query(..., gt=0, description="Кількість монет для нарахування"),
+        reason: str = Query(..., min_length=3, description="Причина нарахування"),
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """[Admin] Ручне нарахування монет користувачу"""
+    service = WalletAdminService(db)
+
+    try:
+        transaction = await service.manual_add_coins(
+            user_id=user_id,
+            amount=amount,
+            reason=reason,
+            admin_id=admin.id
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+    return {
+        "success": True,
+        "transaction_id": transaction.id,
+        "new_balance": transaction.balance_after
+    }

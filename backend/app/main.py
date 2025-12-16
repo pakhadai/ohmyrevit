@@ -23,6 +23,11 @@ from app.subscriptions.router import router as subscriptions_router
 from app.users.router import auth_router
 from app.core.rate_limit import RateLimiter
 
+# NEW: Wallet routers
+from app.wallet.router import router as wallet_router
+from app.wallet.router import admin_router as wallet_admin_router
+from app.wallet.router import webhook_router as gumroad_webhook_router
+
 logging.basicConfig(
     level=logging.INFO if not settings.DEBUG else logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -43,6 +48,7 @@ if settings.ENVIRONMENT == "production":
     )
 
 limiter = RateLimiter(max_requests=100, window=60)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -71,6 +77,7 @@ async def lifespan(app: FastAPI):
     scheduler_task.cancel()
     await engine.dispose()
 
+
 is_dev = settings.ENVIRONMENT == "development"
 
 app = FastAPI(
@@ -98,6 +105,7 @@ app.add_middleware(
 
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_PATH), name="uploads")
 
+
 @app.get("/")
 async def root():
     return {
@@ -106,12 +114,15 @@ async def root():
         "status": "ok"
     }
 
+
 @app.get("/health")
 async def health_check():
     return {
         "status": "healthy"
     }
 
+
+# ============ API v1 Router ============
 api_v1_router = APIRouter(
     prefix="/api/v1",
     dependencies=[Depends(limiter.check_rate_limit)]
@@ -124,10 +135,23 @@ api_v1_router.include_router(profile_router, prefix="/profile")
 api_v1_router.include_router(subscriptions_router, prefix="/subscriptions")
 api_v1_router.include_router(collections_router, prefix="/profile")
 
+# NEW: Wallet router
+api_v1_router.include_router(wallet_router, prefix="/wallet")
+
+
+# ============ Admin Router ============
 admin_router_v1 = APIRouter()
 admin_router_v1.include_router(admin_main_router)
 admin_router_v1.include_router(products_admin_router, prefix="/products")
 
+# NEW: Wallet admin router
+admin_router_v1.include_router(wallet_admin_router, prefix="/wallet")
+
+
+# ============ Include All Routers ============
 app.include_router(api_v1_router)
 app.include_router(admin_router_v1, prefix="/api/v1/admin")
 app.include_router(bot_webhook_router)
+
+# NEW: Gumroad webhook (без rate limiting та auth)
+app.include_router(gumroad_webhook_router, prefix="/webhooks")
