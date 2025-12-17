@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
-  Users, Package, ShoppingCart, TrendingUp, Tag, Menu, ArrowLeft, Plus, LayoutList, LogOut
+  Users, Package, ShoppingCart, TrendingUp, Tag, Menu, ArrowLeft, Plus, LayoutList, Coins
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,6 +20,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { id: 'products', label: t('admin.sidebar.products'), icon: Package, href: '/admin/products' },
     { id: 'categories', label: t('admin.sidebar.categories'), icon: LayoutList, href: '/admin/categories' },
     { id: 'orders', label: t('admin.sidebar.orders'), icon: ShoppingCart, href: '/admin/orders' },
+    { id: 'coin-packs', label: t('admin.sidebar.coinPacks', 'Пакети монет'), icon: Coins, href: '/admin/coin-packs' },
     { id: 'promo-codes', label: t('admin.sidebar.promoCodes'), icon: Tag, href: '/admin/promo-codes' },
   ];
 
@@ -28,7 +29,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return pathname.startsWith(href);
   };
 
-  const getActionButtton = () => {
+  const getActionButton = () => {
     if (pathname === '/admin/products') {
       return (
         <button onClick={() => router.push('/admin/products/new')} className="btn-primary p-2 rounded-xl flex items-center justify-center">
@@ -43,12 +44,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </button>
       )
     }
+    if (pathname === '/admin/coin-packs') {
+      return (
+        <button onClick={() => router.push('/admin/coin-packs/new')} className="btn-primary p-2 rounded-xl flex items-center justify-center">
+          <Plus size={20} />
+        </button>
+      )
+    }
     return <div className="w-8 h-8"></div>;
   };
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-        {/* Мобільний фон-затемнення */}
         <AnimatePresence>
             {sidebarOpen && (
                 <motion.div
@@ -61,7 +68,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             )}
         </AnimatePresence>
 
-        {/* Сайдбар */}
         <aside className={`fixed lg:sticky top-0 inset-y-0 left-0 h-screen w-64 bg-card/80 backdrop-blur-xl border-r border-border z-50 transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
             <div className="p-6 border-b border-border/50 flex items-center justify-between h-20">
                 <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-pink-soft">
@@ -107,7 +113,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
         </aside>
 
-        {/* Основний контент */}
         <div className="flex-1 flex flex-col min-w-0">
              <header className="lg:hidden sticky top-0 bg-background/80 backdrop-blur-xl border-b border-border z-30 h-16 flex items-center justify-between px-4">
                 <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 text-foreground">
@@ -116,7 +121,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <h1 className="text-lg font-bold text-foreground truncate px-2">
                     {menuItems.find(item => isActive(item.href))?.label || t('admin.sidebar.title')}
                 </h1>
-                {getActionButtton()}
+                {getActionButton()}
             </header>
 
             <main className="flex-1 p-5 lg:p-8 overflow-x-hidden">
