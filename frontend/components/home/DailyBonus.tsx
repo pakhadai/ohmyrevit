@@ -36,7 +36,8 @@ export default function DailyBonus() {
       if (result.success) {
         toast.success(t('bonus.toasts.claimed', { amount: result.bonus_amount }));
         if (user) {
-          setUser({ ...user, bonus_balance: result.new_balance, bonus_streak: result.new_streak });
+          // ВИПРАВЛЕНО ТУТ: bonus_balance -> balance
+          setUser({ ...user, balance: result.new_balance, bonus_streak: result.new_streak });
         }
         fetchBonusInfo();
       }

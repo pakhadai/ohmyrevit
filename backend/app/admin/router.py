@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, String, and_, or_, desc
+from sqlalchemy import select, func, String, and_, or_, desc, update
 from sqlalchemy.orm import selectinload, joinedload
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta, timezone
@@ -9,6 +9,7 @@ from pathlib import Path
 import logging
 import os
 import shutil
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -16,7 +17,7 @@ from app.users.dependencies import get_current_admin_user
 from app.users.models import User
 from app.products.models import Product, Category, CategoryTranslation
 from app.orders.models import Order, OrderItem, PromoCode
-from app.subscriptions.models import Subscription, SubscriptionStatus
+from app.subscriptions.models import Subscription, SubscriptionStatus, UserProductAccess, AccessType
 from app.wallet.models import CoinPack, Transaction, TransactionType
 from app.wallet.service import WalletAdminService
 from app.admin.schemas import (
@@ -835,6 +836,84 @@ async def get_order_details(
         items=items_data
     )
 
+
+# ============ Subscription Management (Manual) ============
+
+class AdminSubscriptionRequest(BaseModel):
+    days: int
+
+
+@router.post("/users/{user_id}/subscription")
+async def admin_give_subscription(
+        user_id: int,
+        data: AdminSubscriptionRequest,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Ручна видача підписки адміністратором.
+    Надає доступ до всіх Premium товарів.
+    """
+    # 1. Деактивуємо старі активні підписки, щоб не було конфліктів
+    await db.execute(
+        update(Subscription)
+        .where(
+            Subscription.user_id == user_id,
+            Subscription.status == SubscriptionStatus.ACTIVE
+        )
+        .values(status=SubscriptionStatus.EXPIRED)
+    )
+
+    # 2. Розраховуємо дати
+    start_date = datetime.now(timezone.utc)
+    end_date = start_date + timedelta(days=data.days)
+
+    # 3. Створюємо нову підписку
+    subscription = Subscription(
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        status=SubscriptionStatus.ACTIVE,
+        is_auto_renewal=False  # Адмінська підписка зазвичай не продовжується сама
+    )
+    db.add(subscription)
+    await db.flush()  # Щоб отримати ID підписки, якщо потрібно
+
+    # 4. Надаємо доступ до всіх Premium товарів
+    # Отримуємо ID всіх преміум товарів
+    premium_products_query = select(Product.id).where(Product.product_type == ProductType.PREMIUM)
+    premium_products_res = await db.execute(premium_products_query)
+    premium_ids = premium_products_res.scalars().all()
+
+    # Перевіряємо, які доступи вже є, щоб не дублювати
+    existing_access_query = select(UserProductAccess.product_id).where(
+        UserProductAccess.user_id == user_id,
+        UserProductAccess.product_id.in_(premium_ids)
+    )
+    existing_access_res = await db.execute(existing_access_query)
+    existing_ids = set(existing_access_res.scalars().all())
+
+    # Додаємо нові записи доступу
+    new_access_records = []
+    for pid in premium_ids:
+        if pid not in existing_ids:
+            new_access_records.append(
+                UserProductAccess(
+                    user_id=user_id,
+                    product_id=pid,
+                    access_type=AccessType.SUBSCRIPTION
+                )
+            )
+
+    if new_access_records:
+        db.add_all(new_access_records)
+
+    await db.commit()
+
+    # Логуємо дію
+    logger.info(f"Admin {admin.id} granted subscription ({data.days} days) to user {user_id}")
+
+    return {"success": True, "message": f"Subscription granted for {data.days} days"}
 
 # ============ Scheduler Trigger ============
 

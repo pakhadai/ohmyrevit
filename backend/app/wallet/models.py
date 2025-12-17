@@ -88,7 +88,8 @@ class Transaction(Base):
     order_id = Column(Integer, ForeignKey('orders.id'), nullable=True)
 
     # Зв'язок з підпискою (якщо це оплата підписки)
-    subscription_id = Column(Integer, ForeignKey('user_subscriptions.id'), nullable=True)
+    # ВИПРАВЛЕНО ТУТ: user_subscriptions -> subscriptions
+    subscription_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=True)
 
     # Зовнішній ID (наприклад, Gumroad sale_id)
     external_id = Column(String(100), nullable=True, index=True)
