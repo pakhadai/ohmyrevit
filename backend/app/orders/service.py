@@ -186,7 +186,6 @@ class OrderService:
             final_total=self.coins_to_usd(final_coins),
             status=OrderStatus.PAID,  # Одразу PAID - оплата миттєва
             promo_code_id=discount_data["promo_code_id"],
-            bonus_used=0,  # Deprecated field
             paid_at=datetime.now(timezone.utc)
         )
 

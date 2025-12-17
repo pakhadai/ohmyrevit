@@ -635,8 +635,8 @@
         "desc": "Earn points daily and get discounts."
       },
       "payments": {
-        "title": "Crypto Payments",
-        "desc": "Secure payments via Cryptomus."
+        "title": "OMR Coins",
+        "desc": "Buy coin packs via Gumroad, spend instantly in-app."
       }
     },
     "footer": {
@@ -663,7 +663,7 @@
       },
       "payments": {
         "title": "4. Payments & Refunds",
-        "text": "Payments are processed via Cryptomus. All digital sales are final. Refunds are only issued for technical errors."
+        "text": "We use OMR Coins system. You purchase coin packs via Gumroad, then spend coins on products and subscriptions. All digital sales are final. Refunds are only issued for technical errors."
       }
     },
     "privacy": {

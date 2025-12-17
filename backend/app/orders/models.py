@@ -48,6 +48,7 @@ class Order(Base):
     promo_code_id = Column(Integer, ForeignKey('promo_codes.id'), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    paid_at = Column(DateTime(timezone=True), nullable=True)  # NEW: дата оплати
 
     user = relationship("User", backref="orders")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")

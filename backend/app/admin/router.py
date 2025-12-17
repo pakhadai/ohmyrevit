@@ -825,14 +825,12 @@ async def get_order_details(
         user=UserBrief.model_validate(order.user),
         subtotal=float(order.subtotal),
         discount_amount=float(order.discount_amount),
-        bonus_used=order.bonus_used,
+        coins_spent=int(order.final_total * 100) if order.final_total else 0,
         final_total=float(order.final_total),
         status=order.status.value if hasattr(order.status, 'value') else order.status,
         promo_code=PromoCodeResponse.model_validate(order.promo_code) if order.promo_code else None,
-        payment_url=order.payment_url,
-        payment_id=order.payment_id,
         created_at=order.created_at,
-        paid_at=order.paid_at,
+        paid_at=getattr(order, 'paid_at', None),
         items=items_data
     )
 

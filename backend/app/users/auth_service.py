@@ -165,7 +165,10 @@ class AuthService:
 
         is_new_user_response = not user or user.last_login_at is None
 
-        src = user_info if verified_data else auth_data.model_dump()
+        if verified_data and user_info and isinstance(user_info, dict):
+            src = user_info
+        else:
+            src = auth_data.model_dump()
 
         username = src.get('username')
         first_name = src.get('first_name') or f'User {user_id}'
