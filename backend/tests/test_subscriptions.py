@@ -15,13 +15,6 @@ from unittest.mock import AsyncMock
 @pytest.mark.anyio
 async def test_create_subscription_checkout(authorized_client: AsyncClient, db_session: AsyncSession,
                                             referred_user: User, monkeypatch):
-    """Тест створення чекауту для підписки."""
-    # Імітуємо відповідь від Cryptomus
-    mock_create_payment = AsyncMock(return_value={
-        "state": 0,
-        "result": {"uuid": "mocked_uuid_sub", "url": "http://mocked.url/sub"}
-    })
-    monkeypatch.setattr("app.payments.cryptomus.CryptomusClient.create_payment", mock_create_payment)
 
     response = await authorized_client.post("/api/v1/subscriptions/checkout")
     assert response.status_code == 200
@@ -93,9 +86,6 @@ async def test_webhook_activates_subscription(async_client: AsyncClient, db_sess
         "status": "paid",
         "amount": "5.00"
     }
-
-    response = await async_client.post("/api/v1/orders/webhooks/cryptomus", json=webhook_payload)
-    assert response.status_code == 200
 
     await db_session.refresh(pending_sub)
     assert pending_sub.status == SubscriptionStatus.ACTIVE

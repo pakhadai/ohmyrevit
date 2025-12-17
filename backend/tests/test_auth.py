@@ -31,7 +31,7 @@ async def test_existing_user_login(async_client: AsyncClient, referrer_user: Use
 
 @pytest.mark.anyio
 async def test_referral_on_registration(async_client: AsyncClient, db_session: AsyncSession, referrer_user: User):
-    initial_balance = referrer_user.bonus_balance
+    initial_balance = referrer_user.balance
     auth_data = {
         "id": 54321, "first_name": "Invited User", "start_param": referrer_user.referral_code,
         "auth_date": int(time.time()), "hash": "test_hash_for_development"
@@ -42,4 +42,4 @@ async def test_referral_on_registration(async_client: AsyncClient, db_session: A
     new_user = await db_session.get(User, new_user_data["user"]["id"])
     assert new_user.referrer_id == referrer_user.id
     await db_session.refresh(referrer_user)
-    assert referrer_user.bonus_balance == initial_balance + 30
+    assert referrer_user.balance == initial_balance + 30

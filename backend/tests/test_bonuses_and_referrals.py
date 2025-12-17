@@ -88,7 +88,7 @@ async def test_referral_bonus_on_purchase(
     Тест: реферер отримує 5% бонусів від покупки реферала.
     """
     # 1. Запам'ятовуємо початковий баланс реферера
-    initial_referrer_balance = referrer_user.bonus_balance
+    initial_referrer_balance = referrer_user.balance
 
     # 2. Обираємо преміум-товар для покупки
     premium_product = next(p for p in test_products if p.product_type == 'premium' and not p.is_on_sale)
@@ -131,7 +131,7 @@ async def test_referral_bonus_on_purchase(
     expected_bonus = int(product_price * Decimal('0.05') * 100)
 
     # Перевіряємо, що баланс реферера збільшився на очікувану суму
-    assert referrer_user.bonus_balance == initial_referrer_balance + expected_bonus
+    assert referrer_user.balance == initial_referrer_balance + expected_bonus
 
     # Перевіряємо, що створено відповідний запис в логах
     log_result = await db_session.execute(

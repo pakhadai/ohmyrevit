@@ -120,7 +120,7 @@ async def referred_user(db_session: AsyncSession, referrer_user: User) -> User:
         telegram_id=1002,
         first_name="Referred",
         username="referred_user",
-        bonus_balance=1000,
+        balance=1000,
         referrer_id=referrer_user.id
     )
     db_session.add(user)
