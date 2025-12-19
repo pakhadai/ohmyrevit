@@ -17,29 +17,25 @@ const Onboarding = ({ onComplete }: { onComplete: () => void }) => {
   const router = useRouter();
 
   const slides = [
-    // 1. Оригінальний слайд "Welcome"
     {
       icon: '📦',
       title: t('onboarding.welcome.title'),
       description: t('onboarding.welcome.description'),
     },
-    // 2. Оригінальний слайд "Features"
     {
       icon: '✨',
       title: t('onboarding.features.title'),
       description: t('onboarding.features.description'),
     },
-    // 3. НОВИЙ слайд про валюту (Замість Subscription)
     {
       icon: '💎',
-      title: 'OMR Coins',
-      description: 'Ми використовуємо внутрішню валюту: 100 монет = $1.00. Купуйте товари та підписки миттєво!',
+      title: t('onboarding.coins.title'),
+      description: t('onboarding.coins.description'),
     },
-    // 4. НОВИЙ слайд про поповнення
     {
       icon: '💳',
-      title: 'Зручне поповнення',
-      description: 'Поповнюйте гаманець через Gumroad, отримуйте бонуси за великі пакети та забудьте про комісії при кожній покупці.',
+      title: t('onboarding.topup.title'),
+      description: t('onboarding.topup.description'),
     },
   ];
 
