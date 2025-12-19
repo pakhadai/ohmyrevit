@@ -146,13 +146,12 @@ class OrderDetailResponse(BaseModel):
     user: UserBrief
     subtotal: float
     discount_amount: float
-    bonus_used: int  # Legacy field
-    coins_spent: Optional[int] = None  # NEW: витрачено монет
+    coins_spent: Optional[int] = None
     final_total: float
     status: str
     promo_code: Optional[PromoCodeResponse] = None
-    payment_url: Optional[str] = None  # Deprecated
-    payment_id: Optional[str] = None  # Deprecated
+    payment_url: Optional[str] = None
+    payment_id: Optional[str] = None
     created_at: datetime
     paid_at: Optional[datetime] = None
     items: List[ProductInOrder] = []

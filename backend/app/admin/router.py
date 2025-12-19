@@ -15,10 +15,11 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.users.dependencies import get_current_admin_user
 from app.users.models import User
-from app.products.models import Product, Category, CategoryTranslation
+from app.products.models import Product, Category, CategoryTranslation, ProductType
 from app.orders.models import Order, OrderItem, PromoCode
 from app.subscriptions.models import Subscription, SubscriptionStatus, UserProductAccess, AccessType
 from app.wallet.models import CoinPack, Transaction, TransactionType
+from app.wallet.utils import coin_pack_to_response
 from app.wallet.service import WalletAdminService
 from app.admin.schemas import (
     DashboardStats, UserListResponse, CategoryResponse,
@@ -66,26 +67,6 @@ async def save_upload_file(file: UploadFile, file_path: Path, old_path: Optional
 
     relative_path = str(file_path.relative_to(UPLOAD_DIR))
     return relative_path, file_size_mb
-
-
-def coin_pack_to_response(pack: CoinPack) -> CoinPackResponse:
-    """Конвертує CoinPack в response"""
-    return CoinPackResponse(
-        id=pack.id,
-        name=pack.name,
-        price_usd=pack.price_usd,
-        coins_amount=pack.coins_amount,
-        bonus_percent=pack.bonus_percent,
-        total_coins=pack.get_total_coins(),
-        gumroad_permalink=pack.gumroad_permalink,
-        gumroad_url=f"{settings.GUMROAD_STORE_URL}/l/{pack.gumroad_permalink}",
-        description=pack.description,
-        is_active=pack.is_active,
-        is_featured=pack.is_featured,
-        sort_order=pack.sort_order,
-        created_at=pack.created_at
-    )
-
 
 # ============ Dashboard ============
 

@@ -18,12 +18,14 @@ from app.core.scheduler import run_subscription_expiration_check
 from app.core.translations import get_text
 from app.orders.router import router as orders_router
 from app.products.router import router as products_router, admin_router as products_admin_router
+from app.products.models import Product, ProductType
 from app.profile.router import router as profile_router
 from app.subscriptions.router import router as subscriptions_router
 from app.users.router import auth_router
 from app.core.rate_limit import RateLimiter
+from app.core.exceptions import AppException
+from fastapi.responses import JSONResponse
 
-# NEW: Wallet routers
 from app.wallet.router import router as wallet_router
 from app.wallet.router import admin_router as wallet_admin_router
 from app.wallet.router import webhook_router as gumroad_webhook_router
@@ -95,6 +97,13 @@ if settings.ALLOWED_ORIGINS:
 elif settings.ENVIRONMENT == "development":
     origins = ["*"]
 
+@app.exception_handler(AppException)
+async def app_exception_handler(request, exc: AppException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.to_dict()}
+    )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -118,7 +127,8 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {
-        "status": "healthy"
+        "status": "healthy",
+        "environment": settings.ENVIRONMENT
     }
 
 

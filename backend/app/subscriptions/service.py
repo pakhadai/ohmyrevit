@@ -13,30 +13,14 @@ from app.core.telegram_service import telegram_service
 
 logger = logging.getLogger(__name__)
 
-# Ціна підписки в монетах (500 = $5)
-SUBSCRIPTION_PRICE_COINS = 500
-
+SUBSCRIPTION_PRICE_COINS = settings.SUBSCRIPTION_PRICE_COINS
 
 class SubscriptionService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def purchase_subscription(self, user_id: int) -> dict:
-        """
-        Купує підписку за монети (миттєве списання)
 
-        Returns:
-            dict: {
-                "subscription": Subscription,
-                "coins_spent": int,
-                "new_balance": int,
-                "is_extension": bool
-            }
-
-        Raises:
-            ValueError: Якщо недостатньо монет
-        """
-        # Отримуємо користувача з блокуванням
         user_query = select(User).where(User.id == user_id).with_for_update()
         user_res = await self.db.execute(user_query)
         user = user_res.scalar_one_or_none()

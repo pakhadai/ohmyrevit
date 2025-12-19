@@ -92,7 +92,7 @@ export default function UserDetailPage() {
     const handleAddCoins = async () => {
         if (!user || bonusAmount <= 0) return;
         try {
-            await adminAPI.addCoinsToUser(user.id, bonusAmount, bonusReason || 'Ручне нарахування адміном');
+            await adminAPI.addUserBonus(user.id, bonusAmount, bonusReason || 'Ручне нарахування адміном');
             toast.success(t('admin.users.toasts.coinsAdded', { amount: bonusAmount }));
             setShowBonusModal(false);
             setBonusAmount(100);

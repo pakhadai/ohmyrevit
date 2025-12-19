@@ -18,9 +18,7 @@ from app.core.translations import get_text
 
 logger = logging.getLogger(__name__)
 
-# Константа: 100 монет = $1
-COINS_PER_USD = 100
-
+COINS_PER_USD = settings.COINS_PER_USD
 
 class OrderService:
     def __init__(self, db: AsyncSession):
@@ -134,18 +132,29 @@ class OrderService:
         if not products:
             raise ValueError(get_text("order_error_products_not_found", language_code))
 
-        # Перевіряємо, чи користувач вже має доступ до цих товарів
-        for product in products:
-            access_check = await self.db.execute(
-                select(UserProductAccess).where(
-                    UserProductAccess.user_id == user_id,
-                    UserProductAccess.product_id == product.id
-                )
+        # Перевіряємо, чи користувач вже має доступ до цих товарів (з блокуванням)
+        product_ids = [p.id for p in products]
+        existing_access_query = (
+            select(UserProductAccess)
+            .where(
+                UserProductAccess.user_id == user_id,
+                UserProductAccess.product_id.in_(product_ids)
             )
-            if access_check.scalar_one_or_none():
-                translation = product.get_translation(language_code)
-                product_name = translation.title if translation else f"Product #{product.id}"
-                raise ValueError(f"Ви вже маєте доступ до: {product_name}")
+            .with_for_update()  # Блокуємо записи для уникнення race condition
+        )
+        existing_access_result = await self.db.execute(existing_access_query)
+        existing_access = existing_access_result.scalars().all()
+
+        if existing_access:
+            # Знаходимо назви товарів, до яких вже є доступ
+            existing_product_ids = {a.product_id for a in existing_access}
+            existing_products = [p for p in products if p.id in existing_product_ids]
+            product_names = []
+            for p in existing_products:
+                translation = p.get_translation(language_code)
+                product_names.append(translation.title if translation else f"Product #{p.id}")
+
+            raise ValueError(f"Ви вже маєте доступ до: {', '.join(product_names)}")
 
         # Рахуємо суму в монетах
         subtotal_usd = sum(p.get_actual_price() for p in products)

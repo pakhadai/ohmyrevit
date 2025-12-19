@@ -19,34 +19,13 @@ from app.wallet.schemas import (
 )
 from app.wallet.models import TransactionType
 from app.core.telegram_service import telegram_service
+from app.wallet.utils import coin_pack_to_response
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Wallet"])
 admin_router = APIRouter(tags=["Admin - Wallet"])
 webhook_router = APIRouter(tags=["Webhooks"])
-
-
-# ============ Helper Functions ============
-
-def coin_pack_to_response(pack) -> CoinPackResponse:
-    """Конвертує CoinPack модель в response схему"""
-    return CoinPackResponse(
-        id=pack.id,
-        name=pack.name,
-        price_usd=pack.price_usd,
-        coins_amount=pack.coins_amount,
-        bonus_percent=pack.bonus_percent,
-        gumroad_permalink=pack.gumroad_permalink,
-        description=pack.description,
-        is_active=pack.is_active,
-        is_featured=pack.is_featured,
-        sort_order=pack.sort_order,
-        total_coins=pack.get_total_coins(),
-        gumroad_url=f"https://ohmyrevit.gumroad.com/l/{pack.gumroad_permalink}",
-        created_at=pack.created_at
-    )
-
 
 # ============ User Wallet Endpoints ============
 
@@ -157,27 +136,32 @@ async def gumroad_webhook(
 ):
     """
     Вебхук для обробки покупок з Gumroad
-
-    Gumroad надсилає POST-запит при кожній покупці.
-    URL для налаштування в Gumroad: {BACKEND_URL}/webhooks/gumroad
     """
     try:
-        # Отримуємо дані форми (Gumroad надсилає form-data)
+        # Зберігаємо raw body для перевірки підпису
+        raw_body = await request.body()
+
+        # Отримуємо дані форми
         form_data = await request.form()
         data = dict(form_data)
 
-        logger.info(f"Gumroad webhook received: {data}")
+        logger.info(f"Gumroad webhook received: sale_id={data.get('sale_id')}")
 
-        # Перевірка підпису (якщо налаштовано)
+        # Перевірка підпису
         if settings.GUMROAD_WEBHOOK_SECRET:
             signature = request.headers.get("X-Gumroad-Signature")
-            if not verify_gumroad_signature(data, signature):
+            if not verify_gumroad_signature(raw_body, signature):
                 logger.warning("Invalid Gumroad webhook signature")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid signature"
                 )
-
+        elif settings.ENVIRONMENT == "production":
+            logger.error("GUMROAD_WEBHOOK_SECRET not configured in production!")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Webhook not configured"
+            )
         # Парсимо дані
         sale_id = data.get("sale_id")
         permalink = data.get("permalink") or data.get("product_permalink")
@@ -298,28 +282,29 @@ async def gumroad_webhook(
         )
 
 
-def verify_gumroad_signature(data: dict, signature: str) -> bool:
+def verify_gumroad_signature(request_body: bytes, signature: str) -> bool:
     """
     Перевіряє підпис Gumroad webhook
     https://help.gumroad.com/article/200-ping
+
+    Gumroad використовує HMAC-SHA256 з raw body запиту
     """
     if not signature or not settings.GUMROAD_WEBHOOK_SECRET:
+        # Якщо секрет не налаштовано, пропускаємо перевірку в dev режимі
+        if settings.ENVIRONMENT == "development":
+            return True
         return False
 
-    # Gumroad використовує HMAC-SHA256
-    # Підпис = HMAC(webhook_secret, raw_post_body)
-    # Для form-data потрібно відтворити тіло запиту
+    try:
+        expected_signature = hmac.new(
+            settings.GUMROAD_WEBHOOK_SECRET.encode('utf-8'),
+            request_body,
+            hashlib.sha256
+        ).hexdigest()
 
-    # Сортуємо параметри та створюємо рядок
-    sorted_params = "&".join(f"{k}={v}" for k, v in sorted(data.items()))
-
-    expected_signature = hmac.new(
-        settings.GUMROAD_WEBHOOK_SECRET.encode(),
-        sorted_params.encode(),
-        hashlib.sha256
-    ).hexdigest()
-
-    return hmac.compare_digest(signature, expected_signature)
+        return hmac.compare_digest(signature, expected_signature)
+    except Exception:
+        return False
 
 
 # ============ Admin Endpoints ============

@@ -8,7 +8,7 @@ import {
   Sparkles, Shield, Zap, RefreshCw, Loader, AlertCircle
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { subscriptionAPI, walletAPI } from '@/lib/api';
+import { subscriptionsAPI, walletAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
@@ -47,8 +47,8 @@ export default function SubscriptionPage() {
   const fetchData = useCallback(async () => {
     try {
       const [statusRes, priceRes] = await Promise.all([
-        subscriptionAPI.getStatus(),
-        subscriptionAPI.getPrice()
+        subscriptionsAPI.getStatus(),
+        subscriptionsAPI.getPrice()
       ]);
       setStatus(statusRes);
       setPriceInfo(priceRes);
@@ -71,7 +71,7 @@ export default function SubscriptionPage() {
 
     setProcessing(true);
     try {
-      const response = await subscriptionAPI.checkout();
+      const response = await subscriptionsAPI.checkout();
 
       if (response.success) {
         updateBalance(response.new_balance);
