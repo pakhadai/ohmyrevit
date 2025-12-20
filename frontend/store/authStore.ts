@@ -16,6 +16,7 @@ interface AuthState {
   login: (initData: object) => Promise<any>;
   logout: () => void;
   setUser: (user: User) => void;
+  setToken: (token: string) => void; // <--- 1. ДОДАНО В ІНТЕРФЕЙС
   updateBalance: (newBalance: number) => void;
   checkTokenValidity: () => void;
   completeOnboarding: () => void;
@@ -32,15 +33,13 @@ export const useAuthStore = create<AuthState>()(
       isNewUser: null,
 
       login: async (initData: object) => {
+        // ... (ваш існуючий код login)
         set({ isLoading: true, isNewUser: null });
-
         try {
           const response = await authAPI.loginTelegram(initData);
-
           if (!response || !response.user || !response.access_token) {
             throw new Error(i18n.t('auth.serverDataError'));
           }
-
           set({
             user: response.user,
             token: response.access_token,
@@ -49,9 +48,7 @@ export const useAuthStore = create<AuthState>()(
             lastLoginAt: Date.now(),
             isNewUser: response.is_new_user,
           });
-
           return response;
-
         } catch (error: any) {
           set({
             isLoading: false,
@@ -60,7 +57,6 @@ export const useAuthStore = create<AuthState>()(
             token: null,
             isNewUser: null,
           });
-
           throw error;
         }
       },
@@ -80,7 +76,15 @@ export const useAuthStore = create<AuthState>()(
         set({ user });
       },
 
-      // NEW: Метод для оновлення балансу без перезавантаження всього user
+      // <--- 2. ДОДАНО РЕАЛІЗАЦІЮ
+      setToken: (token: string) => {
+        set({
+            token,
+            isAuthenticated: true,
+            lastLoginAt: Date.now()
+        });
+      },
+
       updateBalance: (newBalance: number) => {
         const currentUser = get().user;
         if (currentUser) {
@@ -100,9 +104,7 @@ export const useAuthStore = create<AuthState>()(
       checkTokenValidity: () => {
         const { lastLoginAt } = get();
         if (!lastLoginAt) return;
-
         const TOKEN_LIFETIME_MS = 24 * 60 * 60 * 1000;
-
         if (Date.now() - lastLoginAt > TOKEN_LIFETIME_MS) {
           get().logout();
           toast.error(i18n.t('toasts.sessionExpired'));

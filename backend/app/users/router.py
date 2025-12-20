@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
+from sqlalchemy.exc import IntegrityError
+from datetime import datetime  # <--- ЦЕ БУЛО ВАЖЛИВО ДОДАТИ
+from sqlalchemy import select
+import json
 
 from app.core.database import get_db
 from app.users.models import User
@@ -11,7 +15,6 @@ from app.users.schemas import (
 )
 from app.users.auth_service import AuthService
 from app.users.dependencies import get_current_user
-from sqlalchemy import select
 
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -61,23 +64,47 @@ async def telegram_auth_check(
         auth_data: TelegramAuthData,
         db: AsyncSession = Depends(get_db)
 ):
+    # Додаємо логування для відлагодження
+    print(f"Received TG Init Data: {auth_data.initData[:50]}...")
+
     user, is_new_user, needs_registration = await AuthService.authenticate_hybrid_telegram_user(db, auth_data)
 
     if needs_registration:
-        # Повертаємо спеціальний статус, щоб фронтенд показав модалку вводу email
+        print("User needs registration. Returning dummy user.")
+        # FIX: Використовуємо id=-1 замість 0, бо JS сприймає 0 як false
+        dummy_user = UserResponse(
+            id=-1,
+            email="temp@temp.com",
+            first_name="Guest",
+            is_admin=False,
+            is_email_verified=False,
+            balance=0,
+            bonus_streak=0,
+            created_at=datetime.now(),
+            language_code="uk"
+        )
+
         return TokenResponse(
             access_token="",
-            user=UserResponse(id=0, email="temp@temp.com", first_name="Temp", is_admin=False, is_email_verified=False,
-                              balance=0, bonus_streak=0, created_at=datetime.now(), language_code="uk"),  # Dummy
+            user=dummy_user,
             needs_registration=True
         )
 
+    print(f"User authenticated: {user.id}")
     access_token = AuthService.create_access_token(user.id)
-    return TokenResponse(
+
+    # Створюємо відповідь
+    response = TokenResponse(
         access_token=access_token,
         user=UserResponse.model_validate(user),
         is_new_user=is_new_user
     )
+
+    # Цей прінт покаже в консолі бекенду, який саме JSON летить на фронт
+    # Це допоможе зрозуміти, чи поля названі як треба (first_name vs firstName)
+    print(f"Sending response: {response.model_dump_json()}")
+
+    return response
 
 
 @auth_router.post("/telegram/link", response_model=TokenResponse)
