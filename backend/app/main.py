@@ -164,4 +164,4 @@ app.include_router(admin_router_v1, prefix="/api/v1/admin")
 app.include_router(bot_webhook_router)
 
 # NEW: Gumroad webhook (без rate limiting та auth)
-app.include_router(gumroad_webhook_router, prefix="/webhooks")
+app.include_router(gumroad_webhook_router, prefix="/api/webhooks")

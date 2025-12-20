@@ -1,40 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Coins, DollarSign, Gift, Link, FileText, Sparkles, Save, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Coins, DollarSign, Gift, Link, FileText, Sparkles, Save } from 'lucide-react';
 import { adminAPI } from '@/lib/api';
-import { LoadingSpinner } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
 
-interface CoinPack {
-  id: number;
-  name: string;
-  price_usd: number;
-  coins_amount: number;
-  bonus_percent: number;
-  total_coins: number;
-  gumroad_permalink: string;
-  gumroad_url: string;
-  description?: string;
-  is_active: boolean;
-  is_featured: boolean;
-  sort_order: number;
-  created_at: string;
-}
-
-export default function EditCoinPackPage() {
+export default function NewCoinPackPage() {
   const router = useRouter();
-  const params = useParams();
-  const packId = params.id as string;
   const { t } = useTranslation();
-
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -47,40 +24,6 @@ export default function EditCoinPackPage() {
     is_featured: false,
     sort_order: '0',
   });
-
-  const fetchCoinPack = useCallback(async () => {
-    try {
-      const packs = await adminAPI.getCoinPacks(true);
-      const packsList = packs.packs || packs || [];
-      const pack = packsList.find((p: CoinPack) => p.id === parseInt(packId));
-
-      if (pack) {
-        setFormData({
-          name: pack.name,
-          price_usd: pack.price_usd.toString(),
-          coins_amount: pack.coins_amount.toString(),
-          bonus_percent: pack.bonus_percent.toString(),
-          gumroad_permalink: pack.gumroad_permalink,
-          description: pack.description || '',
-          is_active: pack.is_active,
-          is_featured: pack.is_featured,
-          sort_order: pack.sort_order.toString(),
-        });
-      } else {
-        toast.error(t('admin.coinPacks.notFound', 'Пакет не знайдено'));
-        router.push('/admin/coin-packs');
-      }
-    } catch (error) {
-      toast.error(t('admin.coinPacks.loadError', 'Помилка завантаження'));
-      router.push('/admin/coin-packs');
-    } finally {
-      setLoading(false);
-    }
-  }, [packId, router, t]);
-
-  useEffect(() => {
-    fetchCoinPack();
-  }, [fetchCoinPack]);
 
   const totalCoins = Math.round(
     (Number(formData.coins_amount) || 0) * (1 + (Number(formData.bonus_percent) || 0) / 100)
@@ -104,9 +47,9 @@ export default function EditCoinPackPage() {
       return;
     }
 
-    setSaving(true);
+    setLoading(true);
     try {
-      await adminAPI.updateCoinPack(parseInt(packId), {
+      await adminAPI.createCoinPack({
         name: formData.name,
         price_usd: parseFloat(formData.price_usd),
         coins_amount: parseInt(formData.coins_amount),
@@ -118,51 +61,30 @@ export default function EditCoinPackPage() {
         sort_order: parseInt(formData.sort_order) || 0,
       });
 
-      toast.success(t('admin.coinPacks.form.updated', 'Пакет оновлено!'));
+      toast.success(t('admin.coinPacks.form.created', 'Пакет створено!'));
       router.push('/admin/coin-packs');
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || t('admin.coinPacks.form.updateError', 'Помилка оновлення'));
+      toast.error(error.response?.data?.detail || t('admin.coinPacks.form.createError', 'Помилка створення'));
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await adminAPI.deleteCoinPack(parseInt(packId));
-      toast.success(t('admin.coinPacks.form.deleted', 'Пакет деактивовано'));
-      router.push('/admin/coin-packs');
-    } catch (error) {
-      toast.error(t('admin.coinPacks.form.deleteError', 'Помилка видалення'));
-    }
-    setShowDeleteModal(false);
   };
 
   const inputClass = "w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all";
 
-  if (loading) return <LoadingSpinner />;
-
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className="p-2 hover:bg-muted rounded-xl transition-colors"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">{t('admin.coinPacks.form.editTitle', 'Редагування пакету')}</h1>
-            <p className="text-sm text-muted-foreground">ID: {packId}</p>
-          </div>
-        </div>
+      <div className="flex items-center gap-4">
         <button
-          onClick={() => setShowDeleteModal(true)}
-          className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"
+          onClick={() => router.back()}
+          className="p-2 hover:bg-muted rounded-xl transition-colors"
         >
-          <Trash2 size={20} />
+          <ArrowLeft size={24} />
         </button>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">{t('admin.coinPacks.form.createTitle', 'Новий пакет монет')}</h1>
+          <p className="text-sm text-muted-foreground">{t('admin.coinPacks.form.createSubtitle', 'Створіть новий пакет для поповнення балансу')}</p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -352,60 +274,14 @@ export default function EditCoinPackPage() {
           </button>
           <button
             type="submit"
-            disabled={saving}
+            disabled={loading}
             className="flex-1 btn-primary px-6 py-3 rounded-xl flex items-center justify-center gap-2"
           >
             <Save size={20} />
-            {saving ? t('common.saving', 'Збереження...') : t('common.save', 'Зберегти')}
+            {loading ? t('common.saving', 'Збереження...') : t('admin.coinPacks.form.create', 'Створити')}
           </button>
         </div>
       </form>
-
-      <AnimatePresence>
-        {showDeleteModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50 p-4"
-            onClick={() => setShowDeleteModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className="bg-card rounded-[24px] p-6 w-full max-w-sm shadow-2xl border border-border"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="text-center mb-6">
-                <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Trash2 size={28} className="text-red-500" />
-                </div>
-                <h3 className="text-lg font-bold text-foreground mb-2">
-                  {t('admin.coinPacks.deleteConfirmTitle', 'Деактивувати пакет?')}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {t('admin.coinPacks.deleteConfirmText', 'Пакет буде деактивовано і не буде відображатись користувачам.')}
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 px-4 py-3 bg-muted text-foreground rounded-xl font-medium hover:bg-muted/80 transition-colors"
-                >
-                  {t('common.cancel', 'Скасувати')}
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors"
-                >
-                  {t('admin.coinPacks.deactivate', 'Деактивувати')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

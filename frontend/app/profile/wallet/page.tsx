@@ -16,7 +16,8 @@ import Image from 'next/image';
 import { CoinPack, Transaction, TransactionType } from '@/types';
 
 export default function WalletPage() {
-  const { user, setUser } = useAuthStore();
+  const { user, updateBalance } = useAuthStore();
+
   const [balance, setBalance] = useState(0);
   const [coinPacks, setCoinPacks] = useState<CoinPack[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -33,17 +34,14 @@ export default function WalletPage() {
       setBalance(info.balance);
       setCoinPacks(info.coin_packs);
       setTransactions(info.recent_transactions);
+      updateBalance(info.balance);
 
-      // Оновлюємо баланс в user store
-      if (user) {
-        setUser({ ...user, balance: info.balance });
-      }
     } catch (error) {
       toast.error(t('wallet.loadError') || 'Помилка завантаження');
     } finally {
       setLoading(false);
     }
-  }, [user, setUser, t]);
+  }, [updateBalance, t]);
 
   const loadMoreTransactions = async () => {
     if (loadingMore || !hasMore) return;

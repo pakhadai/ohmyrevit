@@ -1,6 +1,7 @@
 import logging
 import hashlib
 import hmac
+import json
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -186,33 +187,39 @@ async def gumroad_webhook(
             )
 
         # Отримуємо user_id з кастомних полів
-        # В Gumroad потрібно додати custom field "user_id"
-        # або передавати через URL параметр: ?user_id=123
         user_id = None
 
-        # Спочатку шукаємо в custom_fields
-        custom_fields_str = data.get("custom_fields", "{}")
+        # 1. Шукаємо в custom_fields (якщо передано як JSON string)
+        custom_fields_str = data.get("custom_fields")
         if custom_fields_str:
             try:
-                import json
-                custom_fields = json.loads(custom_fields_str) if isinstance(custom_fields_str,
-                                                                            str) else custom_fields_str
-                user_id = custom_fields.get("user_id")
+                custom_fields = json.loads(custom_fields_str) if isinstance(custom_fields_str, str) else custom_fields_str
+                if isinstance(custom_fields, dict):
+                    user_id = custom_fields.get("user_id")
             except:
                 pass
 
-        # Потім в url_params
+        # 2. Шукаємо в url_params (якщо передано як JSON string)
         if not user_id:
-            url_params_str = data.get("url_params", "{}")
+            url_params_str = data.get("url_params")
             if url_params_str:
                 try:
-                    import json
                     url_params = json.loads(url_params_str) if isinstance(url_params_str, str) else url_params_str
-                    user_id = url_params.get("user_id")
+                    if isinstance(url_params, dict):
+                        user_id = url_params.get("user_id")
                 except:
                     pass
 
-        # Також перевіряємо прямі поля (Gumroad може передавати по-різному)
+        # 3. Шукаємо прямі ключі з форми (Gumroad x-www-form-urlencoded format)
+        # Gumroad надсилає url_params[user_id]=123
+        if not user_id:
+            user_id = data.get("url_params[user_id]")
+
+        # 4. Шукаємо в custom_fields[user_id]
+        if not user_id:
+            user_id = data.get("custom_fields[user_id]")
+
+        # 5. Шукаємо пряме поле user_id (резерв)
         if not user_id:
             user_id = data.get("user_id")
 
