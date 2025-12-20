@@ -5,6 +5,7 @@ import json
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -208,11 +209,29 @@ async def gumroad_webhook(
                     except:
                         continue
 
+        # 3. FALLBACK: Пошук по email, якщо user_id не знайдено
+        if not user_id:
+            buyer_email = data.get("email")
+            if buyer_email:
+                logger.info(f"user_id not found, trying email fallback: {buyer_email}")
+
+                # Шукаємо користувача за email
+                from app.users.models import User
+                email_query = select(User).where(User.email == buyer_email)
+                email_result = await db.execute(email_query)
+                user_by_email = email_result.scalar_one_or_none()
+
+                if user_by_email:
+                    user_id = user_by_email.id
+                    logger.info(f"✅ Found user by email: {buyer_email} -> user_id={user_id}")
+                else:
+                    logger.warning(f"⚠️ No user found with email: {buyer_email}")
+
         if not user_id:
             logger.error(f"❌ No user_id found in Gumroad webhook: {sale_id}")
             return GumroadWebhookResponse(
                 success=False,
-                message="Missing user_id"
+                message="Missing user_id - user not found by params or email"
             )
 
         try:
