@@ -12,15 +12,28 @@ class User(Base):
 
     # Основні поля
     id = Column(Integer, primary_key=True, index=True)
-    telegram_id = Column(BigInteger, unique=True, nullable=False, index=True)
+    # Telegram ID тепер необов'язковий
+    telegram_id = Column(BigInteger, unique=True, nullable=True, index=True)
     username = Column(String(100), nullable=True)
+
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=True)
+
+    # Нове поле: Дата народження
+    birth_date = Column(Date, nullable=True)
+
     language_code = Column(String(10), default="uk")
     photo_url = Column(String(500), nullable=True)
 
-    # Контактні дані
-    email = Column(String(255), unique=True, nullable=True, index=True)
+    # Контактні дані та Безпека
+    # Email тепер обов'язковий та унікальний
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    is_email_verified = Column(Boolean, default=False)
+    verification_token = Column(String(255), nullable=True)
+
+    # Хеш пароля для веб-входу
+    hashed_password = Column(String(255), nullable=True)
+
     phone = Column(String(20), nullable=True)
 
     # Права доступу
@@ -30,7 +43,7 @@ class User(Base):
     # OMR Coins система (100 монет = $1)
     balance = Column(Integer, default=0)
 
-    # Бонусна система (streak для щоденних бонусів)
+    # Бонусна система
     bonus_streak = Column(Integer, default=0)
     last_bonus_claim_date = Column(Date, nullable=True)
 
@@ -51,4 +64,4 @@ class User(Base):
     last_login_at = Column(DateTime(timezone=True), nullable=True)
 
     def __repr__(self):
-        return f"<User(id={self.id}, telegram_id={self.telegram_id}, username={self.username})>"
+        return f"<User(id={self.id}, email={self.email}, telegram_id={self.telegram_id})>"

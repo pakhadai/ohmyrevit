@@ -12,11 +12,12 @@ export interface User {
   username?: string;
   first_name: string;
   last_name?: string;
+  birth_date?: string;
   language_code: string;
   photo_url?: string;
   email?: string;
   is_admin: boolean;
-  balance: number;  // CHANGED: bonus_balance -> balance (OMR Coins)
+  balance: number;
   bonus_streak: number;
   last_bonus_claim_date?: string;
   referral_code?: string;
