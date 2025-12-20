@@ -122,7 +122,7 @@ export default function NewCoinPackPage() {
                 onChange={handleChange}
                 placeholder="5.00"
                 step="0.01"
-                min="0.01"
+                min="0"
                 className={inputClass}
                 required
               />

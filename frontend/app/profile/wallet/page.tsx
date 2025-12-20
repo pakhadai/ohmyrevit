@@ -101,8 +101,8 @@ export default function WalletPage() {
   };
 
   const handleBuyPack = (pack: CoinPack) => {
-    // Додаємо user_id до URL Gumroad
-    const url = `${pack.gumroad_url}?user_id=${user?.id}`;
+    const separator = pack.gumroad_url.includes('?') ? '&' : '?';
+    const url = `${pack.gumroad_url}${separator}custom_fields%5Buser_id%5D=${user?.id}`;
     window.open(url, '_blank');
   };
 

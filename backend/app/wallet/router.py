@@ -28,6 +28,7 @@ router = APIRouter(tags=["Wallet"])
 admin_router = APIRouter(tags=["Admin - Wallet"])
 webhook_router = APIRouter(tags=["Webhooks"])
 
+
 # ============ User Wallet Endpoints ============
 
 @router.get("/balance", response_model=WalletBalanceResponse)
@@ -146,91 +147,82 @@ async def gumroad_webhook(
         form_data = await request.form()
         data = dict(form_data)
 
-        logger.info(f"Gumroad webhook received: sale_id={data.get('sale_id')}")
+        # Логуємо вхідні дані для дебагу
+        logger.info(f"Gumroad webhook payload keys: {list(data.keys())}")
+        sale_id = data.get("sale_id")
+        logger.info(f"Gumroad webhook received: sale_id={sale_id}")
 
         # Перевірка підпису
         if settings.GUMROAD_WEBHOOK_SECRET:
             signature = request.headers.get("X-Gumroad-Signature")
             if not verify_gumroad_signature(raw_body, signature):
                 logger.warning("Invalid Gumroad webhook signature")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid signature"
-                )
-        elif settings.ENVIRONMENT == "production":
-            logger.error("GUMROAD_WEBHOOK_SECRET not configured in production!")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Webhook not configured"
-            )
-        # Парсимо дані
-        sale_id = data.get("sale_id")
-        permalink = data.get("permalink") or data.get("product_permalink")
-        email = data.get("email")
-        price = int(data.get("price", 0))  # В центах
-        refunded = data.get("refunded", "false").lower() == "true"
-        test = data.get("test", "false").lower() == "true"
+                if settings.ENVIRONMENT == "production":
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid signature"
+                    )
 
-        # Ігноруємо рефанди та тестові покупки
-        if refunded:
+        # Парсимо дані
+        permalink = data.get("permalink") or data.get("product_permalink")
+        price = int(data.get("price", 0))  # В центах
+
+        # Перевірка на рефанд
+        is_refunded = str(data.get("refunded", "")).lower() == "true"
+
+        if is_refunded:
             logger.info(f"Skipping refunded transaction: {sale_id}")
             return GumroadWebhookResponse(
                 success=True,
-                message="Refund processed, no action taken"
+                message="Refund processed"
             )
 
-        if test and settings.ENVIRONMENT == "production":
-            logger.info(f"Skipping test transaction in production: {sale_id}")
-            return GumroadWebhookResponse(
-                success=True,
-                message="Test transaction ignored"
-            )
-
-        # Отримуємо user_id з кастомних полів
+        # --- ПОШУК USER_ID ---
         user_id = None
 
-        # 1. Шукаємо в custom_fields (якщо передано як JSON string)
-        custom_fields_str = data.get("custom_fields")
-        if custom_fields_str:
-            try:
-                custom_fields = json.loads(custom_fields_str) if isinstance(custom_fields_str, str) else custom_fields_str
-                if isinstance(custom_fields, dict):
-                    user_id = custom_fields.get("user_id")
-            except:
-                pass
+        # 1. Прямий пошук по ключах форми (ВИДАЛЕНО referrer)
+        potential_keys = [
+            "custom_fields[user_id]",
+            "url_params[user_id]",
+            "user_id"
+        ]
 
-        # 2. Шукаємо в url_params (якщо передано як JSON string)
-        if not user_id:
-            url_params_str = data.get("url_params")
-            if url_params_str:
-                try:
-                    url_params = json.loads(url_params_str) if isinstance(url_params_str, str) else url_params_str
-                    if isinstance(url_params, dict):
-                        user_id = url_params.get("user_id")
-                except:
-                    pass
+        for key in potential_keys:
+            if key in data and data[key]:
+                logger.info(f"Found user_id in key '{key}': {data[key]}")
+                user_id = data[key]
+                break
 
-        # 3. Шукаємо прямі ключі з форми (Gumroad x-www-form-urlencoded format)
-        # Gumroad надсилає url_params[user_id]=123
+        # 2. Пошук всередині JSON-рядків
         if not user_id:
-            user_id = data.get("url_params[user_id]")
-
-        # 4. Шукаємо в custom_fields[user_id]
-        if not user_id:
-            user_id = data.get("custom_fields[user_id]")
-
-        # 5. Шукаємо пряме поле user_id (резерв)
-        if not user_id:
-            user_id = data.get("user_id")
+            for json_field in ["custom_fields", "url_params"]:
+                content = data.get(json_field)
+                if content and isinstance(content, str):
+                    try:
+                        import json
+                        parsed = json.loads(content)
+                        if isinstance(parsed, dict) and "user_id" in parsed:
+                            user_id = parsed["user_id"]
+                            logger.info(f"Found user_id in parsed JSON '{json_field}': {user_id}")
+                            break
+                    except:
+                        continue
 
         if not user_id:
-            logger.error(f"No user_id in Gumroad webhook: {sale_id}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Missing user_id in webhook data"
+            logger.error(f"❌ No user_id found in Gumroad webhook: {sale_id}")
+            return GumroadWebhookResponse(
+                success=False,
+                message="Missing user_id"
             )
 
-        user_id = int(user_id)
+        try:
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            logger.error(f"❌ Invalid user_id format: {user_id}")
+            return GumroadWebhookResponse(
+                success=False,
+                message="Invalid user_id format"
+            )
 
         # Обробляємо покупку
         service = WalletService(db)
@@ -244,6 +236,7 @@ async def gumroad_webhook(
             )
         except ValueError as e:
             if "already processed" in str(e):
+                logger.info(f"Transaction {sale_id} already processed")
                 return GumroadWebhookResponse(
                     success=True,
                     message="Transaction already processed"
@@ -256,18 +249,21 @@ async def gumroad_webhook(
             user = await db.get(User, user_id)
             if user and user.telegram_id:
                 coin_pack = await service.get_coin_pack_by_permalink(permalink)
+                pack_name = coin_pack.name if coin_pack else permalink
+
                 message = (
-                    f"✅ Баланс поповнено!\n\n"
-                    f"💰 +{transaction.amount} OMR Coins\n"
-                    f"📦 Пакет: {coin_pack.name if coin_pack else permalink}\n"
-                    f"💵 Новий баланс: {transaction.balance_after} монет"
+                    f"✅ *Баланс поповнено!*\n\n"
+                    f"💰 Сума: *+{transaction.amount} OMR*\n"
+                    f"📦 Пакет: {pack_name}\n"
+                    f"💳 Вартість: ${price / 100:.2f}\n"
+                    f"💵 Поточний баланс: *{transaction.balance_after} OMR*"
                 )
                 await telegram_service.send_message(user.telegram_id, message)
         except Exception as e:
             logger.error(f"Failed to send Telegram notification: {e}")
 
         logger.info(
-            f"Gumroad purchase successful: user={user_id}, "
+            f"✅ Gumroad purchase successful: user={user_id}, "
             f"coins={transaction.amount}, balance={transaction.balance_after}"
         )
 
@@ -283,21 +279,17 @@ async def gumroad_webhook(
         raise
     except Exception as e:
         logger.exception(f"Gumroad webhook error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+        return GumroadWebhookResponse(
+            success=False,
+            message=f"Internal error: {str(e)}"
         )
 
 
 def verify_gumroad_signature(request_body: bytes, signature: str) -> bool:
     """
     Перевіряє підпис Gumroad webhook
-    https://help.gumroad.com/article/200-ping
-
-    Gumroad використовує HMAC-SHA256 з raw body запиту
     """
     if not signature or not settings.GUMROAD_WEBHOOK_SECRET:
-        # Якщо секрет не налаштовано, пропускаємо перевірку в dev режимі
         if settings.ENVIRONMENT == "development":
             return True
         return False

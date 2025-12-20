@@ -35,7 +35,7 @@ class UserBrief(BaseModel):
     email: Optional[str]
     is_admin: bool
     is_active: bool = True
-    balance: int  # CHANGED: bonus_balance -> balance (OMR Coins)
+    balance: int
     bonus_streak: int
     created_at: datetime
     photo_url: Optional[str] = None
@@ -214,7 +214,7 @@ class UserDetailResponse(UserBrief):
     subscriptions: List[SubscriptionForUser] = []
     orders: List[OrderForUser] = []
     referrals: List[ReferralForUser] = []
-    recent_transactions: List[TransactionForUser] = []  # NEW
+    recent_transactions: List[TransactionForUser] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -224,7 +224,8 @@ class UserDetailResponse(UserBrief):
 class CoinPackCreate(BaseModel):
     """Схема створення пакету монет"""
     name: str = Field(..., min_length=2, max_length=100)
-    price_usd: float = Field(..., gt=0)
+    # ЗМІНЕНО: ge=0 (дозволяє 0)
+    price_usd: float = Field(..., ge=0)
     coins_amount: int = Field(..., gt=0)
     bonus_percent: int = Field(0, ge=0, le=100)
     gumroad_permalink: str = Field(..., min_length=3, max_length=100)
@@ -237,7 +238,8 @@ class CoinPackCreate(BaseModel):
 class CoinPackUpdate(BaseModel):
     """Схема оновлення пакету монет"""
     name: Optional[str] = Field(None, min_length=2, max_length=100)
-    price_usd: Optional[float] = Field(None, gt=0)
+    # ЗМІНЕНО: ge=0 (дозволяє 0)
+    price_usd: Optional[float] = Field(None, ge=0)
     coins_amount: Optional[int] = Field(None, gt=0)
     bonus_percent: Optional[int] = Field(None, ge=0, le=100)
     gumroad_permalink: Optional[str] = Field(None, min_length=3, max_length=100)
@@ -254,9 +256,9 @@ class CoinPackResponse(BaseModel):
     price_usd: float
     coins_amount: int
     bonus_percent: int
-    total_coins: int  # coins_amount + bonus
+    total_coins: int
     gumroad_permalink: str
-    gumroad_url: str  # Full URL
+    gumroad_url: str
     description: Optional[str]
     is_active: bool
     is_featured: bool
