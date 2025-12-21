@@ -26,6 +26,10 @@ interface AuthState {
  * Нормалізує дані користувача з API (snake_case) до фронтенд формату (camelCase)
  */
 const normalizeUser = (rawUser: any): User => {
+  if (!rawUser) {
+    throw new Error('No user data provided');
+  }
+
   return {
     id: rawUser.id,
     telegramId: rawUser.telegram_id ?? rawUser.telegramId,
@@ -60,31 +64,43 @@ export const useAuthStore = create<AuthState>()(
         try {
           console.log('[AuthStore] Sending login request...');
           const response = await authAPI.loginTelegram(initData);
-          console.log('[AuthStore] Raw API response:', response);
 
-          // API може повертати дані в різних форматах
-          const data: any = response;
+          // Логуємо повну відповідь для діагностики
+          console.log('[AuthStore] Full API response:', JSON.stringify(response, null, 2));
 
-          // Отримуємо токен (підтримуємо обидва формати)
-          const accessToken = data.access_token || data.accessToken;
-          const rawUser = data.user;
+          // API повертає snake_case!
+          // response = { access_token: "...", token_type: "bearer", user: {...}, is_new_user: false }
+
+          // Отримуємо токен - ВАЖЛИВО: API повертає access_token (snake_case)
+          const accessToken = response.access_token || response.accessToken;
+
+          // Отримуємо дані користувача
+          const rawUser = response.user;
+
+          console.log('[AuthStore] Parsed data:', {
+            hasAccessToken: !!accessToken,
+            accessTokenPreview: accessToken ? accessToken.substring(0, 20) + '...' : null,
+            hasUser: !!rawUser,
+            rawUserKeys: rawUser ? Object.keys(rawUser) : null
+          });
 
           if (!accessToken) {
-            console.error('[AuthStore] No access token in response:', data);
-            throw new Error(i18n.t('auth.noTokenError', 'Не отримано токен авторизації'));
+            console.error('[AuthStore] No access token found in response');
+            console.error('[AuthStore] Response keys:', Object.keys(response));
+            throw new Error('Сервер не повернув токен авторизації');
           }
 
           if (!rawUser) {
-            console.error('[AuthStore] No user data in response:', data);
-            throw new Error(i18n.t('auth.noUserError', 'Не отримано дані користувача'));
+            console.error('[AuthStore] No user data found in response');
+            throw new Error('Сервер не повернув дані користувача');
           }
 
           // Нормалізуємо дані користувача
           const normalizedUser = normalizeUser(rawUser);
           console.log('[AuthStore] Normalized user:', normalizedUser);
 
-          // Визначаємо чи це новий користувач
-          const isNewUser = data.is_new_user || data.isNewUser || false;
+          // Визначаємо чи це новий користувач (API повертає is_new_user)
+          const isNewUser = response.is_new_user || response.isNewUser || false;
 
           set({
             user: normalizedUser,
@@ -95,12 +111,21 @@ export const useAuthStore = create<AuthState>()(
             isNewUser: isNewUser,
           });
 
-          console.log('[AuthStore] Login successful, isNewUser:', isNewUser);
+          console.log('[AuthStore] ✅ Login successful!', {
+            userId: normalizedUser.id,
+            isNewUser: isNewUser,
+            isAuthenticated: true
+          });
+
           return response;
 
         } catch (error: any) {
-          console.error('[AuthStore] Login error:', error);
-          console.error('[AuthStore] Error response:', error.response?.data);
+          console.error('[AuthStore] ❌ Login error:', error);
+          console.error('[AuthStore] Error details:', {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status
+          });
 
           set({
             isLoading: false,
@@ -110,12 +135,6 @@ export const useAuthStore = create<AuthState>()(
             isNewUser: null,
           });
 
-          // Показуємо помилку користувачу
-          const errorMessage = error.response?.data?.detail ||
-                              error.message ||
-                              i18n.t('auth.loginError', 'Помилка входу');
-
-          // Не показуємо toast тут, щоб AppProvider міг обробити помилку
           throw error;
         }
       },
@@ -149,7 +168,7 @@ export const useAuthStore = create<AuthState>()(
       updateBalance: (newBalance: number) => {
         const currentUser = get().user;
         if (currentUser) {
-          console.log('[AuthStore] Updating balance:', newBalance);
+          console.log('[AuthStore] Updating balance:', currentUser.balance, '->', newBalance);
           set({
             user: { ...currentUser, balance: newBalance }
           });
@@ -158,7 +177,6 @@ export const useAuthStore = create<AuthState>()(
 
       completeOnboarding: () => {
         set({ isNewUser: false });
-        // Зберігаємо в localStorage для надійності
         const u = get().user;
         const uid = u ? (u.telegramId || u.id) : null;
         if (uid) {
@@ -172,7 +190,6 @@ export const useAuthStore = create<AuthState>()(
 
         if (!lastLoginAt || !token) return;
 
-        // Токен дійсний 24 години
         const TOKEN_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
         if (Date.now() - lastLoginAt > TOKEN_LIFETIME_MS) {

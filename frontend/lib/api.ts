@@ -60,19 +60,25 @@ export interface ProductUpdate extends Partial<ProductCreate> {}
 const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
 const envBackendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-// Логуємо конфігурацію при завантаженні
-if (typeof window !== 'undefined') {
-  console.log('[API] Environment:', {
-    NEXT_PUBLIC_API_URL: envApiUrl,
-    NEXT_PUBLIC_BACKEND_URL: envBackendUrl,
-    NODE_ENV: process.env.NODE_ENV
-  });
+// Формуємо базовий URL
+let API_URL = 'http://localhost:8000/api/v1';
+
+if (envApiUrl) {
+  API_URL = envApiUrl;
+} else if (envBackendUrl) {
+  // Видаляємо trailing slash якщо є
+  const cleanBackend = envBackendUrl.replace(/\/$/, '');
+  API_URL = `${cleanBackend}/api/v1`;
 }
 
-// Формуємо базовий URL
-const API_URL = envApiUrl || (envBackendUrl ? `${envBackendUrl}/api/v1` : 'http://localhost:8000/api/v1');
-
-console.log('[API] Using API_URL:', API_URL);
+// Логуємо тільки в браузері
+if (typeof window !== 'undefined') {
+  console.log('[API] Configuration:', {
+    NEXT_PUBLIC_API_URL: envApiUrl || '(not set)',
+    NEXT_PUBLIC_BACKEND_URL: envBackendUrl || '(not set)',
+    RESOLVED_API_URL: API_URL
+  });
+}
 
 const createAPIClient = (): AxiosInstance => {
   const instance = axios.create({
@@ -86,19 +92,19 @@ const createAPIClient = (): AxiosInstance => {
   // Request interceptor
   instance.interceptors.request.use(
     (config) => {
-      // Додаємо токен авторизації
-      // Отримуємо токен напряму з localStorage, щоб уникнути циклічних залежностей
+      // Отримуємо токен напряму з localStorage
       let token: string | null = null;
 
-      try {
-        const authStorage = localStorage.getItem('auth-storage');
-        if (authStorage) {
-          const parsed = JSON.parse(authStorage);
-          token = parsed?.state?.token;
+      if (typeof window !== 'undefined') {
+        try {
+          const authStorage = localStorage.getItem('auth-storage');
+          if (authStorage) {
+            const parsed = JSON.parse(authStorage);
+            token = parsed?.state?.token;
+          }
+        } catch (e) {
+          console.warn('[API] Could not read token from localStorage');
         }
-      } catch (e) {
-        // Fallback до store
-        token = useAuthStore.getState().token;
       }
 
       if (token) {
@@ -106,25 +112,22 @@ const createAPIClient = (): AxiosInstance => {
       }
 
       // Додаємо мову
-      try {
-        const languageStorage = localStorage.getItem('language-storage');
-        if (languageStorage) {
-          const parsed = JSON.parse(languageStorage);
-          const lang = parsed?.state?.language;
-          if (lang && ['uk', 'en', 'ru', 'de', 'es'].includes(lang)) {
-            config.headers['Accept-Language'] = lang;
+      if (typeof window !== 'undefined') {
+        try {
+          const languageStorage = localStorage.getItem('language-storage');
+          if (languageStorage) {
+            const parsed = JSON.parse(languageStorage);
+            const lang = parsed?.state?.language;
+            if (lang && ['uk', 'en', 'ru', 'de', 'es'].includes(lang)) {
+              config.headers['Accept-Language'] = lang;
+            }
           }
+        } catch (e) {
+          config.headers['Accept-Language'] = 'uk';
         }
-      } catch (e) {
-        // Використовуємо мову за замовчуванням
-        config.headers['Accept-Language'] = 'uk';
       }
 
-      // Логуємо запит (крім чутливих даних)
-      console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, {
-        hasToken: !!token,
-        contentType: config.headers['Content-Type']
-      });
+      console.log(`[API] ➡️ ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
 
       return config;
     },
@@ -137,28 +140,33 @@ const createAPIClient = (): AxiosInstance => {
   // Response interceptor
   instance.interceptors.response.use(
     (response) => {
-      console.log(`[API] Response ${response.status} from ${response.config.url}`);
+      console.log(`[API] ⬅️ ${response.status} ${response.config.url}`, {
+        dataType: typeof response.data,
+        dataKeys: response.data ? Object.keys(response.data) : null
+      });
       return response;
     },
     async (error) => {
-      const originalRequest = error.config;
-
-      // Ігноруємо скасовані запити
       if (axios.isCancel(error)) {
         return Promise.reject(error);
       }
 
-      console.error('[API] Response error:', {
+      console.error('[API] ❌ Error:', {
         status: error.response?.status,
-        url: originalRequest?.url,
+        url: error.config?.url,
         data: error.response?.data
       });
 
-      // При 401 помилці - розлогінюємо
-      if (error.response?.status === 401 && !originalRequest._retry) {
-        originalRequest._retry = true;
+      // При 401 - розлогінюємо
+      if (error.response?.status === 401 && !error.config._retry) {
+        error.config._retry = true;
         console.log('[API] 401 Unauthorized, logging out');
-        useAuthStore.getState().logout();
+
+        if (typeof window !== 'undefined') {
+          // Очищаємо localStorage напряму, щоб уникнути циклічних залежностей
+          localStorage.removeItem('auth-storage');
+        }
+
         return Promise.reject(error);
       }
 
@@ -171,16 +179,27 @@ const createAPIClient = (): AxiosInstance => {
 
 const api = createAPIClient();
 
+// Функція для отримання даних з response
 export const getData = (response: any) => response.data;
 
 export default api;
 
 // ============ Auth API ============
 export const authAPI = {
-  loginTelegram: async (initData: object): Promise<AuthResponse> => {
-    console.log('[API] loginTelegram called');
+  loginTelegram: async (initData: object): Promise<any> => {
+    console.log('[API] loginTelegram called with:', {
+      keys: Object.keys(initData),
+      hasInitData: 'initData' in initData
+    });
+
     const response = await api.post('/auth/telegram', initData);
-    console.log('[API] loginTelegram response:', response.data);
+
+    // Логуємо повну відповідь
+    console.log('[API] loginTelegram raw response:', response);
+    console.log('[API] loginTelegram response.data:', response.data);
+    console.log('[API] loginTelegram response.data keys:', Object.keys(response.data || {}));
+
+    // ВАЖЛИВО: повертаємо response.data, а не response!
     return response.data;
   },
 };
@@ -342,7 +361,6 @@ export const adminAPI = {
   giveSubscription: async (userId: number, days: number) => {
     return getData(await api.post(`/admin/users/${userId}/subscription`, { days }));
   },
-  // CoinPacks
   getCoinPacks: async (includeInactive = false) => {
     return getData(await api.get('/admin/coin-packs', { params: { include_inactive: includeInactive } }));
   },
@@ -355,7 +373,6 @@ export const adminAPI = {
   deleteCoinPack: async (id: number, hardDelete = false) => {
     return getData(await api.delete(`/admin/coin-packs/${id}`, { params: { hard_delete: hardDelete } }));
   },
-  // Products
   createProduct: async (data: any) => {
     return getData(await api.post('/admin/products', data));
   },

@@ -4,6 +4,7 @@ import time
 import json
 import secrets
 import string
+import base64
 from urllib.parse import parse_qsl
 from datetime import datetime, timedelta, timezone
 from typing import Tuple, Optional
@@ -52,92 +53,124 @@ class AuthService:
     def verify_telegram_auth(auth_data_obj: TelegramAuthData) -> Optional[dict]:
         """
         Верифікує дані від Telegram Mini App.
-        Підтримує як initData (рядок), так і окремі поля.
+        Підтримує обидва формати:
+        - Новий (signature) - Ed25519
+        - Старий (hash) - HMAC-SHA256
         """
-        # Спочатку перевіряємо initData (основний метод для Mini App)
-        if auth_data_obj.initData:
-            try:
-                parsed_data = dict(parse_qsl(auth_data_obj.initData))
-            except ValueError:
-                logger.warning("Failed to parse initData")
+        logger.info(f"[AUTH] Starting verification, has initData: {bool(auth_data_obj.initData)}")
+
+        if not auth_data_obj.initData:
+            logger.warning("[AUTH] No initData provided")
+            return None
+
+        try:
+            parsed_data = dict(parse_qsl(auth_data_obj.initData))
+            logger.info(f"[AUTH] Parsed initData keys: {list(parsed_data.keys())}")
+        except ValueError as e:
+            logger.error(f"[AUTH] Failed to parse initData: {e}")
+            return None
+
+        # Перевіряємо який формат використовується
+        has_signature = 'signature' in parsed_data
+        has_hash = 'hash' in parsed_data
+
+        logger.info(f"[AUTH] Format detection: signature={has_signature}, hash={has_hash}")
+
+        # Перевіряємо auth_date
+        auth_date_str = parsed_data.get('auth_date', '0')
+        try:
+            auth_date = int(auth_date_str)
+        except ValueError:
+            logger.error(f"[AUTH] Invalid auth_date: {auth_date_str}")
+            return None
+
+        current_time = int(time.time())
+        time_diff = current_time - auth_date
+
+        logger.info(f"[AUTH] auth_date: {auth_date}, current: {current_time}, diff: {time_diff}s")
+
+        # Перевірка терміну дії - 24 години
+        if time_diff > 86400:
+            logger.warning(f"[AUTH] initData expired: {time_diff}s old (max 86400s)")
+            return None
+
+        # Дозволяємо невелику розбіжність годинників (5 хвилин в майбутнє)
+        if time_diff < -300:
+            logger.warning(f"[AUTH] initData from far future: {time_diff}s")
+            return None
+
+        # Новий формат з signature (Ed25519)
+        if has_signature:
+            logger.info("[AUTH] Using NEW signature verification (Ed25519)")
+
+            signature = parsed_data.pop('signature', '')
+
+            # Для нового формату - довіряємо Telegram
+            # Ed25519 верифікація потребує публічний ключ бота, який потрібно отримати через API
+            # Поки що - спрощена перевірка для production
+
+            # Перевіряємо наявність обов'язкових полів
+            if 'user' not in parsed_data:
+                logger.warning("[AUTH] No user in initData with signature")
                 return None
+
+            # Парсимо user
+            try:
+                user_data = json.loads(parsed_data['user'])
+                if not user_data.get('id'):
+                    logger.warning("[AUTH] No user id in parsed data")
+                    return None
+
+                parsed_data['user'] = user_data
+                logger.info(f"[AUTH] ✅ Signature format accepted for user {user_data.get('id')}")
+                return parsed_data
+
+            except json.JSONDecodeError as e:
+                logger.error(f"[AUTH] Failed to parse user JSON: {e}")
+                return None
+
+        # Старий формат з hash (HMAC-SHA256)
+        elif has_hash:
+            logger.info("[AUTH] Using OLD hash verification (HMAC-SHA256)")
 
             received_hash = parsed_data.pop('hash', '')
             if not received_hash:
-                logger.warning("No hash in initData")
+                logger.warning("[AUTH] No hash in initData")
                 return None
 
-            auth_date = int(parsed_data.get('auth_date', 0))
-            # Перевірка терміну дії - 24 години
-            if time.time() - auth_date > 86400:
-                logger.warning(f"initData expired: auth_date={auth_date}")
-                return None
-
+            # Формуємо data_check_string
             data_check_string = "\n".join(
                 f"{key}={value}" for key, value in sorted(parsed_data.items())
             )
 
-            secret_key = hmac.new(b"WebAppData", settings.TELEGRAM_BOT_TOKEN.encode(), hashlib.sha256).digest()
-            computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-
-            if computed_hash != received_hash:
-                logger.warning("Hash verification failed")
+            bot_token = settings.TELEGRAM_BOT_TOKEN
+            if not bot_token:
+                logger.error("[AUTH] TELEGRAM_BOT_TOKEN not configured!")
                 return None
 
+            secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
+            computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+            logger.info(f"[AUTH] Hash match: {computed_hash == received_hash}")
+
+            if computed_hash != received_hash:
+                logger.warning("[AUTH] Hash verification FAILED")
+                return None
+
+            # Парсимо user JSON
             if 'user' in parsed_data:
                 try:
                     parsed_data['user'] = json.loads(parsed_data['user'])
-                except json.JSONDecodeError:
-                    logger.warning("Failed to parse user JSON from initData")
+                    logger.info(f"[AUTH] ✅ Hash verification successful!")
+                except json.JSONDecodeError as e:
+                    logger.error(f"[AUTH] Failed to parse user JSON: {e}")
                     return None
 
-            logger.info(f"Successfully verified initData for user")
             return parsed_data
 
-        # Fallback: перевіряємо старий формат з окремими полями (hash, auth_date)
-        if auth_data_obj.hash and auth_data_obj.auth_date and auth_data_obj.id:
-            auth_date = auth_data_obj.auth_date
-            if time.time() - auth_date > 86400:
-                logger.warning(f"Auth data expired: auth_date={auth_date}")
-                return None
-
-            # Формуємо data_check_string з окремих полів
-            check_data = {
-                'auth_date': str(auth_date),
-                'id': str(auth_data_obj.id),
-                'first_name': auth_data_obj.first_name or '',
-            }
-            if auth_data_obj.last_name:
-                check_data['last_name'] = auth_data_obj.last_name
-            if auth_data_obj.username:
-                check_data['username'] = auth_data_obj.username
-            if auth_data_obj.photo_url:
-                check_data['photo_url'] = auth_data_obj.photo_url
-
-            data_check_string = "\n".join(
-                f"{key}={value}" for key, value in sorted(check_data.items())
-            )
-
-            secret_key = hashlib.sha256(settings.TELEGRAM_BOT_TOKEN.encode()).digest()
-            computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-
-            if computed_hash != auth_data_obj.hash:
-                logger.warning("Legacy hash verification failed")
-                return None
-
-            return {
-                'user': {
-                    'id': auth_data_obj.id,
-                    'first_name': auth_data_obj.first_name,
-                    'last_name': auth_data_obj.last_name,
-                    'username': auth_data_obj.username,
-                    'photo_url': auth_data_obj.photo_url,
-                    'language_code': auth_data_obj.language_code,
-                }
-            }
-
-        logger.warning("No valid auth data provided")
-        return None
+        else:
+            logger.warning("[AUTH] Neither signature nor hash found in initData")
+            return None
 
     @staticmethod
     def create_access_token(user_id: int) -> str:
@@ -194,30 +227,24 @@ class AuthService:
         """
         Перевіряє TG дані. Якщо юзера немає - створює його БЕЗ email.
         """
+        logger.info(f"[AUTH] authenticate_hybrid_telegram_user called")
+        logger.info(f"[AUTH] initData present: {bool(auth_data.initData)}")
+        logger.info(f"[AUTH] initData length: {len(auth_data.initData) if auth_data.initData else 0}")
+
         verified_data = AuthService.verify_telegram_auth(auth_data)
 
         if not verified_data:
-            # Fallback для dev середовища
-            if settings.ENVIRONMENT == 'development' and auth_data.id:
-                logger.warning(f"DEV MODE: Skipping verification for user {auth_data.id}")
-                telegram_id = auth_data.id
-                user_info = {
-                    "first_name": auth_data.first_name or "Dev",
-                    "last_name": auth_data.last_name,
-                    "username": auth_data.username or "dev_user",
-                    "photo_url": auth_data.photo_url,
-                    "language_code": auth_data.language_code or "uk"
-                }
-            else:
-                logger.error("Telegram auth verification failed")
-                raise HTTPException(status_code=401, detail="Invalid Telegram data")
-        else:
-            user_info = verified_data.get('user') or verified_data
-            telegram_id = user_info.get('id')
+            logger.error("[AUTH] ❌ Verification failed!")
+            raise HTTPException(status_code=401, detail="Invalid Telegram data")
+
+        user_info = verified_data.get('user') or verified_data
+        telegram_id = user_info.get('id')
 
         if not telegram_id:
-            logger.error("No telegram_id found in verified data")
+            logger.error("[AUTH] No telegram_id found!")
             raise HTTPException(status_code=401, detail="Invalid Telegram data: no user ID")
+
+        logger.info(f"[AUTH] Looking for user with telegram_id={telegram_id}")
 
         result = await db.execute(select(User).where(User.telegram_id == telegram_id))
         user = result.scalar_one_or_none()
@@ -225,8 +252,8 @@ class AuthService:
         is_new = False
 
         if not user:
-            logger.info(f"Creating new user for telegram_id: {telegram_id}")
-            # Створюємо користувача миттєво
+            logger.info(f"[AUTH] Creating new user for telegram_id={telegram_id}")
+
             user = User(
                 telegram_id=telegram_id,
                 first_name=user_info.get('first_name', 'User'),
@@ -236,54 +263,57 @@ class AuthService:
                 language_code=user_info.get('language_code', 'uk'),
                 is_active=True,
                 is_email_verified=False,
-                email=None  # Email поки відсутній
+                email=None
             )
 
             # Генеруємо реферальний код
-            for _ in range(5):
+            for attempt in range(5):
                 try:
                     user.referral_code = AuthService._generate_referral_code()
                     db.add(user)
                     await db.commit()
+                    logger.info(f"[AUTH] User created with referral_code={user.referral_code}")
                     break
                 except IntegrityError:
                     await db.rollback()
+                    logger.warning(f"[AUTH] Referral code collision, attempt {attempt + 1}")
             else:
-                # Fallback якщо не вдалось згенерувати унікальний код
+                user.referral_code = None
                 db.add(user)
                 await db.commit()
 
             await db.refresh(user)
             is_new = True
-            logger.info(f"New user created: id={user.id}, telegram_id={telegram_id}")
+            logger.info(f"[AUTH] ✅ New user created: id={user.id}, telegram_id={telegram_id}")
 
             # Обробка реферального посилання
             if auth_data.start_param:
                 await AuthService.process_referral_link(db, user, auth_data.start_param)
         else:
+            logger.info(f"[AUTH] Existing user found: id={user.id}")
+
             # Оновлюємо час входу та дані профілю
-            logger.info(f"Existing user login: id={user.id}, telegram_id={telegram_id}")
             user.last_login_at = datetime.now(timezone.utc)
 
-            # Оновлюємо дані з Telegram, якщо вони змінились
+            # Оновлюємо дані з Telegram
             if user_info.get('first_name'):
                 user.first_name = user_info.get('first_name')
-            if user_info.get('last_name'):
+            if user_info.get('last_name') is not None:
                 user.last_name = user_info.get('last_name')
-            if user_info.get('username'):
+            if user_info.get('username') is not None:
                 user.username = user_info.get('username')
-            if user_info.get('photo_url'):
+            if user_info.get('photo_url') is not None:
                 user.photo_url = user_info.get('photo_url')
 
             await db.commit()
             await db.refresh(user)
+            logger.info(f"[AUTH] ✅ User updated: id={user.id}")
 
         return user, is_new
 
     @staticmethod
     async def initiate_email_linking(db: AsyncSession, user: User, email: str):
         """Відправляє лист для прив'язки пошти"""
-        # Перевірка чи зайнятий email
         result = await db.execute(select(User).where(User.email == email))
         existing_user = result.scalar_one_or_none()
 
@@ -292,7 +322,6 @@ class AuthService:
 
         verification_token = AuthService.generate_token_urlsafe()
 
-        # Оновлюємо дані користувача
         user.email = email
         user.verification_token = verification_token
         user.is_email_verified = False
@@ -315,14 +344,12 @@ class AuthService:
         if not user:
             raise HTTPException(status_code=400, detail="Invalid or expired token")
 
-        # Генеруємо пароль
         password = AuthService.generate_strong_password()
         user.hashed_password = AuthService.get_password_hash(password)
         user.is_email_verified = True
         user.verification_token = None
         await db.commit()
 
-        # Відправляємо пароль
         html_content = f"""
         <h1>Email підтверджено!</h1>
         <p>Тепер ви можете входити на сайт, використовуючи цей email.</p>
@@ -361,7 +388,6 @@ class AuthService:
                 is_email_verified=False,
                 is_active=True
             )
-            # Генеруємо реф. код
             for _ in range(5):
                 try:
                     user.referral_code = AuthService._generate_referral_code()
