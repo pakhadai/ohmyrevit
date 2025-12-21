@@ -39,7 +39,6 @@ export default function HomePage() {
 
       if (isAuthenticated) {
         const subData = await subscriptionsAPI.getStatus();
-        // ВИПРАВЛЕНО: Додано перевірку && subData.subscription
         if (subData.has_active_subscription && subData.subscription) {
           setSubStatus({
             isActive: true,
@@ -71,7 +70,7 @@ export default function HomePage() {
       <div className="flex items-center justify-between animate-in fade-in slide-in-from-bottom-2 duration-500">
         <div>
           <h1 className="text-2xl font-extrabold text-foreground tracking-tight leading-tight">
-            {t('home.welcome')}{user ? `, ${user.first_name}` : ''} 👋
+            {t('home.welcome')}{user ? `, ${user.firstName}` : ''} 👋
           </h1>
           <p className="text-sm text-muted-foreground font-medium mt-1">
             {t('home.heroSubtitle')}
@@ -79,7 +78,8 @@ export default function HomePage() {
         </div>
         <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/20 shadow-sm flex-shrink-0">
           <img
-            src={user?.photo_url || `https://avatar.vercel.sh/${user?.username || 'user'}.png`}
+            // ВИПРАВЛЕНО ТУТ: photoUrl замість photo_url
+            src={user?.photoUrl || `https://avatar.vercel.sh/${user?.username || 'user'}.png`}
             alt="Profile"
             className="w-full h-full object-cover"
           />

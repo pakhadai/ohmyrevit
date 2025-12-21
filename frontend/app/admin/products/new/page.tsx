@@ -99,7 +99,7 @@ export default function NewProductPage() {
 
   useEffect(() => {
     if (user === undefined) return;
-    if (!user?.is_admin) {
+    if (!user?.isAdmin) {
       toast.error('Доступ заборонено');
       router.push('/');
       return;

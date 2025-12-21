@@ -174,7 +174,7 @@ export default function WalletPage() {
             <p className="text-white/60">{t('wallet.streak') || 'Streak'}</p>
             <p className="font-medium flex items-center gap-1 justify-end">
               <Sparkles size={14} />
-              {user?.bonus_streak || 0} {t('wallet.days') || 'днів'}
+              {user?.bonusStreak || 0} {t('wallet.days') || 'днів'}
             </p>
           </div>
         </div>

@@ -10,16 +10,21 @@ import i18n from '@/lib/i18n';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 
-// Сторінки, доступні без авторизації (Сайт режим)
+// ПУБЛІЧНІ МАРШРУТИ (ТОЧНИЙ ЗБІГ)
 const PUBLIC_ROUTES = [
+    '/',
     '/login',
     '/register',
+    '/forgot-password',
     '/terms',
     '/privacy',
     '/auth/verify',
-    '/',
     '/marketplace',
-    '/product' // Дозволяє перегляд товарів (/product/123)
+];
+
+// ПУБЛІЧНІ ПРЕФІКСИ (НАПРИКЛАД ДЛЯ ТОВАРІВ)
+const PUBLIC_PREFIXES = [
+    '/product',
 ];
 
 declare global {
@@ -42,7 +47,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
 
-  // 1. Ініціалізація теми та мови
+  // 1. Ініціалізація теми та i18n
   useEffect(() => {
     const storedTheme = useUIStore.getState().theme;
     setTheme(storedTheme);
@@ -60,22 +65,17 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     } else {
       i18n.on('initialized', handleInitialized);
     }
-
-    return () => {
-      i18n.off('initialized', handleInitialized);
-    };
+    return () => { i18n.off('initialized', handleInitialized); };
   }, [setTheme]);
 
-  // 2. Логіка Telegram BackButton
+  // 2. Telegram BackButton
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
       const backButton = tg.BackButton;
+      const handleBack = () => router.back();
 
-      const handleBack = () => {
-        router.back();
-      };
-
+      // Показуємо кнопку назад скрізь, крім головної та логіну
       if (pathname !== '/' && pathname !== '/login') {
         backButton.show();
         backButton.onClick(handleBack);
@@ -83,9 +83,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         backButton.hide();
       }
 
-      return () => {
-        backButton.offClick(handleBack);
-      };
+      return () => backButton.offClick(handleBack);
     }
   }, [pathname, router]);
 
@@ -96,10 +94,9 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     }
   };
 
-  // 3. Авторизація
+  // 3. Авторизація (Telegram)
   useEffect(() => {
     const initializeApp = async () => {
-      // Якщо вже авторизовані - завантажуємо дані
       if (isAuthenticated) {
         if (!authAttempted.current) {
            fetchInitialData();
@@ -109,23 +106,25 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         return;
       }
 
-      // Спроба авторизації через Telegram
+      // Спроба входу через Telegram
       if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initData) {
         const tg = window.Telegram.WebApp;
         tg.ready();
-        tg.expand();
         try {
-            tg.enableClosingConfirmation();
-            tg.setHeaderColor('bg_color');
-            tg.setBackgroundColor('bg_color');
+           tg.expand();
+           tg.enableClosingConfirmation();
+           tg.setHeaderColor('#ffffff'); // або колір теми
+           tg.setBackgroundColor('#ffffff');
         } catch (e) {}
 
         const rawInitData = tg.initData;
         let startParam = tg.initDataUnsafe?.start_param;
-         if (!startParam) {
+
+        // Fallback для вебу
+        if (!startParam && typeof window !== 'undefined') {
             const urlParams = new URLSearchParams(window.location.search);
             startParam = urlParams.get('startapp') || null;
-         }
+        }
 
         if (rawInitData && !authAttempted.current) {
           authAttempted.current = true;
@@ -137,16 +136,16 @@ export default function AppProvider({ children }: { children: React.ReactNode })
 
             await fetchInitialData();
 
-            if (loginResponse.is_new_user && tg.initDataUnsafe?.user?.language_code) {
+            if (loginResponse && (loginResponse.is_new_user || loginResponse.isNewUser) && tg.initDataUnsafe?.user?.language_code) {
                setLanguage(tg.initDataUnsafe.user.language_code as any);
             }
+
             checkOnboardingStatus();
           } catch (error) {
-            console.error('TG Auth failed', error);
+            console.error('TG Auth failed, staying as guest:', error);
           }
         }
       }
-
       setAppReady(true);
     };
 
@@ -157,9 +156,13 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!appReady) return;
 
-    const isPublic = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
+    // Перевіряємо чи маршрут публічний
+    const isPublic = PUBLIC_ROUTES.includes(pathname) ||
+                     PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix));
 
+    // Якщо не авторизовані і маршрут приватний -> редірект
     if (!isAuthenticated && !isPublic) {
+       console.log("Redirecting to login from:", pathname);
        router.push('/login');
     }
   }, [appReady, isAuthenticated, pathname, router]);

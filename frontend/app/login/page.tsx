@@ -22,12 +22,31 @@ export default function LoginPage() {
       const res = await api.post('/auth/login', { email, password });
       const data = res.data;
 
-      // FIX: Використовуємо CamelCase ключі, які тепер повертає бекенд
-      setToken(data.accessToken);
-      setUser(data.user);
+      // Ручний маппінг даних для веб-входу
+      const accessToken = data.access_token;
+      const rawUser = data.user;
 
-      toast.success('Вхід успішний');
-      router.push('/');
+      if (accessToken && rawUser) {
+          setToken(accessToken);
+          setUser({
+            id: rawUser.id,
+            telegramId: rawUser.telegram_id,
+            username: rawUser.username,
+            firstName: rawUser.first_name,
+            lastName: rawUser.last_name,
+            email: rawUser.email,
+            photoUrl: rawUser.photo_url,
+            languageCode: rawUser.language_code || 'uk',
+            isAdmin: rawUser.is_admin,
+            balance: rawUser.balance || 0,
+            bonusStreak: rawUser.bonus_streak || 0,
+            referralCode: rawUser.referral_code
+          });
+          toast.success('Вхід успішний');
+          router.push('/');
+      } else {
+          toast.error('Помилка даних сервера');
+      }
     } catch (err: any) {
       const msg = err.response?.data?.detail || 'Невірний логін або пароль';
       toast.error(msg);

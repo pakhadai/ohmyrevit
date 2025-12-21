@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any
 from datetime import date, datetime
 
 
+# Звичайний Pydantic model (snake_case)
 class UserBase(BaseModel):
     email: Optional[EmailStr] = None
     first_name: str

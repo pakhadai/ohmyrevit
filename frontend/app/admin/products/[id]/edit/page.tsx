@@ -160,7 +160,7 @@ export default function EditProductPage() {
 
   useEffect(() => {
     if (user === undefined) return;
-    if (!user?.is_admin) {
+    if (!user?.isAdmin) {
       toast.error(t('toasts.authError'));
       router.push('/');
       return;

@@ -1,3 +1,5 @@
+// frontend/types/index.ts
+
 export interface Category {
   id: number;
   name: string;
@@ -19,6 +21,7 @@ export interface User {
   bonusStreak: number;
   lastBonusClaimDate?: string;
   referralCode?: string;
+  isEmailVerified?: boolean;
 }
 
 export interface Product {
@@ -26,17 +29,17 @@ export interface Product {
   title: string;
   description: string;
   price: number;
-  productType: 'free' | 'premium';
-  mainImageUrl: string;
-  galleryImageUrls: string[];
-  isOnSale: boolean;
-  salePrice?: number;
-  actualPrice?: number;
-  fileSizeMb: number;
+  product_type: 'free' | 'premium';
+  main_image_url: string;
+  gallery_image_urls: string[];
+  is_on_sale: boolean;
+  sale_price?: number;
+  actual_price?: number;
+  file_size_mb: number;
   compatibility: string;
   categories: Category[];
-  viewsCount?: number;
-  downloadsCount?: number;
+  views_count?: number;
+  downloads_count?: number;
 }
 
 export interface CartItem {
@@ -44,24 +47,24 @@ export interface CartItem {
   quantity: number;
 }
 
-export type Language = 'uk' | 'en' | 'ru';
+export type Language = 'uk' | 'en' | 'ru' | 'de' | 'es';
 export type Theme = 'light' | 'dark';
 
 export interface Collection {
   id: number;
   name: string;
   color: string;
-  createdAt: string;
-  productsCount: number;
+  created_at: string;
+  products_count: number;
 }
 
 export interface ProductInCollection {
   id: number;
   title: string;
   description: string;
-  mainImageUrl: string;
+  main_image_url: string;
   price: number;
-  productType: string;
+  product_type: string;
 }
 
 export interface CollectionDetail extends Collection {
@@ -71,16 +74,16 @@ export interface CollectionDetail extends Collection {
 export interface CoinPack {
   id: number;
   name: string;
-  priceUsd: number;
-  coinsAmount: number;
-  bonusPercent: number;
-  totalCoins: number;
-  gumroadPermalink: string;
-  gumroadUrl: string;
+  price_usd: number;
+  coins_amount: number;
+  bonus_percent: number;
+  total_coins: number;
+  gumroad_permalink: string;
+  gumroad_url: string;
   description?: string;
-  isActive: boolean;
-  isFeatured: boolean;
-  sortOrder: number;
+  is_active: boolean;
+  is_featured: boolean;
+  sort_order: number;
 }
 
 export type TransactionType = 'deposit' | 'purchase' | 'subscription' | 'bonus' | 'refund' | 'referral';
@@ -89,19 +92,19 @@ export interface Transaction {
   id: number;
   type: TransactionType;
   amount: number;
-  balanceAfter: number;
+  balance_after: number;
   description?: string;
-  orderId?: number;
-  subscriptionId?: number;
-  externalId?: string;
-  createdAt: string;
+  order_id?: number;
+  subscription_id?: number;
+  external_id?: string;
+  created_at: string;
 }
 
 export interface WalletInfo {
   balance: number;
-  balanceUsd: number;
-  coinPacks: CoinPack[];
-  recentTransactions: Transaction[];
+  balance_usd: number;
+  coin_packs: CoinPack[];
+  recent_transactions: Transaction[];
 }
 
 export interface TransactionListResponse {
@@ -111,56 +114,67 @@ export interface TransactionListResponse {
   size: number;
 }
 
-export interface AuthResponse {
-  accessToken: string;
-  user: User;
-  isNewUser: boolean;
-  needsRegistration: boolean;
-}
-
 export interface CheckoutResponse {
   success: boolean;
-  orderId: number;
-  coinsSpent: number;
-  newBalance: number;
+  order_id: number;
+  coins_spent: number;
+  new_balance: number;
+  message: string;
+  payment_url?: string;
+}
+
+export interface InsufficientFundsError {
+  error: 'insufficient_funds';
+  required_coins: number;
+  current_balance: number;
+  shortfall: number;
   message: string;
 }
 
 export interface ApplyDiscountResponse {
   success: boolean;
-  subtotalCoins: number;
-  discountCoins: number;
-  finalCoins: number;
-  userBalance: number;
-  hasEnoughBalance: boolean;
+  subtotal_coins: number;
+  discount_coins: number;
+  final_coins: number;
+  user_balance: number;
+  has_enough_balance: boolean;
   message?: string;
 }
 
 export interface SubscriptionStatus {
-  hasActiveSubscription: boolean;
+  has_active_subscription: boolean;
   subscription?: {
     id: number;
-    startDate: string;
-    endDate: string;
-    daysRemaining: number;
-    isAutoRenewal: boolean;
+    start_date: string;
+    end_date: string;
+    days_remaining: number;
+    is_auto_renewal: boolean;
   };
 }
 
 export interface SubscriptionCheckoutResponse {
   success: boolean;
-  subscriptionId: number;
-  coinsSpent: number;
-  newBalance: number;
-  isExtension: boolean;
-  endDate: string;
+  subscription_id: number;
+  coins_spent: number;
+  new_balance: number;
+  is_extension: boolean;
+  end_date: string;
   message: string;
 }
 
 export interface SubscriptionPriceInfo {
-  priceCoins: number;
-  priceUsd: number;
-  userBalance: number;
-  hasEnoughBalance: boolean;
+  price_coins: number;
+  price_usd: number;
+  user_balance: number;
+  has_enough_balance: boolean;
   shortfall: number;
+}
+
+export interface AuthResponse {
+  accessToken?: string;
+  access_token?: string;
+  user: any;
+  isNewUser?: boolean;
+  is_new_user?: boolean;
+  needsRegistration?: boolean;
 }

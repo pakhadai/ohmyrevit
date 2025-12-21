@@ -13,9 +13,10 @@ export default function SettingsPage() {
   const { t } = useTranslation();
 
   const [formData, setFormData] = useState({
-    first_name: user?.first_name || '',
-    last_name: user?.last_name || '',
-    birth_date: user?.birth_date || ''
+    // FIX: camelCase props from store
+    first_name: user?.firstName || '',
+    last_name: user?.lastName || '',
+    birth_date: user?.birthDate || ''
   });
 
   const [passData, setPassData] = useState({ old: '', new: '' });
@@ -26,9 +27,18 @@ export default function SettingsPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      // API request uses snake_case, backend expects it
       const res = await api.patch('/auth/profile', formData);
-      setUser({ ...user!, ...res.data });
-      toast.success(t('profilePages.main.toasts.emailSaved')); // Використовуємо існуючий ключ або додайте generic 'saved'
+      // res.data is from backend (snake_case). store expects camelCase.
+      // But we can just use formData or wait for re-fetch.
+      // Best to manually update store with camelCase values we just sent
+      setUser({
+        ...user!,
+        firstName: formData.first_name,
+        lastName: formData.last_name,
+        birthDate: formData.birth_date
+      });
+      toast.success(t('profilePages.main.toasts.emailSaved'));
     } catch {
       toast.error(t('profilePages.main.toasts.emailError'));
     } finally {

@@ -36,19 +36,49 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, isNewUser: null });
         try {
           const response = await authAPI.loginTelegram(initData);
-          if (!response || !response.user || !response.access_token) {
-            throw new Error(i18n.t('auth.serverDataError'));
+          console.log("Auth Response:", response);
+
+          // Отримуємо токен (API повертає access_token)
+          // Використовуємо any, щоб уникнути помилок типів, якщо інтерфейс не оновився
+          const data: any = response;
+          const accessToken = data.accessToken || data.access_token;
+          const rawUser = data.user;
+
+          if (!accessToken || !rawUser) {
+            console.error("Missing token or user in response", data);
+            throw new Error(i18n.t('auth.serverDataError') || 'Server Error');
           }
+
+          // Маппінг snake_case (API) -> camelCase (Frontend)
+          const normalizedUser: User = {
+            id: rawUser.id,
+            telegramId: rawUser.telegram_id, // snake_case з бекенду
+            username: rawUser.username,
+            firstName: rawUser.first_name,   // snake_case з бекенду
+            lastName: rawUser.last_name,     // snake_case з бекенду
+            email: rawUser.email,
+            photoUrl: rawUser.photo_url,     // snake_case з бекенду
+            languageCode: rawUser.language_code || 'uk',
+            isAdmin: rawUser.is_admin,       // snake_case з бекенду
+            balance: rawUser.balance || 0,
+            bonusStreak: rawUser.bonus_streak || 0,
+            lastBonusClaimDate: rawUser.last_bonus_claim_date,
+            referralCode: rawUser.referral_code
+          };
+
+          const isNewUser = data.isNewUser || data.is_new_user || false;
+
           set({
-            user: response.user,
-            token: response.access_token,
+            user: normalizedUser,
+            token: accessToken,
             isAuthenticated: true,
             isLoading: false,
             lastLoginAt: Date.now(),
-            isNewUser: response.is_new_user,
+            isNewUser: isNewUser,
           });
           return response;
         } catch (error: any) {
+          console.error("Login error:", error);
           set({
             isLoading: false,
             isAuthenticated: false,
@@ -94,8 +124,11 @@ export const useAuthStore = create<AuthState>()(
 
       completeOnboarding: () => {
         set({ isNewUser: false });
-        if (get().user) {
-          localStorage.setItem(`onboarding_${get().user!.telegram_id}`, 'true');
+        // Безпечний доступ до ID
+        const u = get().user;
+        const uid = u ? (u.telegramId || u.id) : null;
+        if (uid) {
+          localStorage.setItem(`onboarding_${uid}`, 'true');
         }
       },
 

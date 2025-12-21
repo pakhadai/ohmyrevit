@@ -2,6 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import {
   CoinPack,
+  Transaction,
   WalletInfo,
   TransactionListResponse,
   CheckoutResponse,
@@ -9,38 +10,66 @@ import {
   SubscriptionCheckoutResponse,
   SubscriptionPriceInfo,
   SubscriptionStatus,
-  AuthResponse
+  AuthResponse // <--- Використовуємо цей імпорт
 } from '@/types';
 
-// Типи для продуктів та категорій (можна винести в types/index.ts, але залишаємо тут для сумісності)
 export interface Category {
   id: number;
   name: string;
   slug: string;
 }
 
+// Видаліть локальний інтерфейс AuthResponse, якщо він тут був!
+
 export interface Product {
   id: number;
   title: string;
   description: string;
   price: number;
-  productType: 'free' | 'premium';
-  mainImageUrl: string;
-  galleryImageUrls: string[];
-  zipFilePath?: string;
-  fileSizeMb: number;
+  product_type: 'free' | 'premium';
+  main_image_url: string;
+  gallery_image_urls: string[];
+  zip_file_path?: string;
+  file_size_mb: number;
   compatibility?: string;
-  isOnSale: boolean;
-  salePrice?: number;
-  actualPrice?: number;
+  is_on_sale: boolean;
+  sale_price?: number;
+  actual_price?: number;
   categories: Category[];
-  viewsCount: number;
-  downloadsCount: number;
-  createdAt?: string;
+  views_count: number;
+  downloads_count: number;
+  created_at?: string;
 }
 
-// Черга для запитів, що не вдалися (поки що проста реалізація)
+export interface ProductCreate {
+  title_uk: string;
+  description_uk: string;
+  price: number;
+  product_type: string;
+  main_image_url: string;
+  gallery_image_urls: string[];
+  zip_file_path: string;
+  file_size_mb: number;
+  compatibility?: string;
+  is_on_sale: boolean;
+  sale_price?: number | null;
+  category_ids: number[];
+}
+
+export interface ProductUpdate extends Partial<ProductCreate> {}
+
 let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
 
 const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
 if (!envApiUrl && process.env.NODE_ENV === 'production') {
@@ -58,9 +87,11 @@ const createAPIClient = (): AxiosInstance => {
     },
   });
 
-  // Request Interceptor: Додає токен та мову
   instance.interceptors.request.use(
     (config) => {
+      // Використовуємо getState(), щоб уникнути циклічних імпортів, якщо можливо
+      // Але тут прямий імпорт, що ок, поки authStore не імпортує api (що він робить).
+      // Це може бути проблемою. Краще брати токен з localStorage напряму, якщо є циклічна залежність.
       const token = useAuthStore.getState().token;
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -93,7 +124,6 @@ const createAPIClient = (): AxiosInstance => {
     }
   );
 
-  // Response Interceptor: Обробка 401 (Logout)
   instance.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -118,37 +148,15 @@ const createAPIClient = (): AxiosInstance => {
 
 const api = createAPIClient();
 
-// Helper для отримання даних з відповіді
 export const getData = (response: any) => response.data;
 
 export default api;
 
 // ============ Auth API ============
 export const authAPI = {
-  // Telegram Mini App Login
   loginTelegram: async (initData: object): Promise<AuthResponse> => {
     return getData(await api.post('/auth/telegram', initData));
   },
-  // Web Login
-  login: async (data: { email: string; password: string }): Promise<AuthResponse> => {
-    return getData(await api.post('/auth/login', data));
-  },
-  // Web Register
-  register: async (data: { email: string }) => {
-    return getData(await api.post('/auth/register', data));
-  },
-  // Password Reset Request
-  forgotPassword: async (data: { email: string }) => {
-    return getData(await api.post('/auth/forgot-password', data));
-  },
-  // Verify Email Token
-  verifyEmail: async (data: { token: string }): Promise<AuthResponse> => {
-    return getData(await api.post('/auth/verify', data));
-  },
-  // Complete Telegram Registration (Onboarding)
-  completeRegistration: async (data: { email: string }) => {
-    return getData(await api.post('/auth/complete-registration', data));
-  }
 };
 
 // ============ Products API ============
@@ -199,7 +207,7 @@ export const ordersAPI = {
 
 // ============ Wallet API ============
 export const walletAPI = {
-  getBalance: async (): Promise<{ balance: number; balanceUsd: number }> => {
+  getBalance: async (): Promise<{ balance: number; balance_usd: number }> => {
     return getData(await api.get('/wallet/balance'));
   },
   getInfo: async (): Promise<WalletInfo> => {
@@ -300,8 +308,6 @@ export const adminAPI = {
     return getData(await api.patch(`/admin/users/${userId}/toggle-admin`));
   },
   toggleUserActive: async (userId: number) => {
-    // Note: Assuming endpoint exists in backend or handled via user update
-    // If not, this might need adjustment based on specific backend implementation
     return getData(await api.patch(`/admin/users/${userId}/toggle-active`));
   },
   addUserBonus: async (userId: number, amount: number, reason: string) => {

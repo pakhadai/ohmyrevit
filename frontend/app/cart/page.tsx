@@ -342,7 +342,7 @@ export default function CartPage() {
               </div>
             </div>
 
-            {!hasEnough && finalCoins > 0 && (
+            {!hasEnoughBalance && finalCoins > 0 && (
               <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
                 <div className="flex items-start gap-2">
                   <AlertCircle size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
