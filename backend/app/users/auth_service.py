@@ -50,39 +50,94 @@ class AuthService:
 
     @staticmethod
     def verify_telegram_auth(auth_data_obj: TelegramAuthData) -> Optional[dict]:
-        if not auth_data_obj.initData:
-            return None
-
-        try:
-            parsed_data = dict(parse_qsl(auth_data_obj.initData))
-        except ValueError:
-            return None
-
-        received_hash = parsed_data.pop('hash', '')
-        if not received_hash:
-            return None
-
-        auth_date = int(parsed_data.get('auth_date', 0))
-        if time.time() - auth_date > 86400:
-            return None
-
-        data_check_string = "\n".join(
-            f"{key}={value}" for key, value in sorted(parsed_data.items())
-        )
-
-        secret_key = hmac.new(b"WebAppData", settings.TELEGRAM_BOT_TOKEN.encode(), hashlib.sha256).digest()
-        computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-
-        if computed_hash != received_hash:
-            return None
-
-        if 'user' in parsed_data:
+        """
+        Верифікує дані від Telegram Mini App.
+        Підтримує як initData (рядок), так і окремі поля.
+        """
+        # Спочатку перевіряємо initData (основний метод для Mini App)
+        if auth_data_obj.initData:
             try:
-                parsed_data['user'] = json.loads(parsed_data['user'])
-            except json.JSONDecodeError:
+                parsed_data = dict(parse_qsl(auth_data_obj.initData))
+            except ValueError:
+                logger.warning("Failed to parse initData")
                 return None
 
-        return parsed_data
+            received_hash = parsed_data.pop('hash', '')
+            if not received_hash:
+                logger.warning("No hash in initData")
+                return None
+
+            auth_date = int(parsed_data.get('auth_date', 0))
+            # Перевірка терміну дії - 24 години
+            if time.time() - auth_date > 86400:
+                logger.warning(f"initData expired: auth_date={auth_date}")
+                return None
+
+            data_check_string = "\n".join(
+                f"{key}={value}" for key, value in sorted(parsed_data.items())
+            )
+
+            secret_key = hmac.new(b"WebAppData", settings.TELEGRAM_BOT_TOKEN.encode(), hashlib.sha256).digest()
+            computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+            if computed_hash != received_hash:
+                logger.warning("Hash verification failed")
+                return None
+
+            if 'user' in parsed_data:
+                try:
+                    parsed_data['user'] = json.loads(parsed_data['user'])
+                except json.JSONDecodeError:
+                    logger.warning("Failed to parse user JSON from initData")
+                    return None
+
+            logger.info(f"Successfully verified initData for user")
+            return parsed_data
+
+        # Fallback: перевіряємо старий формат з окремими полями (hash, auth_date)
+        if auth_data_obj.hash and auth_data_obj.auth_date and auth_data_obj.id:
+            auth_date = auth_data_obj.auth_date
+            if time.time() - auth_date > 86400:
+                logger.warning(f"Auth data expired: auth_date={auth_date}")
+                return None
+
+            # Формуємо data_check_string з окремих полів
+            check_data = {
+                'auth_date': str(auth_date),
+                'id': str(auth_data_obj.id),
+                'first_name': auth_data_obj.first_name or '',
+            }
+            if auth_data_obj.last_name:
+                check_data['last_name'] = auth_data_obj.last_name
+            if auth_data_obj.username:
+                check_data['username'] = auth_data_obj.username
+            if auth_data_obj.photo_url:
+                check_data['photo_url'] = auth_data_obj.photo_url
+
+            data_check_string = "\n".join(
+                f"{key}={value}" for key, value in sorted(check_data.items())
+            )
+
+            secret_key = hashlib.sha256(settings.TELEGRAM_BOT_TOKEN.encode()).digest()
+            computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+            if computed_hash != auth_data_obj.hash:
+                logger.warning("Legacy hash verification failed")
+                return None
+
+            return {
+                'user': {
+                    'id': auth_data_obj.id,
+                    'first_name': auth_data_obj.first_name,
+                    'last_name': auth_data_obj.last_name,
+                    'username': auth_data_obj.username,
+                    'photo_url': auth_data_obj.photo_url,
+                    'language_code': auth_data_obj.language_code,
+                }
+            }
+
+        logger.warning("No valid auth data provided")
+        return None
 
     @staticmethod
     def create_access_token(user_id: int) -> str:
@@ -144,13 +199,25 @@ class AuthService:
         if not verified_data:
             # Fallback для dev середовища
             if settings.ENVIRONMENT == 'development' and auth_data.id:
+                logger.warning(f"DEV MODE: Skipping verification for user {auth_data.id}")
                 telegram_id = auth_data.id
-                user_info = {"first_name": "Dev", "username": "dev"}
+                user_info = {
+                    "first_name": auth_data.first_name or "Dev",
+                    "last_name": auth_data.last_name,
+                    "username": auth_data.username or "dev_user",
+                    "photo_url": auth_data.photo_url,
+                    "language_code": auth_data.language_code or "uk"
+                }
             else:
+                logger.error("Telegram auth verification failed")
                 raise HTTPException(status_code=401, detail="Invalid Telegram data")
         else:
             user_info = verified_data.get('user') or verified_data
             telegram_id = user_info.get('id')
+
+        if not telegram_id:
+            logger.error("No telegram_id found in verified data")
+            raise HTTPException(status_code=401, detail="Invalid Telegram data: no user ID")
 
         result = await db.execute(select(User).where(User.telegram_id == telegram_id))
         user = result.scalar_one_or_none()
@@ -158,6 +225,7 @@ class AuthService:
         is_new = False
 
         if not user:
+            logger.info(f"Creating new user for telegram_id: {telegram_id}")
             # Створюємо користувача миттєво
             user = User(
                 telegram_id=telegram_id,
@@ -187,12 +255,26 @@ class AuthService:
 
             await db.refresh(user)
             is_new = True
+            logger.info(f"New user created: id={user.id}, telegram_id={telegram_id}")
 
+            # Обробка реферального посилання
             if auth_data.start_param:
                 await AuthService.process_referral_link(db, user, auth_data.start_param)
         else:
-            # Оновлюємо час входу
+            # Оновлюємо час входу та дані профілю
+            logger.info(f"Existing user login: id={user.id}, telegram_id={telegram_id}")
             user.last_login_at = datetime.now(timezone.utc)
+
+            # Оновлюємо дані з Telegram, якщо вони змінились
+            if user_info.get('first_name'):
+                user.first_name = user_info.get('first_name')
+            if user_info.get('last_name'):
+                user.last_name = user_info.get('last_name')
+            if user_info.get('username'):
+                user.username = user_info.get('username')
+            if user_info.get('photo_url'):
+                user.photo_url = user_info.get('photo_url')
+
             await db.commit()
             await db.refresh(user)
 

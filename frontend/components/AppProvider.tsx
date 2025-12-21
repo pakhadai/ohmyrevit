@@ -29,7 +29,34 @@ const PUBLIC_PREFIXES = [
 
 declare global {
   interface Window {
-    Telegram?: any;
+    Telegram?: {
+      WebApp?: {
+        initData: string;
+        initDataUnsafe?: {
+          user?: {
+            id: number;
+            first_name: string;
+            last_name?: string;
+            username?: string;
+            language_code?: string;
+            photo_url?: string;
+          };
+          start_param?: string;
+        };
+        ready: () => void;
+        expand: () => void;
+        enableClosingConfirmation: () => void;
+        setHeaderColor: (color: string) => void;
+        setBackgroundColor: (color: string) => void;
+        BackButton: {
+          show: () => void;
+          hide: () => void;
+          onClick: (callback: () => void) => void;
+          offClick: (callback: () => void) => void;
+        };
+        openTelegramLink: (url: string) => void;
+      };
+    };
   }
 }
 
@@ -42,6 +69,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [appReady, setAppReady] = useState(false);
   const [isI18nReady, setIsI18nReady] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const authAttempted = useRef(false);
   const pathname = usePathname();
@@ -94,10 +122,15 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     }
   };
 
-  // 3. Авторизація (Telegram)
+  // 3. Авторизація (Telegram + Web)
   useEffect(() => {
     const initializeApp = async () => {
+      console.log('[AppProvider] Starting initialization...');
+      console.log('[AppProvider] isAuthenticated:', isAuthenticated);
+
+      // Якщо вже авторизовані (з localStorage)
       if (isAuthenticated) {
+        console.log('[AppProvider] Already authenticated from storage');
         if (!authAttempted.current) {
            fetchInitialData();
            checkOnboardingStatus();
@@ -106,46 +139,98 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         return;
       }
 
-      // Спроба входу через Telegram
-      if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initData) {
-        const tg = window.Telegram.WebApp;
-        tg.ready();
+      // Перевіряємо чи ми в Telegram Mini App
+      const isTelegramMiniApp = typeof window !== 'undefined' &&
+                                window.Telegram?.WebApp?.initData &&
+                                window.Telegram.WebApp.initData.length > 0;
+
+      console.log('[AppProvider] Is Telegram Mini App:', isTelegramMiniApp);
+
+      if (isTelegramMiniApp) {
+        const tg = window.Telegram!.WebApp!;
+
+        // Ініціалізуємо Telegram WebApp
         try {
-           tg.expand();
-           tg.enableClosingConfirmation();
-           tg.setHeaderColor('#ffffff'); // або колір теми
-           tg.setBackgroundColor('#ffffff');
-        } catch (e) {}
+          tg.ready();
+          tg.expand();
+          tg.enableClosingConfirmation();
+          tg.setHeaderColor('#ffffff');
+          tg.setBackgroundColor('#ffffff');
+        } catch (e) {
+          console.warn('[AppProvider] Telegram WebApp init warning:', e);
+        }
 
         const rawInitData = tg.initData;
-        let startParam = tg.initDataUnsafe?.start_param;
+        console.log('[AppProvider] initData length:', rawInitData?.length);
+        console.log('[AppProvider] initDataUnsafe:', tg.initDataUnsafe);
 
-        // Fallback для вебу
+        // Отримуємо start_param
+        let startParam = tg.initDataUnsafe?.start_param || null;
+
+        // Fallback для URL параметрів
         if (!startParam && typeof window !== 'undefined') {
             const urlParams = new URLSearchParams(window.location.search);
-            startParam = urlParams.get('startapp') || null;
+            startParam = urlParams.get('startapp') || urlParams.get('start_param') || null;
         }
+
+        console.log('[AppProvider] start_param:', startParam);
 
         if (rawInitData && !authAttempted.current) {
           authAttempted.current = true;
+
           try {
-            const loginResponse = await login({
-                initData: rawInitData,
-                start_param: startParam
+            console.log('[AppProvider] Attempting Telegram login...');
+
+            // Формуємо дані для авторизації
+            const authPayload = {
+              initData: rawInitData,
+              start_param: startParam,
+              // Додаємо дані користувача як fallback
+              id: tg.initDataUnsafe?.user?.id,
+              first_name: tg.initDataUnsafe?.user?.first_name,
+              last_name: tg.initDataUnsafe?.user?.last_name,
+              username: tg.initDataUnsafe?.user?.username,
+              language_code: tg.initDataUnsafe?.user?.language_code || 'uk',
+              photo_url: tg.initDataUnsafe?.user?.photo_url,
+            };
+
+            console.log('[AppProvider] Auth payload:', {
+              ...authPayload,
+              initData: authPayload.initData?.substring(0, 50) + '...'
             });
+
+            const loginResponse = await login(authPayload);
+            console.log('[AppProvider] Login successful:', loginResponse);
 
             await fetchInitialData();
 
-            if (loginResponse && (loginResponse.is_new_user || loginResponse.isNewUser) && tg.initDataUnsafe?.user?.language_code) {
-               setLanguage(tg.initDataUnsafe.user.language_code as any);
+            // Встановлюємо мову з Telegram
+            if (loginResponse && (loginResponse.is_new_user || loginResponse.isNewUser)) {
+              const tgLang = tg.initDataUnsafe?.user?.language_code;
+              if (tgLang && ['uk', 'en', 'ru', 'de', 'es'].includes(tgLang)) {
+                setLanguage(tgLang as any);
+              }
             }
 
             checkOnboardingStatus();
-          } catch (error) {
-            console.error('TG Auth failed, staying as guest:', error);
+            setAuthError(null);
+
+          } catch (error: any) {
+            console.error('[AppProvider] TG Auth failed:', error);
+            console.error('[AppProvider] Error details:', error.response?.data);
+
+            setAuthError(error.response?.data?.detail || error.message || 'Authentication failed');
+
+            // Не редіректимо одразу, даємо можливість побачити помилку
+            // Можна показати повідомлення користувачу
           }
         }
+      } else {
+        console.log('[AppProvider] Not in Telegram Mini App, web mode');
+        // Для веб-версії - просто завантажуємо додаток
+        // Авторизація буде через форму входу
       }
+
       setAppReady(true);
     };
 
@@ -160,9 +245,11 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     const isPublic = PUBLIC_ROUTES.includes(pathname) ||
                      PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix));
 
+    console.log('[AppProvider] Route check:', { pathname, isPublic, isAuthenticated });
+
     // Якщо не авторизовані і маршрут приватний -> редірект
     if (!isAuthenticated && !isPublic) {
-       console.log("Redirecting to login from:", pathname);
+       console.log('[AppProvider] Redirecting to login from:', pathname);
        router.push('/login');
     }
   }, [appReady, isAuthenticated, pathname, router]);
@@ -172,10 +259,22 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     completeOnboarding();
   };
 
+  // Показуємо лоадер поки ініціалізуємось
   if (!appReady || !isI18nReady) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-background z-[100]">
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-background z-[100] gap-4">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+        {authError && (
+          <div className="text-center px-4">
+            <p className="text-red-500 text-sm">{authError}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-2 text-primary underline text-sm"
+            >
+              Спробувати знову
+            </button>
+          </div>
+        )}
       </div>
     );
   }

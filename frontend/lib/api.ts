@@ -10,7 +10,7 @@ import {
   SubscriptionCheckoutResponse,
   SubscriptionPriceInfo,
   SubscriptionStatus,
-  AuthResponse // <--- Використовуємо цей імпорт
+  AuthResponse
 } from '@/types';
 
 export interface Category {
@@ -18,8 +18,6 @@ export interface Category {
   name: string;
   slug: string;
 }
-
-// Видаліть локальний інтерфейс AuthResponse, якщо він тут був!
 
 export interface Product {
   id: number;
@@ -58,25 +56,23 @@ export interface ProductCreate {
 
 export interface ProductUpdate extends Partial<ProductCreate> {}
 
-let failedQueue: any[] = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
-
+// Визначаємо API URL
 const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
-if (!envApiUrl && process.env.NODE_ENV === 'production') {
-  console.error("CRITICAL: NEXT_PUBLIC_API_URL is not defined!");
+const envBackendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+
+// Логуємо конфігурацію при завантаженні
+if (typeof window !== 'undefined') {
+  console.log('[API] Environment:', {
+    NEXT_PUBLIC_API_URL: envApiUrl,
+    NEXT_PUBLIC_BACKEND_URL: envBackendUrl,
+    NODE_ENV: process.env.NODE_ENV
+  });
 }
 
-const API_URL = envApiUrl || 'http://localhost:8000/api/v1';
+// Формуємо базовий URL
+const API_URL = envApiUrl || (envBackendUrl ? `${envBackendUrl}/api/v1` : 'http://localhost:8000/api/v1');
+
+console.log('[API] Using API_URL:', API_URL);
 
 const createAPIClient = (): AxiosInstance => {
   const instance = axios.create({
@@ -87,54 +83,81 @@ const createAPIClient = (): AxiosInstance => {
     },
   });
 
+  // Request interceptor
   instance.interceptors.request.use(
     (config) => {
-      // Використовуємо getState(), щоб уникнути циклічних імпортів, якщо можливо
-      // Але тут прямий імпорт, що ок, поки authStore не імпортує api (що він робить).
-      // Це може бути проблемою. Краще брати токен з localStorage напряму, якщо є циклічна залежність.
-      const token = useAuthStore.getState().token;
+      // Додаємо токен авторизації
+      // Отримуємо токен напряму з localStorage, щоб уникнути циклічних залежностей
+      let token: string | null = null;
+
+      try {
+        const authStorage = localStorage.getItem('auth-storage');
+        if (authStorage) {
+          const parsed = JSON.parse(authStorage);
+          token = parsed?.state?.token;
+        }
+      } catch (e) {
+        // Fallback до store
+        token = useAuthStore.getState().token;
+      }
+
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+
+      // Додаємо мову
       try {
         const languageStorage = localStorage.getItem('language-storage');
         if (languageStorage) {
-          let lang: string | undefined;
-          try {
-            const persistedState = JSON.parse(languageStorage);
-            lang = persistedState?.state?.language;
-          } catch (jsonError) {
-            const rawValue = languageStorage.replace(/"/g, '');
-            if (['uk', 'en', 'ru', 'de', 'es'].includes(rawValue)) {
-              lang = rawValue;
-            }
-          }
-
-          if (lang) {
+          const parsed = JSON.parse(languageStorage);
+          const lang = parsed?.state?.language;
+          if (lang && ['uk', 'en', 'ru', 'de', 'es'].includes(lang)) {
             config.headers['Accept-Language'] = lang;
           }
         }
       } catch (e) {
-        console.error('Could not determine language from localStorage', e);
+        // Використовуємо мову за замовчуванням
+        config.headers['Accept-Language'] = 'uk';
       }
+
+      // Логуємо запит (крім чутливих даних)
+      console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, {
+        hasToken: !!token,
+        contentType: config.headers['Content-Type']
+      });
+
       return config;
     },
     (error) => {
+      console.error('[API] Request error:', error);
       return Promise.reject(error);
     }
   );
 
+  // Response interceptor
   instance.interceptors.response.use(
-    (response) => response,
+    (response) => {
+      console.log(`[API] Response ${response.status} from ${response.config.url}`);
+      return response;
+    },
     async (error) => {
       const originalRequest = error.config;
 
+      // Ігноруємо скасовані запити
       if (axios.isCancel(error)) {
         return Promise.reject(error);
       }
 
+      console.error('[API] Response error:', {
+        status: error.response?.status,
+        url: originalRequest?.url,
+        data: error.response?.data
+      });
+
+      // При 401 помилці - розлогінюємо
       if (error.response?.status === 401 && !originalRequest._retry) {
         originalRequest._retry = true;
+        console.log('[API] 401 Unauthorized, logging out');
         useAuthStore.getState().logout();
         return Promise.reject(error);
       }
@@ -155,7 +178,10 @@ export default api;
 // ============ Auth API ============
 export const authAPI = {
   loginTelegram: async (initData: object): Promise<AuthResponse> => {
-    return getData(await api.post('/auth/telegram', initData));
+    console.log('[API] loginTelegram called');
+    const response = await api.post('/auth/telegram', initData);
+    console.log('[API] loginTelegram response:', response.data);
+    return response.data;
   },
 };
 
