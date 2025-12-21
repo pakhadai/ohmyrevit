@@ -62,6 +62,17 @@ class Settings(BaseSettings):
     COINS_PER_USD: int = 100  # 100 монет = $1
     SUBSCRIPTION_PRICE_COINS: int = 500  # Ціна підписки в монетах (= $5)
 
+    # --- Email Settings (SMTP) ---
+    MAIL_USERNAME: str = ""
+    MAIL_PASSWORD: str = ""
+    MAIL_FROM: str = ""
+    MAIL_PORT: int = 587
+    MAIL_SERVER: str = ""
+    MAIL_STARTTLS: bool = True
+    MAIL_SSL_TLS: bool = False
+    USE_CREDENTIALS: bool = True
+    VALIDATE_CERTS: bool = True
+
     # Legacy (використовується в бонусній системі)
     SUBSCRIPTION_PRICE_USD: float = 5.0
     REFERRAL_PURCHASE_PERCENT: float = 0.05

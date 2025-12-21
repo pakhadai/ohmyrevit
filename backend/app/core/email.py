@@ -1,16 +1,27 @@
-import httpx
 import logging
 from typing import List, Optional, Dict
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from app.core.config import settings
 from app.core.translations import get_text
 
 logger = logging.getLogger(__name__)
 
+# Налаштування конфігурації SMTP
+conf = ConnectionConfig(
+    MAIL_USERNAME=settings.MAIL_USERNAME,
+    MAIL_PASSWORD=settings.MAIL_PASSWORD,
+    MAIL_FROM=settings.MAIL_FROM,
+    MAIL_PORT=settings.MAIL_PORT,
+    MAIL_SERVER=settings.MAIL_SERVER,
+    MAIL_STARTTLS=settings.MAIL_STARTTLS,
+    MAIL_SSL_TLS=settings.MAIL_SSL_TLS,
+    USE_CREDENTIALS=settings.USE_CREDENTIALS,
+    VALIDATE_CERTS=settings.VALIDATE_CERTS
+)
+
 class EmailService:
     def __init__(self):
-        self.api_key = settings.RESEND_API_KEY
-        self.from_email = settings.FROM_EMAIL
-        self.api_url = "https://api.resend.com/emails"
+        self.fastmail = FastMail(conf)
 
     async def send_email(
             self,
@@ -19,37 +30,22 @@ class EmailService:
             html_content: str,
             text_content: Optional[str] = None
     ) -> bool:
-        if not self.api_key:
-            logger.error("RESEND_API_KEY is missing. Email not sent.")
-            return False
-
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-
-        data = {
-            "from": self.from_email,
-            "to": to,
-            "subject": subject,
-            "html": html_content
-        }
-
-        if text_content:
-            data["text"] = text_content
-
+        """
+        Універсальний метод відправки через SMTP
+        """
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    self.api_url,
-                    json=data,
-                    headers=headers
-                )
-                response.raise_for_status()
-                logger.info(f"Email sent successfully to {to}")
-                return True
+            message = MessageSchema(
+                subject=subject,
+                recipients=[to],
+                body=html_content,
+                subtype=MessageType.html
+            )
+
+            await self.fastmail.send_message(message)
+            logger.info(f"Email sent successfully to {to}")
+            return True
         except Exception as e:
-            logger.error(f"Failed to send email: {str(e)}")
+            logger.error(f"Failed to send email via SMTP: {str(e)}")
             return False
 
     async def send_order_confirmation(
