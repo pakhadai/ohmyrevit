@@ -110,14 +110,19 @@ async def forgot_password(
     user = result.scalar_one_or_none()
 
     if user and user.is_email_verified:
-        # Генеруємо новий пароль і відправляємо
-        # (логіка схожа на верифікацію, можна винести в сервіс)
+        # Генеруємо новий пароль
         password = AuthService.generate_strong_password()
         user.hashed_password = AuthService.get_password_hash(password)
         await db.commit()
 
-        # Тут треба використати email_service для відправки нового пароля
-        # ...
+        # ВІДПРАВЛЯЄМО ЛИСТ (Додано цей блок)
+        html_content = f"""
+        <h1>Відновлення пароля</h1>
+        <p>Ваш новий тимчасовий пароль: <strong>{password}</strong></p>
+        <p>Будь ласка, змініть його в налаштуваннях профілю після входу.</p>
+        """
+        from app.core.email import email_service
+        await email_service.send_email(to=user.email, subject="Новий пароль - OhMyRevit", html_content=html_content)
 
     return {"message": "Якщо акаунт існує, ми відправили інструкції."}
 

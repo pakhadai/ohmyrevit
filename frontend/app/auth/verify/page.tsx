@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react'; // Додано useRef
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, XCircle, Loader } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
@@ -13,6 +13,9 @@ export default function VerifyPage() {
   const router = useRouter();
   const { setToken, setUser } = useAuthStore();
 
+  // Ref для захисту від подвійного виклику
+  const processingRef = useRef(false);
+
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
 
   useEffect(() => {
@@ -21,18 +24,19 @@ export default function VerifyPage() {
       return;
     }
 
+    // Якщо вже обробляємо - виходимо
+    if (processingRef.current) return;
+    processingRef.current = true;
+
     const verify = async () => {
       try {
-        // Викликаємо бекенд
         const res = await api.post('/auth/verify', { token });
 
-        // Зберігаємо дані (Backend тепер повертає CamelCase)
         const data = res.data;
         setToken(data.accessToken);
         setUser(data.user);
 
         setStatus('success');
-        // Автоматичний редірект
         setTimeout(() => router.push('/'), 3000);
       } catch (error) {
         console.error(error);
@@ -56,7 +60,7 @@ export default function VerifyPage() {
         <div className="space-y-4 animate-in fade-in zoom-in">
           <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto" />
           <h1 className="text-2xl font-bold">Пошту підтверджено!</h1>
-          <p className="text-muted-foreground">Зараз вас буде перенаправлено...</p>
+          <p className="text-muted-foreground">Ми відправили вам пароль на пошту.<br/>Зараз вас буде перенаправлено...</p>
           <Link href="/" className="btn-primary inline-block px-6 py-2 rounded-xl mt-4">
             На головну
           </Link>
@@ -66,8 +70,8 @@ export default function VerifyPage() {
       {status === 'error' && (
         <div className="space-y-4 animate-in fade-in zoom-in">
           <XCircle className="w-16 h-16 text-destructive mx-auto" />
-          <h1 className="text-2xl font-bold">Помилка підтвердження</h1>
-          <p className="text-muted-foreground">Посилання недійсне або застаріло.</p>
+          <h1 className="text-2xl font-bold">Помилка або посилання застаріло</h1>
+          <p className="text-muted-foreground">Можливо, ви вже підтвердили пошту раніше.</p>
           <Link href="/login" className="btn-primary inline-block px-6 py-2 rounded-xl mt-4">
             Спробувати увійти
           </Link>
