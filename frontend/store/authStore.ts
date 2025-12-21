@@ -16,7 +16,7 @@ interface AuthState {
   login: (initData: object) => Promise<any>;
   logout: () => void;
   setUser: (user: User) => void;
-  setToken: (token: string) => void; // <--- 1. ДОДАНО В ІНТЕРФЕЙС
+  setToken: (token: string) => void;
   updateBalance: (newBalance: number) => void;
   checkTokenValidity: () => void;
   completeOnboarding: () => void;
@@ -33,7 +33,6 @@ export const useAuthStore = create<AuthState>()(
       isNewUser: null,
 
       login: async (initData: object) => {
-        // ... (ваш існуючий код login)
         set({ isLoading: true, isNewUser: null });
         try {
           const response = await authAPI.loginTelegram(initData);
@@ -76,7 +75,6 @@ export const useAuthStore = create<AuthState>()(
         set({ user });
       },
 
-      // <--- 2. ДОДАНО РЕАЛІЗАЦІЮ
       setToken: (token: string) => {
         set({
             token,

@@ -6,13 +6,11 @@ import { useCollectionStore } from '@/store/collectionStore';
 import { useLanguageStore } from '@/store/languageStore';
 import { useUIStore } from '@/store/uiStore';
 import Onboarding from './Onboarding';
-import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 
-// Список публічних маршрутів, які доступні без авторизації
 const PUBLIC_ROUTES = ['/login', '/register', '/terms', '/privacy', '/auth/verify'];
 
 declare global {
@@ -22,7 +20,7 @@ declare global {
 }
 
 export default function AppProvider({ children }: { children: React.ReactNode }) {
-  const { login, isLoading, isAuthenticated, completeOnboarding, token } = useAuthStore();
+  const { login, isLoading, isAuthenticated, completeOnboarding } = useAuthStore();
   const { fetchInitialData } = useCollectionStore();
   const { setLanguage } = useLanguageStore();
   const { setTheme } = useUIStore();
@@ -37,7 +35,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
 
-  // 1. Ініціалізація теми та мови
   useEffect(() => {
     const storedTheme = useUIStore.getState().theme;
     setTheme(storedTheme);
@@ -61,7 +58,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     };
   }, [setTheme]);
 
-  // 2. Логіка Telegram BackButton
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
@@ -91,10 +87,8 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     }
   };
 
-  // 3. Головна логіка ініціалізації та авторизації
   useEffect(() => {
     const initializeApp = async () => {
-      // Якщо вже авторизовані або вже пробували - пропускаємо TG логіку
       if (isAuthenticated) {
         if (!authAttempted.current) {
            fetchInitialData();
@@ -104,7 +98,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         return;
       }
 
-      // Спроба авторизації через Telegram
       if (window.Telegram?.WebApp?.initData) {
         const tg = window.Telegram.WebApp;
         tg.ready();
@@ -115,12 +108,10 @@ export default function AppProvider({ children }: { children: React.ReactNode })
             tg.setBackgroundColor('bg_color');
         } catch (e) {}
 
-        const initData = tg.initDataUnsafe;
         const rawInitData = tg.initData;
 
         let startParam = tg.initDataUnsafe?.start_param;
          if (!startParam) {
-            // Fallback для start_param з URL (для вебу або прямого лінку)
             const urlParams = new URLSearchParams(window.location.search);
             startParam = urlParams.get('startapp') || null;
          }
@@ -133,25 +124,14 @@ export default function AppProvider({ children }: { children: React.ReactNode })
                 start_param: startParam
             });
 
-            // Гібридна логіка: якщо сервер каже needs_registration
-            if (loginResponse.needs_registration) {
-                // Перенаправляємо на спеціальну сторінку або показуємо модалку
-                // Тут для простоти перекинемо на реєстрацію, передавши initData (можна через store)
-                toast('Будь ласка, зареєструйте Email для прив\'язки акаунту', { icon: 'ℹ️' });
-                router.push('/login');
-                setAppReady(true);
-                return;
-            }
-
             await fetchInitialData();
 
-            if (loginResponse.is_new_user && initData.user?.language_code) {
-               setLanguage(initData.user.language_code as any);
+            if (loginResponse.is_new_user && tg.initDataUnsafe.user?.language_code) {
+               setLanguage(tg.initDataUnsafe.user.language_code as any);
             }
             checkOnboardingStatus();
           } catch (error) {
             console.error('TG Auth failed', error);
-            // Якщо TG авторизація не пройшла - не блокуємо, даємо увійти через Email
           }
         }
       }
@@ -162,14 +142,12 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     initializeApp();
   }, [login, isAuthenticated, fetchInitialData, setLanguage]);
 
-  // 4. Захист маршрутів (Middleware на клієнті)
   useEffect(() => {
     if (!appReady) return;
 
     const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
 
-    if (!isAuthenticated && !isPublicRoute) {
-       // Якщо не залогінені і не на публічній сторінці -> редірект на логін
+    if (!isAuthenticated && !isPublicRoute && !window.Telegram?.WebApp?.initData) {
        router.push('/login');
     }
   }, [appReady, isAuthenticated, pathname, router]);

@@ -2,16 +2,17 @@ import axios, { AxiosInstance } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import {
   CoinPack,
-  Transaction,
   WalletInfo,
   TransactionListResponse,
   CheckoutResponse,
   ApplyDiscountResponse,
   SubscriptionCheckoutResponse,
   SubscriptionPriceInfo,
-  SubscriptionStatus
+  SubscriptionStatus,
+  AuthResponse
 } from '@/types';
 
+// Типи для продуктів та категорій (можна винести в types/index.ts, але залишаємо тут для сумісності)
 export interface Category {
   id: number;
   name: string;
@@ -23,50 +24,23 @@ export interface Product {
   title: string;
   description: string;
   price: number;
-  product_type: 'free' | 'premium';
-  main_image_url: string;
-  gallery_image_urls: string[];
-  zip_file_path?: string;
-  file_size_mb: number;
+  productType: 'free' | 'premium';
+  mainImageUrl: string;
+  galleryImageUrls: string[];
+  zipFilePath?: string;
+  fileSizeMb: number;
   compatibility?: string;
-  is_on_sale: boolean;
-  sale_price?: number;
-  actual_price?: number;
+  isOnSale: boolean;
+  salePrice?: number;
+  actualPrice?: number;
   categories: Category[];
-  views_count: number;
-  downloads_count: number;
-  created_at?: string;
+  viewsCount: number;
+  downloadsCount: number;
+  createdAt?: string;
 }
 
-export interface ProductCreate {
-  title_uk: string;
-  description_uk: string;
-  price: number;
-  product_type: string;
-  main_image_url: string;
-  gallery_image_urls: string[];
-  zip_file_path: string;
-  file_size_mb: number;
-  compatibility?: string;
-  is_on_sale: boolean;
-  sale_price?: number | null;
-  category_ids: number[];
-}
-
-export interface ProductUpdate extends Partial<ProductCreate> {}
-
+// Черга для запитів, що не вдалися (поки що проста реалізація)
 let failedQueue: any[] = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
 
 const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
 if (!envApiUrl && process.env.NODE_ENV === 'production') {
@@ -84,6 +58,7 @@ const createAPIClient = (): AxiosInstance => {
     },
   });
 
+  // Request Interceptor: Додає токен та мову
   instance.interceptors.request.use(
     (config) => {
       const token = useAuthStore.getState().token;
@@ -118,6 +93,7 @@ const createAPIClient = (): AxiosInstance => {
     }
   );
 
+  // Response Interceptor: Обробка 401 (Logout)
   instance.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -142,20 +118,41 @@ const createAPIClient = (): AxiosInstance => {
 
 const api = createAPIClient();
 
+// Helper для отримання даних з відповіді
 export const getData = (response: any) => response.data;
 
 export default api;
 
 // ============ Auth API ============
 export const authAPI = {
-  loginTelegram: async (initData: object) => {
+  // Telegram Mini App Login
+  loginTelegram: async (initData: object): Promise<AuthResponse> => {
     return getData(await api.post('/auth/telegram', initData));
   },
+  // Web Login
+  login: async (data: { email: string; password: string }): Promise<AuthResponse> => {
+    return getData(await api.post('/auth/login', data));
+  },
+  // Web Register
+  register: async (data: { email: string }) => {
+    return getData(await api.post('/auth/register', data));
+  },
+  // Password Reset Request
+  forgotPassword: async (data: { email: string }) => {
+    return getData(await api.post('/auth/forgot-password', data));
+  },
+  // Verify Email Token
+  verifyEmail: async (data: { token: string }): Promise<AuthResponse> => {
+    return getData(await api.post('/auth/verify', data));
+  },
+  // Complete Telegram Registration (Onboarding)
+  completeRegistration: async (data: { email: string }) => {
+    return getData(await api.post('/auth/complete-registration', data));
+  }
 };
 
 // ============ Products API ============
 export const productsAPI = {
-  // Renamed getAll -> getProducts to match usage
   getProducts: async (params?: {
     category?: string;
     product_type?: string;
@@ -170,7 +167,6 @@ export const productsAPI = {
   }) => {
     return getData(await api.get('/products', { params }));
   },
-  // Renamed getById -> getProductById and added language param
   getProductById: async (id: number | string, language?: string) => {
     const config = language ? { headers: { 'Accept-Language': language } } : {};
     return getData(await api.get(`/products/${id}`, config));
@@ -201,9 +197,9 @@ export const ordersAPI = {
   },
 };
 
-// ============ Wallet API (NEW) ============
+// ============ Wallet API ============
 export const walletAPI = {
-  getBalance: async (): Promise<{ balance: number; balance_usd: number }> => {
+  getBalance: async (): Promise<{ balance: number; balanceUsd: number }> => {
     return getData(await api.get('/wallet/balance'));
   },
   getInfo: async (): Promise<WalletInfo> => {
@@ -304,21 +300,14 @@ export const adminAPI = {
     return getData(await api.patch(`/admin/users/${userId}/toggle-admin`));
   },
   toggleUserActive: async (userId: number) => {
+    // Note: Assuming endpoint exists in backend or handled via user update
+    // If not, this might need adjustment based on specific backend implementation
     return getData(await api.patch(`/admin/users/${userId}/toggle-active`));
   },
   addUserBonus: async (userId: number, amount: number, reason: string) => {
-    // Note: Endpoint changed to add-coins in backend, but keep compatibility if needed or update
-    // The backend router has: /admin/users/{user_id}/add-coins
     return getData(await api.post(`/admin/users/${userId}/add-coins`, { amount, reason }));
   },
   giveSubscription: async (userId: number, days: number) => {
-    // Note: Verify backend endpoint. The provided backend router doesn't show explicit /subscription endpoint for admin give subscription in user section,
-    // but the previous frontend code used it. Assuming it exists or should be handled.
-    // If it was removed/changed, this might need update.
-    // Based on previous code provided, it seems it might be missing in the new backend router.py or I missed it.
-    // Checking provided backend/app/admin/router.py...
-    // It has /users/{user_id}/add-coins but not give-subscription.
-    // However, let's keep it here to avoid breaking compilation if it's used, but it might fail at runtime if backend is missing.
     return getData(await api.post(`/admin/users/${userId}/subscription`, { days }));
   },
   // CoinPacks

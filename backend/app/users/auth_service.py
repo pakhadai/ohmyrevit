@@ -11,7 +11,7 @@ from typing import Tuple, Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 import logging
@@ -50,12 +50,6 @@ class AuthService:
 
     @staticmethod
     def verify_telegram_auth(auth_data_obj: TelegramAuthData) -> Optional[dict]:
-        if settings.ENVIRONMENT == 'development' and settings.DEBUG:
-            if auth_data_obj.id and not auth_data_obj.initData:
-                return auth_data_obj.model_dump()
-            if not settings.TELEGRAM_BOT_TOKEN:
-                return {"user": {"id": 12345, "first_name": "DevUser"}}
-
         if not auth_data_obj.initData:
             return None
 
@@ -113,7 +107,6 @@ class AuthService:
 
     @staticmethod
     async def process_referral_link(db: AsyncSession, user: User, start_param: str):
-        # (Логіка рефералів залишається без змін)
         start_param = start_param.strip()
         if user.referrer_id is not None or user.referral_code == start_param:
             return
@@ -151,7 +144,6 @@ class AuthService:
 
         verification_token = AuthService.generate_token_urlsafe()
 
-        # Відправка Email
         link = f"{settings.FRONTEND_URL}/auth/verify?token={verification_token}"
         html_content = f"""
         <h1>Вітаємо в OhMyRevit!</h1>
@@ -162,15 +154,13 @@ class AuthService:
 
         await email_service.send_email(to=email, subject="Підтвердження реєстрації", html_content=html_content)
 
-        # Зберігаємо токен (тимчасово в кеші або створюємо неактивного юзера)
-        # Для спрощення створюємо/оновлюємо юзера з is_active=False (або is_email_verified=False)
         if not user:
             user = User(
                 email=email,
                 first_name="New User",
                 verification_token=verification_token,
                 is_email_verified=False,
-                is_active=True  # Дозволяємо вхід тільки після верифікації
+                is_active=True
             )
             db.add(user)
         else:
@@ -192,7 +182,6 @@ class AuthService:
         user.is_email_verified = True
         user.verification_token = None
 
-        # Генеруємо реферальний код
         if not user.referral_code:
             for _ in range(5):
                 try:
@@ -204,7 +193,6 @@ class AuthService:
 
         await db.commit()
 
-        # Відправляємо пароль
         html_content = f"""
         <h1>Реєстрація успішна!</h1>
         <p>Ваш тимчасовий пароль: <strong>{password}</strong></p>
@@ -219,16 +207,18 @@ class AuthService:
     async def authenticate_hybrid_telegram_user(
             db: AsyncSession,
             auth_data: TelegramAuthData
-    ) -> Tuple[Optional[User], bool, bool]:
+    ) -> Tuple[User, bool]:
         """
-        Повертає: (User object, is_new_user, needs_registration)
+        Перевіряє дані Telegram. Якщо користувача немає - створює його.
+        Повертає (User, is_new_user).
         """
         verified_data = AuthService.verify_telegram_auth(auth_data)
 
         if not verified_data:
-            # Dev mode fallback logic ... (як в оригіналі)
+            # Для розробки можна залишити, але в продакшні це повинно бути вимкнено
             if settings.ENVIRONMENT == 'development' and auth_data.id:
                 telegram_id = auth_data.id
+                user_info = {"id": telegram_id, "first_name": "DevUser", "username": "dev"}
             else:
                 raise HTTPException(status_code=401, detail="Invalid Telegram data")
         else:
@@ -238,12 +228,40 @@ class AuthService:
         result = await db.execute(select(User).where(User.telegram_id == telegram_id))
         user = result.scalar_one_or_none()
 
-        if not user:
-            # Юзера немає в базі - потрібна реєстрація через Email
-            return None, False, True
+        is_new_user = False
 
-        # Юзер є, оновлюємо дані
+        if not user:
+            is_new_user = True
+            # Створюємо користувача без Email
+            user = User(
+                telegram_id=telegram_id,
+                first_name=user_info.get('first_name', 'User'),
+                last_name=user_info.get('last_name'),
+                username=user_info.get('username'),
+                photo_url=user_info.get('photo_url'),
+                language_code=user_info.get('language_code', 'uk'),
+                is_active=True,
+                is_email_verified=False
+            )
+            db.add(user)
+            await db.flush()
+
+            # Генеруємо реферальний код
+            for _ in range(5):
+                try:
+                    user.referral_code = AuthService._generate_referral_code()
+                    await db.flush()
+                    break
+                except IntegrityError:
+                    await db.rollback()
+
+            # Обробка рефералки
+            if auth_data.start_param:
+                await AuthService.process_referral_link(db, user, auth_data.start_param)
+
+        # Оновлюємо час входу
         user.last_login_at = datetime.now(timezone.utc)
         await db.commit()
+        await db.refresh(user)
 
-        return user, False, False
+        return user, is_new_user

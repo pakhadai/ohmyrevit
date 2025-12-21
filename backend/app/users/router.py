@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from sqlalchemy.exc import IntegrityError
-from datetime import datetime  # <--- ЦЕ БУЛО ВАЖЛИВО ДОДАТИ
+from datetime import datetime
 from sqlalchemy import select
 import json
 
@@ -64,47 +64,16 @@ async def telegram_auth_check(
         auth_data: TelegramAuthData,
         db: AsyncSession = Depends(get_db)
 ):
-    # Додаємо логування для відлагодження
-    print(f"Received TG Init Data: {auth_data.initData[:50]}...")
+    # Тепер функція завжди повертає користувача (або створює його)
+    user, is_new_user = await AuthService.authenticate_hybrid_telegram_user(db, auth_data)
 
-    user, is_new_user, needs_registration = await AuthService.authenticate_hybrid_telegram_user(db, auth_data)
-
-    if needs_registration:
-        print("User needs registration. Returning dummy user.")
-        # FIX: Використовуємо id=-1 замість 0, бо JS сприймає 0 як false
-        dummy_user = UserResponse(
-            id=-1,
-            email="temp@temp.com",
-            first_name="Guest",
-            is_admin=False,
-            is_email_verified=False,
-            balance=0,
-            bonus_streak=0,
-            created_at=datetime.now(),
-            language_code="uk"
-        )
-
-        return TokenResponse(
-            access_token="",
-            user=dummy_user,
-            needs_registration=True
-        )
-
-    print(f"User authenticated: {user.id}")
     access_token = AuthService.create_access_token(user.id)
 
-    # Створюємо відповідь
-    response = TokenResponse(
+    return TokenResponse(
         access_token=access_token,
         user=UserResponse.model_validate(user),
         is_new_user=is_new_user
     )
-
-    # Цей прінт покаже в консолі бекенду, який саме JSON летить на фронт
-    # Це допоможе зрозуміти, чи поля названі як треба (first_name vs firstName)
-    print(f"Sending response: {response.model_dump_json()}")
-
-    return response
 
 
 @auth_router.post("/telegram/link", response_model=TokenResponse)
@@ -112,7 +81,6 @@ async def link_telegram(
         data: TelegramLinkRequest,
         db: AsyncSession = Depends(get_db)
 ):
-    # Валідація TG даних
     tg_data = AuthService.verify_telegram_auth(TelegramAuthData(initData=data.initData))
     if not tg_data:
         raise HTTPException(status_code=401, detail="Invalid Telegram data")
@@ -120,12 +88,10 @@ async def link_telegram(
     tg_user = tg_data.get('user', {})
     telegram_id = tg_user.get('id')
 
-    # Перевірка Email
     result = await db.execute(select(User).where(User.email == data.email))
     existing_user = result.scalar_one_or_none()
 
     if existing_user:
-        # Лінк існуючого акаунту
         if not data.password or not AuthService.verify_password(data.password, existing_user.hashed_password):
             raise HTTPException(status_code=401, detail="Для прив'язки існуючого акаунту потрібен вірний пароль")
 
@@ -133,7 +99,6 @@ async def link_telegram(
         await db.commit()
         user = existing_user
     else:
-        # Новий юзер через TG
         password = AuthService.generate_strong_password()
         user = User(
             email=data.email,
@@ -150,7 +115,6 @@ async def link_telegram(
         db.add(user)
         await db.commit()
 
-        # Генеруємо реферальний код
         for _ in range(5):
             try:
                 user.referral_code = AuthService._generate_referral_code()
@@ -159,9 +123,6 @@ async def link_telegram(
             except IntegrityError:
                 await db.rollback()
         await db.commit()
-
-        # Відправка пароля
-        # (Email service call here...)
 
     access_token = AuthService.create_access_token(user.id)
     return TokenResponse(
@@ -183,8 +144,6 @@ async def forgot_password(
         new_password = AuthService.generate_strong_password()
         user.hashed_password = AuthService.get_password_hash(new_password)
         await db.commit()
-        # Send email with new_password
-        # email_service.send(...)
 
     return {"message": "Якщо email існує, ми відправили новий пароль."}
 

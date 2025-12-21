@@ -1,5 +1,3 @@
-// frontend/types/index.ts
-
 export interface Category {
   id: number;
   name: string;
@@ -8,19 +6,19 @@ export interface Category {
 
 export interface User {
   id: number;
-  telegram_id: number;
+  telegramId?: number;
   username?: string;
-  first_name: string;
-  last_name?: string;
-  birth_date?: string;
-  language_code: string;
-  photo_url?: string;
+  firstName: string;
+  lastName?: string;
+  birthDate?: string;
+  languageCode: string;
+  photoUrl?: string;
   email?: string;
-  is_admin: boolean;
+  isAdmin: boolean;
   balance: number;
-  bonus_streak: number;
-  last_bonus_claim_date?: string;
-  referral_code?: string;
+  bonusStreak: number;
+  lastBonusClaimDate?: string;
+  referralCode?: string;
 }
 
 export interface Product {
@@ -28,17 +26,17 @@ export interface Product {
   title: string;
   description: string;
   price: number;
-  product_type: 'free' | 'premium';
-  main_image_url: string;
-  gallery_image_urls: string[];
-  is_on_sale: boolean;
-  sale_price?: number;
-  actual_price?: number;
-  file_size_mb: number;
+  productType: 'free' | 'premium';
+  mainImageUrl: string;
+  galleryImageUrls: string[];
+  isOnSale: boolean;
+  salePrice?: number;
+  actualPrice?: number;
+  fileSizeMb: number;
   compatibility: string;
   categories: Category[];
-  views_count?: number;
-  downloads_count?: number;
+  viewsCount?: number;
+  downloadsCount?: number;
 }
 
 export interface CartItem {
@@ -53,38 +51,36 @@ export interface Collection {
   id: number;
   name: string;
   color: string;
-  created_at: string;
-  products_count: number;
+  createdAt: string;
+  productsCount: number;
 }
 
 export interface ProductInCollection {
   id: number;
   title: string;
   description: string;
-  main_image_url: string;
+  mainImageUrl: string;
   price: number;
-  product_type: string;
+  productType: string;
 }
 
 export interface CollectionDetail extends Collection {
   products: ProductInCollection[];
 }
 
-// ============ Wallet Types (NEW) ============
-
 export interface CoinPack {
   id: number;
   name: string;
-  price_usd: number;
-  coins_amount: number;
-  bonus_percent: number;
-  total_coins: number;
-  gumroad_permalink: string;
-  gumroad_url: string;
+  priceUsd: number;
+  coinsAmount: number;
+  bonusPercent: number;
+  totalCoins: number;
+  gumroadPermalink: string;
+  gumroadUrl: string;
   description?: string;
-  is_active: boolean;
-  is_featured: boolean;
-  sort_order: number;
+  isActive: boolean;
+  isFeatured: boolean;
+  sortOrder: number;
 }
 
 export type TransactionType = 'deposit' | 'purchase' | 'subscription' | 'bonus' | 'refund' | 'referral';
@@ -93,19 +89,19 @@ export interface Transaction {
   id: number;
   type: TransactionType;
   amount: number;
-  balance_after: number;
+  balanceAfter: number;
   description?: string;
-  order_id?: number;
-  subscription_id?: number;
-  external_id?: string;
-  created_at: string;
+  orderId?: number;
+  subscriptionId?: number;
+  externalId?: string;
+  createdAt: string;
 }
 
 export interface WalletInfo {
   balance: number;
-  balance_usd: number;
-  coin_packs: CoinPack[];
-  recent_transactions: Transaction[];
+  balanceUsd: number;
+  coinPacks: CoinPack[];
+  recentTransactions: Transaction[];
 }
 
 export interface TransactionListResponse {
@@ -115,62 +111,56 @@ export interface TransactionListResponse {
   size: number;
 }
 
-// ============ Order Types (Updated) ============
+export interface AuthResponse {
+  accessToken: string;
+  user: User;
+  isNewUser: boolean;
+  needsRegistration: boolean;
+}
 
 export interface CheckoutResponse {
   success: boolean;
-  order_id: number;
-  coins_spent: number;
-  new_balance: number;
-  message: string;
-  payment_url?: string;  // Deprecated
-}
-
-export interface InsufficientFundsError {
-  error: 'insufficient_funds';
-  required_coins: number;
-  current_balance: number;
-  shortfall: number;
+  orderId: number;
+  coinsSpent: number;
+  newBalance: number;
   message: string;
 }
 
 export interface ApplyDiscountResponse {
   success: boolean;
-  subtotal_coins: number;
-  discount_coins: number;
-  final_coins: number;
-  user_balance: number;
-  has_enough_balance: boolean;
+  subtotalCoins: number;
+  discountCoins: number;
+  finalCoins: number;
+  userBalance: number;
+  hasEnoughBalance: boolean;
   message?: string;
 }
 
-// ============ Subscription Types (Updated) ============
-
 export interface SubscriptionStatus {
-  has_active_subscription: boolean;
+  hasActiveSubscription: boolean;
   subscription?: {
     id: number;
-    start_date: string;
-    end_date: string;
-    days_remaining: number;
-    is_auto_renewal: boolean;
+    startDate: string;
+    endDate: string;
+    daysRemaining: number;
+    isAutoRenewal: boolean;
   };
 }
 
 export interface SubscriptionCheckoutResponse {
   success: boolean;
-  subscription_id: number;
-  coins_spent: number;
-  new_balance: number;
-  is_extension: boolean;
-  end_date: string;
+  subscriptionId: number;
+  coinsSpent: number;
+  newBalance: number;
+  isExtension: boolean;
+  endDate: string;
   message: string;
 }
 
 export interface SubscriptionPriceInfo {
-  price_coins: number;
-  price_usd: number;
-  user_balance: number;
-  has_enough_balance: boolean;
+  priceCoins: number;
+  priceUsd: number;
+  userBalance: number;
+  hasEnoughBalance: boolean;
   shortfall: number;
 }
