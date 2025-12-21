@@ -132,93 +132,20 @@ class AuthService:
             pass
 
     @staticmethod
-    async def register_by_email(db: AsyncSession, email: str) -> bool:
-        result = await db.execute(select(User).where(User.email == email))
-        user = result.scalar_one_or_none()
-
-        if user and user.is_email_verified:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
-            )
-
-        verification_token = AuthService.generate_token_urlsafe()
-
-        link = f"{settings.FRONTEND_URL}/auth/verify?token={verification_token}"
-        html_content = f"""
-        <h1>Вітаємо в OhMyRevit!</h1>
-        <p>Для завершення реєстрації перейдіть за посиланням:</p>
-        <a href="{link}">Підтвердити Email</a>
-        <p>Якщо ви не реєструвалися, проігноруйте цей лист.</p>
-        """
-
-        await email_service.send_email(to=email, subject="Підтвердження реєстрації", html_content=html_content)
-
-        if not user:
-            user = User(
-                email=email,
-                first_name="New User",
-                verification_token=verification_token,
-                is_email_verified=False,
-                is_active=True
-            )
-            db.add(user)
-        else:
-            user.verification_token = verification_token
-
-        await db.commit()
-        return True
-
-    @staticmethod
-    async def verify_email_and_create(db: AsyncSession, token: str) -> Tuple[str, User, str]:
-        result = await db.execute(select(User).where(User.verification_token == token))
-        user = result.scalar_one_or_none()
-
-        if not user:
-            raise HTTPException(status_code=400, detail="Invalid token")
-
-        password = AuthService.generate_strong_password()
-        user.hashed_password = AuthService.get_password_hash(password)
-        user.is_email_verified = True
-        user.verification_token = None
-
-        if not user.referral_code:
-            for _ in range(5):
-                try:
-                    user.referral_code = AuthService._generate_referral_code()
-                    await db.flush()
-                    break
-                except IntegrityError:
-                    await db.rollback()
-
-        await db.commit()
-
-        html_content = f"""
-        <h1>Реєстрація успішна!</h1>
-        <p>Ваш тимчасовий пароль: <strong>{password}</strong></p>
-        <p>Будь ласка, змініть його в налаштуваннях профілю.</p>
-        """
-        await email_service.send_email(to=user.email, subject="Ваш пароль OhMyRevit", html_content=html_content)
-
-        access_token = AuthService.create_access_token(user.id)
-        return access_token, user, password
-
-    @staticmethod
     async def authenticate_hybrid_telegram_user(
             db: AsyncSession,
             auth_data: TelegramAuthData
     ) -> Tuple[User, bool]:
         """
-        Перевіряє дані Telegram. Якщо користувача немає - створює його.
-        Повертає (User, is_new_user).
+        Перевіряє TG дані. Якщо юзера немає - створює його БЕЗ email.
         """
         verified_data = AuthService.verify_telegram_auth(auth_data)
 
         if not verified_data:
-            # Для розробки можна залишити, але в продакшні це повинно бути вимкнено
+            # Fallback для dev середовища
             if settings.ENVIRONMENT == 'development' and auth_data.id:
                 telegram_id = auth_data.id
-                user_info = {"id": telegram_id, "first_name": "DevUser", "username": "dev"}
+                user_info = {"first_name": "Dev", "username": "dev"}
             else:
                 raise HTTPException(status_code=401, detail="Invalid Telegram data")
         else:
@@ -228,11 +155,10 @@ class AuthService:
         result = await db.execute(select(User).where(User.telegram_id == telegram_id))
         user = result.scalar_one_or_none()
 
-        is_new_user = False
+        is_new = False
 
         if not user:
-            is_new_user = True
-            # Створюємо користувача без Email
+            # Створюємо користувача миттєво
             user = User(
                 telegram_id=telegram_id,
                 first_name=user_info.get('first_name', 'User'),
@@ -241,27 +167,129 @@ class AuthService:
                 photo_url=user_info.get('photo_url'),
                 language_code=user_info.get('language_code', 'uk'),
                 is_active=True,
-                is_email_verified=False
+                is_email_verified=False,
+                email=None  # Email поки відсутній
             )
-            db.add(user)
-            await db.flush()
 
             # Генеруємо реферальний код
             for _ in range(5):
                 try:
                     user.referral_code = AuthService._generate_referral_code()
-                    await db.flush()
+                    db.add(user)
+                    await db.commit()
                     break
                 except IntegrityError:
                     await db.rollback()
+            else:
+                # Fallback якщо не вдалось згенерувати унікальний код
+                db.add(user)
+                await db.commit()
 
-            # Обробка рефералки
+            await db.refresh(user)
+            is_new = True
+
             if auth_data.start_param:
                 await AuthService.process_referral_link(db, user, auth_data.start_param)
+        else:
+            # Оновлюємо час входу
+            user.last_login_at = datetime.now(timezone.utc)
+            await db.commit()
+            await db.refresh(user)
 
-        # Оновлюємо час входу
-        user.last_login_at = datetime.now(timezone.utc)
+        return user, is_new
+
+    @staticmethod
+    async def initiate_email_linking(db: AsyncSession, user: User, email: str):
+        """Відправляє лист для прив'язки пошти"""
+        # Перевірка чи зайнятий email
+        result = await db.execute(select(User).where(User.email == email))
+        existing_user = result.scalar_one_or_none()
+
+        if existing_user and existing_user.id != user.id:
+            raise HTTPException(status_code=400, detail="Цей email вже використовується")
+
+        verification_token = AuthService.generate_token_urlsafe()
+
+        # Оновлюємо дані користувача
+        user.email = email
+        user.verification_token = verification_token
+        user.is_email_verified = False
         await db.commit()
-        await db.refresh(user)
 
-        return user, is_new_user
+        link = f"{settings.FRONTEND_URL}/auth/verify?token={verification_token}"
+        html_content = f"""
+        <h1>Підтвердження Email</h1>
+        <p>Для прив'язки пошти до акаунту та отримання пароля перейдіть за посиланням:</p>
+        <a href="{link}">Підтвердити та отримати пароль</a>
+        """
+        await email_service.send_email(to=email, subject="Підтвердження Email - OhMyRevit", html_content=html_content)
+
+    @staticmethod
+    async def verify_email_token(db: AsyncSession, token: str) -> Tuple[str, User, str]:
+        """Верифікує токен, генерує пароль і відправляє його"""
+        result = await db.execute(select(User).where(User.verification_token == token))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+        # Генеруємо пароль
+        password = AuthService.generate_strong_password()
+        user.hashed_password = AuthService.get_password_hash(password)
+        user.is_email_verified = True
+        user.verification_token = None
+        await db.commit()
+
+        # Відправляємо пароль
+        html_content = f"""
+        <h1>Email підтверджено!</h1>
+        <p>Тепер ви можете входити на сайт, використовуючи цей email.</p>
+        <p>Ваш тимчасовий пароль: <strong>{password}</strong></p>
+        <p>Будь ласка, змініть його в налаштуваннях профілю.</p>
+        """
+        await email_service.send_email(to=user.email, subject="Ваш пароль для входу", html_content=html_content)
+
+        access_token = AuthService.create_access_token(user.id)
+        return access_token, user, password
+
+    @staticmethod
+    async def register_by_email(db: AsyncSession, email: str) -> bool:
+        """Реєстрація через сайт"""
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+
+        if user and user.is_email_verified:
+            raise HTTPException(status_code=400, detail="Email вже зареєстрований")
+
+        verification_token = AuthService.generate_token_urlsafe()
+        link = f"{settings.FRONTEND_URL}/auth/verify?token={verification_token}"
+
+        html_content = f"""
+        <h1>Вітаємо в OhMyRevit!</h1>
+        <p>Для завершення реєстрації та отримання пароля перейдіть за посиланням:</p>
+        <a href="{link}">Завершити реєстрацію</a>
+        """
+        await email_service.send_email(to=email, subject="Реєстрація", html_content=html_content)
+
+        if not user:
+            user = User(
+                email=email,
+                first_name="User",
+                verification_token=verification_token,
+                is_email_verified=False,
+                is_active=True
+            )
+            # Генеруємо реф. код
+            for _ in range(5):
+                try:
+                    user.referral_code = AuthService._generate_referral_code()
+                    db.add(user)
+                    await db.commit()
+                    break
+                except IntegrityError:
+                    await db.rollback()
+        else:
+            user.verification_token = verification_token
+            await db.commit()
+
+        return True

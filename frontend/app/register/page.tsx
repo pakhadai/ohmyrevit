@@ -1,11 +1,9 @@
 'use client';
-
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
-import { Mail, Loader, CheckCircle2 } from 'lucide-react';
+import { Mail, ArrowRight, Loader } from 'lucide-react';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -19,8 +17,7 @@ export default function RegisterPage() {
       await api.post('/auth/register', { email });
       setSent(true);
     } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Помилка реєстрації';
-      toast.error(msg);
+      toast.error(err.response?.data?.detail || 'Помилка реєстрації');
     } finally {
       setLoading(false);
     }
@@ -28,17 +25,21 @@ export default function RegisterPage() {
 
   if (sent) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 text-center bg-background">
-        <div className="max-w-md w-full space-y-6 animate-in fade-in zoom-in">
-          <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto text-green-600">
-            <CheckCircle2 className="w-8 h-8" />
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <div className="max-w-md w-full bg-card p-8 rounded-3xl border border-border shadow-xl text-center space-y-6">
+          <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto animate-bounce">
+            <Mail size={40} />
           </div>
-          <h1 className="text-2xl font-bold">Перевірте пошту! 📧</h1>
-          <p className="text-muted-foreground">
-            Ми надіслали пароль для входу на <br/><span className="font-medium text-foreground">{email}</span>
-          </p>
-          <Link href="/login" className="btn-primary inline-block w-full py-3 rounded-xl">
-            Перейти до входу
+          <div>
+            <h1 className="text-2xl font-bold mb-2">Перевірте пошту! 📧</h1>
+            <p className="text-muted-foreground">
+              Ми надіслали посилання для підтвердження на <b>{email}</b>.
+              <br/>
+              Перейдіть за ним, щоб отримати пароль для входу.
+            </p>
+          </div>
+          <Link href="/login" className="btn-primary w-full block py-3 text-center">
+            Повернутися до входу
           </Link>
         </div>
       </div>
@@ -49,44 +50,43 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center p-6 bg-background">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-foreground">Реєстрація 🚀</h1>
-          <p className="text-sm text-muted-foreground mt-2">Створіть акаунт, щоб почати</p>
+            <h1 className="text-3xl font-bold mb-2">Реєстрація</h1>
+            <p className="text-muted-foreground">Створіть акаунт для доступу до покупок</p>
         </div>
 
         <form onSubmit={handleRegister} className="space-y-6">
           <div className="space-y-2">
+            <label className="text-sm font-medium ml-1">Ваш Email</label>
             <div className="relative">
-              <input
-                type="email"
-                placeholder="Ваш Email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3.5 bg-muted/50 border border-transparent rounded-xl text-foreground focus:bg-background focus:border-primary/30 focus:ring-0 outline-none transition-all"
-                required
-              />
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+                <input
+                    type="email"
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3.5 rounded-xl border bg-card focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    required
+                />
             </div>
-            <p className="text-xs text-muted-foreground ml-1">
-              Ми надішлемо пароль на цю адресу
-            </p>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-70"
+            className="btn-primary w-full py-3.5 rounded-xl flex items-center justify-center gap-2 text-lg font-semibold"
           >
-            {loading && <Loader className="animate-spin w-5 h-5" />}
-            {loading ? 'Реєстрація...' : 'Продовжити'}
+            {loading ? <Loader className="animate-spin" /> : (
+                <>
+                    Продовжити
+                    <ArrowRight size={20} />
+                </>
+            )}
           </button>
         </form>
 
-        <div className="text-center text-sm text-muted-foreground">
-          Вже є акаунт?{' '}
-          <Link href="/login" className="text-primary hover:underline font-medium">
-            Увійти
-          </Link>
-        </div>
+        <p className="text-center text-sm text-muted-foreground">
+          Вже маєте акаунт? <Link href="/login" className="text-primary hover:underline font-medium">Увійти</Link>
+        </p>
       </div>
     </div>
   );

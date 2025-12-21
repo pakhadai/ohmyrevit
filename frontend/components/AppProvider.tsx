@@ -6,12 +6,21 @@ import { useCollectionStore } from '@/store/collectionStore';
 import { useLanguageStore } from '@/store/languageStore';
 import { useUIStore } from '@/store/uiStore';
 import Onboarding from './Onboarding';
-import { useTranslation } from 'react-i18next';
 import i18n from '@/lib/i18n';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 
-const PUBLIC_ROUTES = ['/login', '/register', '/terms', '/privacy', '/auth/verify'];
+// Сторінки, доступні без авторизації (Сайт режим)
+const PUBLIC_ROUTES = [
+    '/login',
+    '/register',
+    '/terms',
+    '/privacy',
+    '/auth/verify',
+    '/',
+    '/marketplace',
+    '/product' // Дозволяє перегляд товарів (/product/123)
+];
 
 declare global {
   interface Window {
@@ -20,7 +29,7 @@ declare global {
 }
 
 export default function AppProvider({ children }: { children: React.ReactNode }) {
-  const { login, isLoading, isAuthenticated, completeOnboarding } = useAuthStore();
+  const { login, isAuthenticated, completeOnboarding } = useAuthStore();
   const { fetchInitialData } = useCollectionStore();
   const { setLanguage } = useLanguageStore();
   const { setTheme } = useUIStore();
@@ -30,11 +39,10 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   const [isI18nReady, setIsI18nReady] = useState(false);
 
   const authAttempted = useRef(false);
-  const { t } = useTranslation();
-
   const pathname = usePathname();
   const router = useRouter();
 
+  // 1. Ініціалізація теми та мови
   useEffect(() => {
     const storedTheme = useUIStore.getState().theme;
     setTheme(storedTheme);
@@ -58,6 +66,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     };
   }, [setTheme]);
 
+  // 2. Логіка Telegram BackButton
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
@@ -87,8 +96,10 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  // 3. Авторизація
   useEffect(() => {
     const initializeApp = async () => {
+      // Якщо вже авторизовані - завантажуємо дані
       if (isAuthenticated) {
         if (!authAttempted.current) {
            fetchInitialData();
@@ -98,7 +109,8 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         return;
       }
 
-      if (window.Telegram?.WebApp?.initData) {
+      // Спроба авторизації через Telegram
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initData) {
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
@@ -109,7 +121,6 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         } catch (e) {}
 
         const rawInitData = tg.initData;
-
         let startParam = tg.initDataUnsafe?.start_param;
          if (!startParam) {
             const urlParams = new URLSearchParams(window.location.search);
@@ -126,7 +137,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
 
             await fetchInitialData();
 
-            if (loginResponse.is_new_user && tg.initDataUnsafe.user?.language_code) {
+            if (loginResponse.is_new_user && tg.initDataUnsafe?.user?.language_code) {
                setLanguage(tg.initDataUnsafe.user.language_code as any);
             }
             checkOnboardingStatus();
@@ -142,12 +153,13 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     initializeApp();
   }, [login, isAuthenticated, fetchInitialData, setLanguage]);
 
+  // 4. Захист маршрутів
   useEffect(() => {
     if (!appReady) return;
 
-    const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
+    const isPublic = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
 
-    if (!isAuthenticated && !isPublicRoute && !window.Telegram?.WebApp?.initData) {
+    if (!isAuthenticated && !isPublic) {
        router.push('/login');
     }
   }, [appReady, isAuthenticated, pathname, router]);

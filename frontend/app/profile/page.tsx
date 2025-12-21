@@ -4,56 +4,31 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { useLanguageStore } from '@/store/languageStore';
-import { profileAPI } from '@/lib/api';
 import { motion } from 'framer-motion';
 import {
   Settings, LogOut, Download, Heart, Gift, Users, HelpCircle, FileText,
-  ChevronRight, Mail, Globe, Moon, Sun, Shield, Wallet, Coins
+  ChevronRight, Shield, Wallet, AlertTriangle
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
-import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
+import { useTranslation } from 'react-i18next';
 
 export default function ProfilePage() {
-  const { user, logout, setUser } = useAuthStore();
-  const { theme, setTheme } = useUIStore();
-  const { language, setLanguage } = useLanguageStore();
-  const [email, setEmail] = useState(user?.email || '');
+  const { user, logout } = useAuthStore();
   const [isHydrated, setIsHydrated] = useState(false);
   const router = useRouter();
   const { t } = useTranslation();
 
   useEffect(() => {
     setIsHydrated(true);
-    if (user?.email) setEmail(user.email);
-  }, [user]);
-
-  const handleSaveEmail = async () => {
-    try {
-      const updated = await profileAPI.updateProfile({ email });
-      setUser({ ...user!, email: updated.email });
-      toast.success(t('profilePages.main.toasts.emailSaved'));
-    } catch {
-      toast.error(t('profilePages.main.toasts.emailError'));
-    }
-  };
+  }, []);
 
   const handleLogout = () => {
     logout();
     router.push('/');
   };
 
-  const languages = [
-    { code: 'uk', label: '🇺🇦 Українська' },
-    { code: 'en', label: '🇬🇧 English' },
-    { code: 'ru', label: '🇷🇺 Русский' },
-    { code: 'de', label: '🇩🇪 Deutsch' },
-    { code: 'es', label: '🇪🇸 Español' },
-  ];
-
   const menuItems = [
-    // NEW: Wallet as first item
     { href: '/profile/wallet', label: t('profilePages.main.menu.wallet') || 'Гаманець', icon: Wallet, highlight: true },
     { href: '/profile/downloads', label: t('profilePages.main.menu.downloads'), icon: Download },
     { href: '/profile/collections', label: t('profilePages.main.menu.collections'), icon: Heart },
@@ -88,12 +63,23 @@ export default function ProfilePage() {
         <h1 className="text-2xl font-bold text-foreground">
           {user?.first_name} {user?.last_name}
         </h1>
-        {user?.username && (
-          <p className="text-muted-foreground text-sm">@{user.username}</p>
-        )}
+        <div className="flex flex-col items-center gap-1">
+            {user?.username && (
+            <p className="text-muted-foreground text-sm">@{user.username}</p>
+            )}
+            {!user?.email && (
+                <button
+                    onClick={() => router.push('/profile/settings')}
+                    className="flex items-center gap-1 text-xs font-bold text-orange-500 bg-orange-500/10 px-2 py-1 rounded-lg mt-1"
+                >
+                    <AlertTriangle size={12} />
+                    Прив'язати Email
+                </button>
+            )}
+        </div>
       </div>
 
-      {/* Balance Card - NEW */}
+      {/* Balance Card */}
       <motion.button
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -117,7 +103,7 @@ export default function ProfilePage() {
         <ChevronRight size={24} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
       </motion.button>
 
-      {/* Quick Stats */}
+      {/* Quick Stats Grid - залишається як було */}
       <div className="grid grid-cols-3 gap-3">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -153,7 +139,7 @@ export default function ProfilePage() {
         </motion.div>
       </div>
 
-      {/* Admin Panel Button */}
+      {/* Admin Button */}
       {user?.is_admin && (
         <motion.button
           initial={{ opacity: 0, y: 10 }}
@@ -170,7 +156,7 @@ export default function ProfilePage() {
       )}
 
       {/* Menu Items */}
-      <div className="card-minimal divide-y divide-border">
+      <div className="card-minimal divide-y divide-border/50 overflow-hidden">
         {menuItems.map((item, index) => (
           <motion.button
             key={item.href}
@@ -178,7 +164,7 @@ export default function ProfilePage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 + index * 0.05 }}
             onClick={() => router.push(item.href)}
-            className={`w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors first:rounded-t-2xl last:rounded-b-2xl ${
+            className={`w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors ${
               item.highlight ? 'bg-primary/5' : ''
             }`}
           >
@@ -193,92 +179,17 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* Settings */}
-      <div className="card-minimal p-5 space-y-4">
-        <h3 className="font-bold text-foreground flex items-center gap-2">
-          <Settings size={18} className="text-muted-foreground" />
-          {t('profilePages.main.settings.title')}
-        </h3>
-
-        {/* Email */}
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">
-            {t('profilePages.main.settings.contactInfo')}
-          </label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={t('profilePages.main.settings.emailPlaceholder')}
-                className="w-full pl-9 pr-4 py-2.5 bg-muted/50 border border-transparent rounded-xl text-foreground text-sm focus:border-primary/30 focus:bg-background outline-none transition-all"
-              />
-            </div>
-            <button
-              onClick={handleSaveEmail}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
-            >
-              {t('common.save')}
-            </button>
-          </div>
+      {/* Settings Link (окремо) */}
+      <button
+        onClick={() => router.push('/profile/settings')}
+        className="w-full flex items-center justify-between p-4 card-minimal hover:bg-muted/50 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+            <Settings size={20} className="text-muted-foreground" />
+            <span className="font-medium">{t('profilePages.main.settings.title')}</span>
         </div>
-
-        {/* Language */}
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1">
-            <Globe size={14} />
-            {t('profilePages.main.settings.language')}
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {languages.map((lang) => (
-              <button
-                key={lang.code}
-                onClick={() => setLanguage(lang.code as any)}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
-                  language === lang.code
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                {lang.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Theme */}
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">
-            {t('profilePages.main.settings.theme')}
-          </label>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setTheme('light')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm transition-all ${
-                theme === 'light'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-              }`}
-            >
-              <Sun size={16} />
-              {t('profilePages.main.settings.light')}
-            </button>
-            <button
-              onClick={() => setTheme('dark')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm transition-all ${
-                theme === 'dark'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-              }`}
-            >
-              <Moon size={16} />
-              {t('profilePages.main.settings.dark')}
-            </button>
-          </div>
-        </div>
-      </div>
+        <ChevronRight size={18} className="text-muted-foreground" />
+      </button>
 
       {/* Logout */}
       <button

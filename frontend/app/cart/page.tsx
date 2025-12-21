@@ -1,18 +1,19 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useCartStore } from '@/store/cartStore'
 import { useAuthStore } from '@/store/authStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Trash2, Tag, AlertCircle, ShoppingBag, ArrowRight,
-  Wallet, CheckCircle2, Coins, Loader
+  Wallet, CheckCircle2, Loader
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ordersAPI } from '@/lib/api'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 import Image from 'next/image'
+import EmailLinkModal from '@/components/auth/EmailLinkModal'
 
 // Константа: 100 монет = $1
 const COINS_PER_USD = 100;
@@ -24,14 +25,12 @@ export default function CartPage() {
     promoCode,
     removeItem,
     setPromoCode,
-    getTotalPrice,
     clearCart
   } = useCartStore()
 
-  const { user, updateBalance } = useAuthStore()
+  const { user, updateBalance, isAuthenticated } = useAuthStore()
   const [promoInput, setPromoInput] = useState(promoCode || '')
 
-  // Стан для монет
   const [subtotalCoins, setSubtotalCoins] = useState(0)
   const [discountCoins, setDiscountCoins] = useState(0)
   const [finalCoins, setFinalCoins] = useState(0)
@@ -40,14 +39,14 @@ export default function CartPage() {
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [isCalculating, setIsCalculating] = useState(false)
+  const [showEmailModal, setShowEmailModal] = useState(false)
+
   const { t } = useTranslation()
 
   const userBalance = user?.balance || 0
 
-  // Конвертація USD в монети
   const usdToCoins = (usd: number) => Math.round(usd * COINS_PER_USD)
 
-  // Розрахунок знижки через API
   const calculateDiscount = async (promo: string | null) => {
     if (items.length === 0) return
 
@@ -70,7 +69,6 @@ export default function CartPage() {
           toast.success(t('toasts.promoApplied'))
         }
       } else {
-        // Fallback: рахуємо локально
         const calculatedSubtotal = items.reduce((sum, item) => {
           const price = item.sale_price ?? item.actual_price ?? item.price
           return sum + usdToCoins(Number(price))
@@ -85,7 +83,6 @@ export default function CartPage() {
         if (promo) setPromoCode(null)
       }
     } catch (err: any) {
-      // Fallback при помилці
       const calculatedSubtotal = items.reduce((sum, item) => {
         const price = item.sale_price ?? item.actual_price ?? item.price
         return sum + usdToCoins(Number(price))
@@ -95,10 +92,6 @@ export default function CartPage() {
       setDiscountCoins(0)
       setFinalCoins(calculatedSubtotal)
       setHasEnoughBalance(userBalance >= calculatedSubtotal)
-
-      if (promo) {
-        toast.error(t('toasts.discountCalculationError'))
-      }
     } finally {
       setIsCalculating(false)
     }
@@ -108,10 +101,22 @@ export default function CartPage() {
     calculateDiscount(promoCode)
   }, [items, promoCode, userBalance])
 
-  // Checkout - миттєве списання монет
   const handleCheckout = async () => {
     if (items.length === 0) return
 
+    // 1. Перевірка авторизації
+    if (!isAuthenticated) {
+        router.push('/login')
+        return
+    }
+
+    // 2. Перевірка наявності Email
+    if (!user?.email) {
+        setShowEmailModal(true)
+        return
+    }
+
+    // 3. Перевірка балансу
     if (!hasEnoughBalance) {
       router.push('/profile/wallet')
       return
@@ -125,21 +130,16 @@ export default function CartPage() {
       })
 
       if (response.success) {
-        // Оновлюємо баланс в store
         updateBalance(response.new_balance)
-
         toast.success(
           t('checkout.success') + ` ${t('checkout.coinsSpent', { amount: response.coins_spent })}`,
           { duration: 4000 }
         )
-
         clearCart()
         router.push('/profile/downloads')
       }
     } catch (err: any) {
       const errorDetail = err.response?.data?.detail
-
-      // Перевіряємо чи це insufficient_funds
       if (errorDetail?.error === 'insufficient_funds') {
         toast.error(errorDetail.message || t('cart.insufficientFunds'))
         router.push('/profile/wallet')
@@ -153,9 +153,7 @@ export default function CartPage() {
 
   const applyPromoCode = () => {
     const code = promoInput.trim()
-    if (code) {
-      setPromoCode(code)
-    }
+    if (code) setPromoCode(code)
   }
 
   const clearDiscounts = () => {
@@ -164,7 +162,6 @@ export default function CartPage() {
     setDiscountMessage(null)
   }
 
-  // Empty Cart
   if (items.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center p-6 bg-background">
@@ -188,10 +185,19 @@ export default function CartPage() {
 
   return (
     <div className="container mx-auto px-5 pt-14 pb-24 min-h-screen">
+      <AnimatePresence>
+        {showEmailModal && (
+            <EmailLinkModal
+                onClose={() => setShowEmailModal(false)}
+                onSuccess={() => setShowEmailModal(false)}
+            />
+        )}
+      </AnimatePresence>
+
       <h1 className="text-2xl font-bold mb-6 text-foreground">{t('cart.title')}</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Cart Items */}
+        {/* Items List */}
         <div className="lg:col-span-2 space-y-4">
           <AnimatePresence mode="popLayout">
             {items.map((item) => {
@@ -259,7 +265,6 @@ export default function CartPage() {
           <div className="card-minimal p-5 space-y-4 sticky top-20">
             <h2 className="text-lg font-bold text-foreground">{t('cart.summary.title')}</h2>
 
-            {/* Promo Code */}
             <div className="space-y-2">
               <label className="text-sm text-muted-foreground flex items-center gap-1">
                 <Tag size={14} />
@@ -290,7 +295,6 @@ export default function CartPage() {
               )}
             </div>
 
-            {/* Balance Info */}
             <div className="p-3 bg-muted/30 rounded-xl">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground flex items-center gap-1">
@@ -305,7 +309,6 @@ export default function CartPage() {
             </div>
 
             <div className="border-t border-border pt-4 space-y-2">
-              {/* Subtotal */}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">{t('cart.summary.subtotal')}</span>
                 <span className="text-foreground flex items-center gap-1">
@@ -320,7 +323,6 @@ export default function CartPage() {
                 </span>
               </div>
 
-              {/* Discount */}
               {discountCoins > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-green-500">{t('cart.summary.discount')}</span>
@@ -331,7 +333,6 @@ export default function CartPage() {
                 </div>
               )}
 
-              {/* Total */}
               <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
                 <span className="text-foreground">{t('cart.total') || 'До сплати'}</span>
                 <span className="text-foreground flex items-center gap-1">
@@ -341,8 +342,7 @@ export default function CartPage() {
               </div>
             </div>
 
-            {/* Insufficient Funds Warning */}
-            {!hasEnoughBalance && finalCoins > 0 && (
+            {!hasEnough && finalCoins > 0 && (
               <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
                 <div className="flex items-start gap-2">
                   <AlertCircle size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
@@ -358,7 +358,6 @@ export default function CartPage() {
               </div>
             )}
 
-            {/* Checkout Button */}
             <button
               onClick={handleCheckout}
               disabled={isProcessing || isCalculating || items.length === 0}
@@ -386,7 +385,6 @@ export default function CartPage() {
               )}
             </button>
 
-            {/* Clear Discounts */}
             {promoCode && (
               <button
                 onClick={clearDiscounts}

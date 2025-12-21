@@ -1,17 +1,10 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from pydantic.alias_generators import to_camel
 from typing import Optional, Dict, Any
 from datetime import date, datetime
 
-class CamelModel(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        from_attributes=True
-    )
 
-class UserBase(CamelModel):
-    email: EmailStr
+class UserBase(BaseModel):
+    email: Optional[EmailStr] = None
     first_name: str
     last_name: Optional[str] = None
     telegram_id: Optional[int] = None
@@ -20,51 +13,52 @@ class UserBase(CamelModel):
     phone: Optional[str] = None
     birth_date: Optional[date] = None
 
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserCreate(UserBase):
     pass
 
-class UserUpdate(CamelModel):
+
+class UserUpdate(BaseModel):
     username: Optional[str] = None
     language_code: Optional[str] = None
     phone: Optional[str] = None
 
-class UserUpdateProfile(CamelModel):
+
+class UserUpdateProfile(BaseModel):
     first_name: Optional[str] = Field(None, min_length=1)
     last_name: Optional[str] = None
     birth_date: Optional[date] = None
+    email: Optional[EmailStr] = None
 
-class UserRegister(CamelModel):
+
+class UserRegister(BaseModel):
     email: EmailStr
 
-class UserLogin(CamelModel):
+
+class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-class UserChangePassword(CamelModel):
+
+class UserChangePassword(BaseModel):
     old_password: str
     new_password: str = Field(..., min_length=8)
 
-class ForgotPasswordRequest(CamelModel):
-    email: EmailStr
 
-class UserResponse(CamelModel):
+class UserResponse(UserBase):
     id: int
-    email: EmailStr
-    telegram_id: Optional[int] = None
-    username: Optional[str] = None
-    first_name: str
-    last_name: Optional[str] = None
-    birth_date: Optional[date] = None
-    language_code: str
-    photo_url: Optional[str] = None
     is_admin: bool
     is_email_verified: bool
     balance: int
     bonus_streak: int
     created_at: datetime
     referral_code: Optional[str] = None
+    photo_url: Optional[str] = None
 
-class TelegramAuthData(CamelModel):
+
+class TelegramAuthData(BaseModel):
     id: Optional[int] = Field(None, description="Telegram user ID")
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -77,30 +71,31 @@ class TelegramAuthData(CamelModel):
     start_param: Optional[str] = None
     language_code: Optional[str] = "uk"
     is_premium: Optional[bool] = False
-    # Pydantic автоматично змапить JSON поле 'initData' в python поле 'init_data'
-    init_data: Optional[str] = None
+    initData: Optional[str] = None
 
-    model_config = ConfigDict(extra="allow", alias_generator=to_camel, populate_by_name=True)
 
-class TelegramLinkRequest(CamelModel):
-    init_data: str
+class TelegramLinkRequest(BaseModel):
+    initData: str
     email: EmailStr
     password: Optional[str] = None
 
-class TokenResponse(CamelModel):
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
     is_new_user: bool = False
     needs_registration: bool = False
 
-class BonusClaimResponse(CamelModel):
+
+class BonusClaimResponse(BaseModel):
     success: bool
     bonus_amount: Optional[int] = None
     new_balance: Optional[int] = None
     new_streak: Optional[int] = None
     message: str
     next_claim_time: Optional[str] = None
-
-class CompleteRegistrationRequest(CamelModel):
-    email: EmailStr

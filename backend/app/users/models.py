@@ -16,23 +16,25 @@ class User(Base):
 
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=True)
+
     birth_date = Column(Date, nullable=True)
 
     language_code = Column(String(10), default="uk")
     photo_url = Column(String(500), nullable=True)
 
-    # Змінено: email тепер може бути пустим для нових юзерів з Telegram
     email = Column(String(255), unique=True, nullable=True, index=True)
     is_email_verified = Column(Boolean, default=False)
     verification_token = Column(String(255), nullable=True)
 
     hashed_password = Column(String(255), nullable=True)
+
     phone = Column(String(20), nullable=True)
 
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True, server_default='true')
 
     balance = Column(Integer, default=0)
+
     bonus_streak = Column(Integer, default=0)
     last_bonus_claim_date = Column(Date, nullable=True)
 
@@ -42,8 +44,8 @@ class User(Base):
     referrer = relationship("User", remote_side=[id], back_populates="referrals")
     referrals = relationship("User", back_populates="referrer", foreign_keys=[referrer_id])
 
-    # Використовуємо string references для Collection щоб уникнути цикличности
-    collections = relationship("app.collections.models.Collection", back_populates="user", cascade="all, delete-orphan")
+    collections: Mapped[List["Collection"]] = relationship("Collection", back_populates="user",
+                                                           cascade="all, delete-orphan")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
