@@ -35,6 +35,7 @@ class SubscriptionService:
             )
 
         # Шукаємо активну підписку для продовження
+        # ВИПРАВЛЕНО: scalars().first() замість scalar_one_or_none()
         existing = await self.db.execute(
             select(Subscription).where(
                 Subscription.user_id == user_id,
@@ -42,7 +43,7 @@ class SubscriptionService:
                 Subscription.end_date > datetime.now(timezone.utc)
             ).order_by(Subscription.end_date.desc())
         )
-        current_subscription = existing.scalar_one_or_none()
+        current_subscription = existing.scalars().first()
 
         # Визначаємо дати
         is_extension = current_subscription is not None
@@ -146,7 +147,8 @@ class SubscriptionService:
                 Subscription.end_date > datetime.now(timezone.utc)
             ).order_by(Subscription.end_date.desc())
         )
-        subscription = result.scalar_one_or_none()
+        # ВИПРАВЛЕНО: scalars().first()
+        subscription = result.scalars().first()
 
         if not subscription:
             return False
@@ -166,7 +168,8 @@ class SubscriptionService:
                 Subscription.end_date > datetime.now(timezone.utc)
             ).order_by(Subscription.end_date.desc())
         )
-        subscription = result.scalar_one_or_none()
+        # ВИПРАВЛЕНО: scalars().first()
+        subscription = result.scalars().first()
 
         if not subscription:
             return False
@@ -184,7 +187,8 @@ class SubscriptionService:
                 Subscription.status == SubscriptionStatus.ACTIVE
             ).order_by(Subscription.end_date.desc())
         )
-        subscription = result.scalar_one_or_none()
+        # ВИПРАВЛЕНО: scalars().first() - це виправить вашу помилку 500
+        subscription = result.scalars().first()
 
         if not subscription:
             return {
@@ -242,15 +246,10 @@ class SubscriptionService:
         """
         Обробляє автопродовження підписок.
         Викликається scheduler'ом раз на день.
-
-        Returns:
-            dict: {"renewed": int, "failed": int, "skipped": int}
         """
         now = datetime.now(timezone.utc)
         tomorrow = now + timedelta(days=1)
 
-        # Знаходимо підписки, що закінчуються протягом наступної доби
-        # з увімкненим автопродовженням
         result = await self.db.execute(
             select(Subscription)
             .options(selectinload(Subscription.user))
@@ -273,9 +272,7 @@ class SubscriptionService:
                 skipped += 1
                 continue
 
-            # Перевіряємо баланс
             if user.balance < SUBSCRIPTION_PRICE_COINS:
-                # Недостатньо коштів - сповіщаємо
                 try:
                     shortfall = SUBSCRIPTION_PRICE_COINS - user.balance
                     await telegram_service.send_message(
@@ -288,19 +285,14 @@ class SubscriptionService:
                     )
                 except Exception as e:
                     logger.error(f"Failed to notify user {user.id} about low balance: {e}")
-
                 failed += 1
                 continue
 
-            # Списуємо монети та продовжуємо
             try:
                 user.balance -= SUBSCRIPTION_PRICE_COINS
                 new_balance = user.balance
-
-                # Продовжуємо підписку на 30 днів
                 sub.end_date = sub.end_date + timedelta(days=30)
 
-                # Створюємо транзакцію
                 transaction = Transaction(
                     user_id=user.id,
                     type=TransactionType.SUBSCRIPTION,
@@ -310,10 +302,8 @@ class SubscriptionService:
                     subscription_id=sub.id
                 )
                 self.db.add(transaction)
-
                 await self.db.commit()
 
-                # Сповіщаємо користувача
                 try:
                     await telegram_service.send_message(
                         user.telegram_id,
@@ -346,7 +336,8 @@ class SubscriptionService:
                 Subscription.end_date > datetime.now(timezone.utc)
             ).order_by(Subscription.end_date.desc())
         )
-        current_subscription = existing.scalar_one_or_none()
+        # ВИПРАВЛЕНО: scalars().first()
+        current_subscription = existing.scalars().first()
 
         if current_subscription:
             start_date = current_subscription.end_date
