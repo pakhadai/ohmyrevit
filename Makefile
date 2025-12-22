@@ -37,8 +37,6 @@ migrate: ## Застосувати міграції
 	docker-compose exec -T backend alembic upgrade head
 
 makemigration: ## Створити нову міграцію
-# OLD: # OLD: 	docker-compose exec backend alembic revision --autogenerate -m "$(msg)"
-# OLD: 	docker-compose exec -T backend alembic revision --autogenerate -m "$(msg)"
 	docker-compose exec -T backend alembic revision --autogenerate -m "$(msg)"
 
 
@@ -53,7 +51,6 @@ test-simple: ## Запустити один простий тест для пе�
 	docker-compose exec -T backend pytest tests/test_simple.py -v
 
 test: ## Запустити всі тести
-# OLD: 	docker-compose exec -T backend pytest
 	docker-compose exec -T backend pytest -v
 
 

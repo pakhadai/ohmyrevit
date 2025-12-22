@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, and_
+from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta, timezone
 import logging
@@ -15,12 +15,12 @@ logger = logging.getLogger(__name__)
 
 SUBSCRIPTION_PRICE_COINS = settings.SUBSCRIPTION_PRICE_COINS
 
+
 class SubscriptionService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def purchase_subscription(self, user_id: int) -> dict:
-
         user_query = select(User).where(User.id == user_id).with_for_update()
         user_res = await self.db.execute(user_query)
         user = user_res.scalar_one_or_none()
@@ -28,14 +28,11 @@ class SubscriptionService:
         if not user:
             raise ValueError("Користувача не знайдено")
 
-        # Перевіряємо баланс
         if user.balance < SUBSCRIPTION_PRICE_COINS:
             raise ValueError(
                 f"INSUFFICIENT_FUNDS|{SUBSCRIPTION_PRICE_COINS}|{user.balance}|{SUBSCRIPTION_PRICE_COINS - user.balance}"
             )
 
-        # Шукаємо активну підписку для продовження
-        # ВИПРАВЛЕНО: scalars().first() замість scalar_one_or_none()
         existing = await self.db.execute(
             select(Subscription).where(
                 Subscription.user_id == user_id,
@@ -45,7 +42,6 @@ class SubscriptionService:
         )
         current_subscription = existing.scalars().first()
 
-        # Визначаємо дати
         is_extension = current_subscription is not None
         if is_extension:
             start_date = current_subscription.end_date
@@ -54,11 +50,9 @@ class SubscriptionService:
 
         end_date = start_date + timedelta(days=30)
 
-        # Списуємо монети
         user.balance -= SUBSCRIPTION_PRICE_COINS
         new_balance = user.balance
 
-        # Створюємо підписку (одразу активна)
         subscription = Subscription(
             user_id=user_id,
             start_date=start_date,
@@ -67,9 +61,8 @@ class SubscriptionService:
             is_auto_renewal=True
         )
         self.db.add(subscription)
-        await self.db.flush()  # Отримуємо ID
+        await self.db.flush()
 
-        # Створюємо транзакцію
         description = "Продовження Premium підписки" if is_extension else "Покупка Premium підписки"
         transaction = Transaction(
             user_id=user_id,
@@ -81,14 +74,12 @@ class SubscriptionService:
         )
         self.db.add(transaction)
 
-        # Надаємо доступ до Premium товарів (якщо нова підписка)
         if not is_extension:
             await self._grant_premium_access(user_id)
 
         await self.db.commit()
         await self.db.refresh(subscription)
 
-        # Сповіщення в Telegram
         try:
             message = (
                 f"👑 {'Premium продовжено!' if is_extension else 'Premium активовано!'}\n\n"
@@ -114,14 +105,11 @@ class SubscriptionService:
         }
 
     async def _grant_premium_access(self, user_id: int):
-        """Надає доступ до всіх Premium товарів"""
-        # Отримуємо всі Premium товари
         premium_products = await self.db.execute(
             select(Product).where(Product.product_type == ProductType.PREMIUM)
         )
 
         for product in premium_products.scalars():
-            # Перевіряємо чи вже є доступ
             existing = await self.db.execute(
                 select(UserProductAccess).where(
                     UserProductAccess.user_id == user_id,
@@ -136,10 +124,6 @@ class SubscriptionService:
                 ))
 
     async def cancel_auto_renewal(self, user_id: int) -> bool:
-        """
-        Скасовує автопродовження.
-        Підписка залишається ACTIVE до кінця терміну.
-        """
         result = await self.db.execute(
             select(Subscription).where(
                 Subscription.user_id == user_id,
@@ -147,7 +131,6 @@ class SubscriptionService:
                 Subscription.end_date > datetime.now(timezone.utc)
             ).order_by(Subscription.end_date.desc())
         )
-        # ВИПРАВЛЕНО: scalars().first()
         subscription = result.scalars().first()
 
         if not subscription:
@@ -160,7 +143,6 @@ class SubscriptionService:
         return True
 
     async def enable_auto_renewal(self, user_id: int) -> bool:
-        """Вмикає автопродовження"""
         result = await self.db.execute(
             select(Subscription).where(
                 Subscription.user_id == user_id,
@@ -168,7 +150,6 @@ class SubscriptionService:
                 Subscription.end_date > datetime.now(timezone.utc)
             ).order_by(Subscription.end_date.desc())
         )
-        # ВИПРАВЛЕНО: scalars().first()
         subscription = result.scalars().first()
 
         if not subscription:
@@ -180,14 +161,12 @@ class SubscriptionService:
         return True
 
     async def get_subscription_status(self, user_id: int) -> dict:
-        """Отримує статус підписки користувача"""
         result = await self.db.execute(
             select(Subscription).where(
                 Subscription.user_id == user_id,
                 Subscription.status == SubscriptionStatus.ACTIVE
             ).order_by(Subscription.end_date.desc())
         )
-        # ВИПРАВЛЕНО: scalars().first() - це виправить вашу помилку 500
         subscription = result.scalars().first()
 
         if not subscription:
@@ -210,10 +189,7 @@ class SubscriptionService:
             }
         }
 
-    # ============ Scheduler Methods ============
-
     async def check_and_update_expired(self) -> int:
-        """Оновлює статус прострочених підписок"""
         stmt = (
             update(Subscription)
             .where(
@@ -227,7 +203,6 @@ class SubscriptionService:
         return result.rowcount
 
     async def cancel_stale_pending_subscriptions(self) -> int:
-        """Скасовує старі pending підписки (для legacy)"""
         threshold_time = datetime.now(timezone.utc) - timedelta(hours=24)
 
         stmt = (
@@ -243,10 +218,6 @@ class SubscriptionService:
         return result.rowcount
 
     async def process_auto_renewals(self) -> dict:
-        """
-        Обробляє автопродовження підписок.
-        Викликається scheduler'ом раз на день.
-        """
         now = datetime.now(timezone.utc)
         tomorrow = now + timedelta(days=1)
 
@@ -325,10 +296,7 @@ class SubscriptionService:
 
         return {"renewed": renewed, "failed": failed, "skipped": skipped}
 
-    # ============ Legacy method for compatibility ============
-
     async def create_subscription(self, user_id: int) -> Subscription:
-        """Legacy метод - створює PENDING підписку (для старого коду)"""
         existing = await self.db.execute(
             select(Subscription).where(
                 Subscription.user_id == user_id,
@@ -336,7 +304,6 @@ class SubscriptionService:
                 Subscription.end_date > datetime.now(timezone.utc)
             ).order_by(Subscription.end_date.desc())
         )
-        # ВИПРАВЛЕНО: scalars().first()
         current_subscription = existing.scalars().first()
 
         if current_subscription:
@@ -359,5 +326,4 @@ class SubscriptionService:
         return subscription
 
     async def cancel_active_subscription(self, user_id: int) -> bool:
-        """Legacy alias для cancel_auto_renewal"""
         return await self.cancel_auto_renewal(user_id)

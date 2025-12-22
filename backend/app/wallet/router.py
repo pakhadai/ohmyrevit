@@ -1,7 +1,6 @@
 import logging
 import hashlib
 import hmac
-import json
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +8,7 @@ from sqlalchemy import select
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.cache import cache
 from app.users.dependencies import get_current_user, get_current_admin_user
 from app.users.models import User
 from app.wallet.service import WalletService, WalletAdminService
@@ -16,7 +16,7 @@ from app.wallet.schemas import (
     CoinPackResponse, CoinPackCreate, CoinPackUpdate,
     TransactionResponse, TransactionListResponse,
     WalletBalanceResponse, WalletInfoResponse,
-    GumroadWebhookPayload, GumroadWebhookResponse,
+    GumroadWebhookResponse,
     TransactionTypeEnum
 )
 from app.wallet.models import TransactionType
@@ -30,20 +30,17 @@ admin_router = APIRouter(tags=["Admin - Wallet"])
 webhook_router = APIRouter(tags=["Webhooks"])
 
 
-# ============ User Wallet Endpoints ============
-
 @router.get("/balance", response_model=WalletBalanceResponse)
 async def get_my_balance(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Отримати поточний баланс гаманця"""
     service = WalletService(db)
     balance = await service.get_balance(current_user.id)
 
     return WalletBalanceResponse(
         balance=balance,
-        balance_usd=balance / 100  # 100 монет = $1
+        balance_usd=balance / 100
     )
 
 
@@ -52,7 +49,6 @@ async def get_wallet_info(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Отримати повну інформацію про гаманець"""
     service = WalletService(db)
 
     balance = await service.get_balance(current_user.id)
@@ -83,7 +79,6 @@ async def get_wallet_info(
 async def get_coin_packs(
         db: AsyncSession = Depends(get_db)
 ):
-    """Отримати список доступних пакетів монет для покупки"""
     service = WalletService(db)
     packs = await service.get_active_coin_packs()
     return [coin_pack_to_response(p) for p in packs]
@@ -97,7 +92,6 @@ async def get_my_transactions(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Отримати історію транзакцій"""
     service = WalletService(db)
 
     offset = (page - 1) * size
@@ -130,30 +124,117 @@ async def get_my_transactions(
     )
 
 
-# ============ Gumroad Webhook ============
+@admin_router.get("/coin-packs", response_model=List[CoinPackResponse])
+async def admin_get_all_coin_packs(
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    service = WalletAdminService(db)
+    packs = await service.get_all_coin_packs()
+    return [coin_pack_to_response(p) for p in packs]
+
+
+@admin_router.post("/coin-packs", response_model=CoinPackResponse)
+async def admin_create_coin_pack(
+        data: CoinPackCreate,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    service = WalletAdminService(db)
+    pack = await service.create_coin_pack(**data.model_dump())
+    return coin_pack_to_response(pack)
+
+
+@admin_router.patch("/coin-packs/{pack_id}", response_model=CoinPackResponse)
+async def admin_update_coin_pack(
+        pack_id: int,
+        data: CoinPackUpdate,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    service = WalletAdminService(db)
+    pack = await service.update_coin_pack(pack_id, **data.model_dump(exclude_unset=True))
+
+    if not pack:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="CoinPack not found"
+        )
+
+    return coin_pack_to_response(pack)
+
+
+@admin_router.delete("/coin-packs/{pack_id}")
+async def admin_delete_coin_pack(
+        pack_id: int,
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    service = WalletAdminService(db)
+    success = await service.delete_coin_pack(pack_id)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="CoinPack not found"
+        )
+
+    return {"success": True, "message": "CoinPack deactivated"}
+
+
+@admin_router.post("/users/{user_id}/add-coins")
+async def admin_add_coins_to_user(
+        user_id: int,
+        amount: int = Query(..., gt=0, description="Кількість монет для нарахування"),
+        reason: str = Query(..., min_length=3, description="Причина нарахування"),
+        admin: User = Depends(get_current_admin_user),
+        db: AsyncSession = Depends(get_db)
+):
+    service = WalletAdminService(db)
+
+    try:
+        transaction = await service.manual_add_coins(
+            user_id=user_id,
+            amount=amount,
+            reason=reason,
+            admin_id=admin.id
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+    return {
+        "success": True,
+        "transaction_id": transaction.id,
+        "new_balance": transaction.balance_after
+    }
+
 
 @webhook_router.post("/gumroad", response_model=GumroadWebhookResponse)
 async def gumroad_webhook(
         request: Request,
         db: AsyncSession = Depends(get_db)
 ):
-    """
-    Вебхук для обробки покупок з Gumroad
-    """
     try:
-        # Зберігаємо raw body для перевірки підпису
         raw_body = await request.body()
-
-        # Отримуємо дані форми
         form_data = await request.form()
         data = dict(form_data)
 
-        # Логуємо вхідні дані для дебагу
         logger.info(f"Gumroad webhook payload keys: {list(data.keys())}")
         sale_id = data.get("sale_id")
         logger.info(f"Gumroad webhook received: sale_id={sale_id}")
 
-        # Перевірка підпису
+        if sale_id:
+            idempotency_key = f"gumroad:sale:{sale_id}"
+            if await cache.get(idempotency_key):
+                logger.info(f"Duplicate webhook ignored: {sale_id}")
+                return GumroadWebhookResponse(
+                    success=True,
+                    message="Transaction already processed"
+                )
+
         if settings.GUMROAD_WEBHOOK_SECRET:
             signature = request.headers.get("X-Gumroad-Signature")
             if not verify_gumroad_signature(raw_body, signature):
@@ -164,13 +245,10 @@ async def gumroad_webhook(
                         detail="Invalid signature"
                     )
 
-        # Парсимо дані
         permalink = data.get("permalink") or data.get("product_permalink")
-        price = int(data.get("price", 0))  # В центах
+        price = int(data.get("price", 0))
 
-        # Перевірка на рефанд
         is_refunded = str(data.get("refunded", "")).lower() == "true"
-
         if is_refunded:
             logger.info(f"Skipping refunded transaction: {sale_id}")
             return GumroadWebhookResponse(
@@ -178,10 +256,7 @@ async def gumroad_webhook(
                 message="Refund processed"
             )
 
-        # --- ПОШУК USER_ID ---
         user_id = None
-
-        # 1. Прямий пошук по ключах форми (ВИДАЛЕНО referrer)
         potential_keys = [
             "custom_fields[user_id]",
             "url_params[user_id]",
@@ -194,7 +269,6 @@ async def gumroad_webhook(
                 user_id = data[key]
                 break
 
-        # 2. Пошук всередині JSON-рядків
         if not user_id:
             for json_field in ["custom_fields", "url_params"]:
                 content = data.get(json_field)
@@ -209,26 +283,22 @@ async def gumroad_webhook(
                     except:
                         continue
 
-        # 3. FALLBACK: Пошук по email, якщо user_id не знайдено
         if not user_id:
             buyer_email = data.get("email")
             if buyer_email:
                 logger.info(f"user_id not found, trying email fallback: {buyer_email}")
-
-                # Шукаємо користувача за email
-                from app.users.models import User
                 email_query = select(User).where(User.email == buyer_email)
                 email_result = await db.execute(email_query)
                 user_by_email = email_result.scalar_one_or_none()
 
                 if user_by_email:
                     user_id = user_by_email.id
-                    logger.info(f"✅ Found user by email: {buyer_email} -> user_id={user_id}")
+                    logger.info(f"Found user by email: {buyer_email} -> user_id={user_id}")
                 else:
-                    logger.warning(f"⚠️ No user found with email: {buyer_email}")
+                    logger.warning(f"No user found with email: {buyer_email}")
 
         if not user_id:
-            logger.error(f"❌ No user_id found in Gumroad webhook: {sale_id}")
+            logger.error(f"No user_id found in Gumroad webhook: {sale_id}")
             return GumroadWebhookResponse(
                 success=False,
                 message="Missing user_id - user not found by params or email"
@@ -237,13 +307,12 @@ async def gumroad_webhook(
         try:
             user_id = int(user_id)
         except (ValueError, TypeError):
-            logger.error(f"❌ Invalid user_id format: {user_id}")
+            logger.error(f"Invalid user_id format: {user_id}")
             return GumroadWebhookResponse(
                 success=False,
                 message="Invalid user_id format"
             )
 
-        # Обробляємо покупку
         service = WalletService(db)
 
         try:
@@ -262,9 +331,10 @@ async def gumroad_webhook(
                 )
             raise
 
-        # Надсилаємо сповіщення в Telegram
+        if sale_id:
+            await cache.setex(idempotency_key, 86400, "1")
+
         try:
-            from app.users.models import User
             user = await db.get(User, user_id)
             if user and user.telegram_id:
                 coin_pack = await service.get_coin_pack_by_permalink(permalink)
@@ -282,7 +352,7 @@ async def gumroad_webhook(
             logger.error(f"Failed to send Telegram notification: {e}")
 
         logger.info(
-            f"✅ Gumroad purchase successful: user={user_id}, "
+            f"Gumroad purchase successful: user={user_id}, "
             f"coins={transaction.amount}, balance={transaction.balance_after}"
         )
 
@@ -305,9 +375,6 @@ async def gumroad_webhook(
 
 
 def verify_gumroad_signature(request_body: bytes, signature: str) -> bool:
-    """
-    Перевіряє підпис Gumroad webhook
-    """
     if not signature or not settings.GUMROAD_WEBHOOK_SECRET:
         if settings.ENVIRONMENT == "development":
             return True
@@ -319,102 +386,7 @@ def verify_gumroad_signature(request_body: bytes, signature: str) -> bool:
             request_body,
             hashlib.sha256
         ).hexdigest()
-
-        return hmac.compare_digest(signature, expected_signature)
-    except Exception:
+        return hmac.compare_digest(expected_signature, signature)
+    except Exception as e:
+        logger.error(f"Signature verification error: {e}")
         return False
-
-
-# ============ Admin Endpoints ============
-
-@admin_router.get("/coin-packs", response_model=List[CoinPackResponse])
-async def admin_get_all_coin_packs(
-        admin: User = Depends(get_current_admin_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """[Admin] Отримати всі пакети монет"""
-    service = WalletAdminService(db)
-    packs = await service.get_all_coin_packs()
-    return [coin_pack_to_response(p) for p in packs]
-
-
-@admin_router.post("/coin-packs", response_model=CoinPackResponse)
-async def admin_create_coin_pack(
-        data: CoinPackCreate,
-        admin: User = Depends(get_current_admin_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """[Admin] Створити новий пакет монет"""
-    service = WalletAdminService(db)
-    pack = await service.create_coin_pack(**data.model_dump())
-    return coin_pack_to_response(pack)
-
-
-@admin_router.patch("/coin-packs/{pack_id}", response_model=CoinPackResponse)
-async def admin_update_coin_pack(
-        pack_id: int,
-        data: CoinPackUpdate,
-        admin: User = Depends(get_current_admin_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """[Admin] Оновити пакет монет"""
-    service = WalletAdminService(db)
-    pack = await service.update_coin_pack(pack_id, **data.model_dump(exclude_unset=True))
-
-    if not pack:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="CoinPack not found"
-        )
-
-    return coin_pack_to_response(pack)
-
-
-@admin_router.delete("/coin-packs/{pack_id}")
-async def admin_delete_coin_pack(
-        pack_id: int,
-        admin: User = Depends(get_current_admin_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """[Admin] Деактивувати пакет монет"""
-    service = WalletAdminService(db)
-    success = await service.delete_coin_pack(pack_id)
-
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="CoinPack not found"
-        )
-
-    return {"success": True, "message": "CoinPack deactivated"}
-
-
-@admin_router.post("/users/{user_id}/add-coins")
-async def admin_add_coins_to_user(
-        user_id: int,
-        amount: int = Query(..., gt=0, description="Кількість монет для нарахування"),
-        reason: str = Query(..., min_length=3, description="Причина нарахування"),
-        admin: User = Depends(get_current_admin_user),
-        db: AsyncSession = Depends(get_db)
-):
-    """[Admin] Ручне нарахування монет користувачу"""
-    service = WalletAdminService(db)
-
-    try:
-        transaction = await service.manual_add_coins(
-            user_id=user_id,
-            amount=amount,
-            reason=reason,
-            admin_id=admin.id
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
-
-    return {
-        "success": True,
-        "transaction_id": transaction.id,
-        "new_balance": transaction.balance_after
-    }

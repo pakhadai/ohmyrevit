@@ -1,5 +1,5 @@
 from typing import Optional, List
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -20,16 +20,15 @@ logger = logging.getLogger(__name__)
 
 COINS_PER_USD = settings.COINS_PER_USD
 
+
 class OrderService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
     def usd_to_coins(self, usd_amount: Decimal) -> int:
-        """Конвертує долари в монети (100 монет = $1)"""
         return int(usd_amount * COINS_PER_USD)
 
     def coins_to_usd(self, coins: int) -> Decimal:
-        """Конвертує монети в долари"""
         return Decimal(coins) / COINS_PER_USD
 
     async def calculate_discount(
@@ -39,15 +38,6 @@ class OrderService:
             promo_code: Optional[str],
             language_code: str = "uk"
     ) -> dict:
-        """
-        Розраховує знижку для замовлення
-
-        Returns:
-            dict: {
-                "discount_coins": int,
-                "promo_code_id": Optional[int]
-            }
-        """
         discount_coins = 0
         promo_code_id = None
 
@@ -69,10 +59,9 @@ class OrderService:
             if promo.max_uses and promo.current_uses >= promo.max_uses:
                 raise ValueError(get_text("order_error_promo_max_uses", language_code))
 
-            # Розраховуємо знижку
             if promo.discount_type == DiscountType.PERCENTAGE:
                 discount_coins = int(subtotal_coins * promo.value / 100)
-            else:  # FIXED - фіксована сума в USD
+            else:
                 discount_coins = self.usd_to_coins(Decimal(str(promo.value)))
 
             promo_code_id = promo.id
@@ -83,16 +72,9 @@ class OrderService:
         }
 
     async def check_user_balance(self, user_id: int, required_coins: int) -> tuple[bool, int]:
-        """
-        Перевіряє, чи достатньо монет у користувача
-
-        Returns:
-            tuple: (has_enough, current_balance)
-        """
         user = await self.db.get(User, user_id)
         if not user:
             raise ValueError("User not found")
-
         return user.balance >= required_coins, user.balance
 
     async def create_order(
@@ -102,20 +84,6 @@ class OrderService:
             promo_code: Optional[str] = None,
             language_code: str = "uk"
     ) -> dict:
-        """
-        Створює замовлення та миттєво списує монети
-
-        Returns:
-            dict: {
-                "order": Order,
-                "coins_spent": int,
-                "new_balance": int
-            }
-
-        Raises:
-            ValueError: Якщо недостатньо монет або інша помилка
-        """
-        # Отримуємо користувача з блокуванням для оновлення балансу
         user_query = select(User).where(User.id == user_id).with_for_update()
         user_res = await self.db.execute(user_query)
         user = user_res.scalar_one_or_none()
@@ -123,7 +91,6 @@ class OrderService:
         if not user:
             raise ValueError(get_text("order_error_user_not_found", language_code))
 
-        # Отримуємо товари
         products_result = await self.db.execute(
             select(Product).where(Product.id.in_(product_ids))
         )
@@ -132,35 +99,30 @@ class OrderService:
         if not products:
             raise ValueError(get_text("order_error_products_not_found", language_code))
 
-        # Перевіряємо, чи користувач вже має доступ до цих товарів (з блокуванням)
-        product_ids = [p.id for p in products]
+        product_ids_list = [p.id for p in products]
         existing_access_query = (
             select(UserProductAccess)
             .where(
                 UserProductAccess.user_id == user_id,
-                UserProductAccess.product_id.in_(product_ids)
+                UserProductAccess.product_id.in_(product_ids_list)
             )
-            .with_for_update()  # Блокуємо записи для уникнення race condition
+            .with_for_update()
         )
         existing_access_result = await self.db.execute(existing_access_query)
         existing_access = existing_access_result.scalars().all()
 
         if existing_access:
-            # Знаходимо назви товарів, до яких вже є доступ
             existing_product_ids = {a.product_id for a in existing_access}
             existing_products = [p for p in products if p.id in existing_product_ids]
             product_names = []
             for p in existing_products:
                 translation = p.get_translation(language_code)
                 product_names.append(translation.title if translation else f"Product #{p.id}")
-
             raise ValueError(f"Ви вже маєте доступ до: {', '.join(product_names)}")
 
-        # Рахуємо суму в монетах
         subtotal_usd = sum(p.get_actual_price() for p in products)
         subtotal_coins = self.usd_to_coins(subtotal_usd)
 
-        # Безкоштовні товари
         if subtotal_coins == 0:
             order = await self._create_free_order(user_id, products)
             return {
@@ -169,7 +131,6 @@ class OrderService:
                 "new_balance": user.balance
             }
 
-        # Розраховуємо знижку
         discount_data = await self.calculate_discount(
             subtotal_coins, user_id, promo_code, language_code
         )
@@ -177,23 +138,20 @@ class OrderService:
         final_coins = subtotal_coins - discount_data["discount_coins"]
         final_coins = max(final_coins, 0)
 
-        # Перевіряємо баланс
         if user.balance < final_coins:
             raise ValueError(
                 f"INSUFFICIENT_FUNDS|{final_coins}|{user.balance}|{final_coins - user.balance}"
             )
 
-        # Списуємо монети
         user.balance -= final_coins
         new_balance = user.balance
 
-        # Створюємо замовлення (зберігаємо в USD для сумісності з існуючою БД)
         order = Order(
             user_id=user_id,
             subtotal=subtotal_usd,
             discount_amount=self.coins_to_usd(discount_data["discount_coins"]),
             final_total=self.coins_to_usd(final_coins),
-            status=OrderStatus.PAID,  # Одразу PAID - оплата миттєва
+            status=OrderStatus.PAID,
             promo_code_id=discount_data["promo_code_id"],
             paid_at=datetime.now(timezone.utc)
         )
@@ -207,9 +165,8 @@ class OrderService:
             )
 
         self.db.add(order)
-        await self.db.flush()  # Отримуємо order.id
+        await self.db.flush()
 
-        # Створюємо транзакцію
         product_names = []
         for p in products:
             t = p.get_translation(language_code)
@@ -229,7 +186,6 @@ class OrderService:
         )
         self.db.add(transaction)
 
-        # Надаємо доступ до товарів
         for product in products:
             self.db.add(UserProductAccess(
                 user_id=user_id,
@@ -237,7 +193,6 @@ class OrderService:
                 access_type=AccessType.PURCHASE
             ))
 
-        # Оновлюємо використання промокоду
         if discount_data["promo_code_id"]:
             promo = await self.db.get(PromoCode, discount_data["promo_code_id"])
             if promo:
@@ -246,13 +201,11 @@ class OrderService:
         await self.db.commit()
         await self.db.refresh(order)
 
-        # Нараховуємо бонус рефереру (асинхронно, не блокуємо основний процес)
         try:
             await self._process_referral_bonus(user, final_coins, order.id, language_code)
         except Exception as e:
             logger.error(f"Failed to process referral bonus: {e}")
 
-        # Надсилаємо сповіщення
         try:
             await self._send_purchase_notification(user, products, final_coins, new_balance, language_code)
         except Exception as e:
@@ -270,7 +223,6 @@ class OrderService:
         }
 
     async def _create_free_order(self, user_id: int, products: List[Product]) -> Order:
-        """Створює замовлення для безкоштовних товарів"""
         order = Order(
             user_id=user_id,
             subtotal=Decimal("0.00"),
@@ -287,8 +239,6 @@ class OrderService:
                     price_at_purchase=Decimal("0.00")
                 )
             )
-
-            # Надаємо доступ
             self.db.add(UserProductAccess(
                 user_id=user_id,
                 product_id=product.id,
@@ -298,7 +248,6 @@ class OrderService:
         self.db.add(order)
         await self.db.commit()
         await self.db.refresh(order)
-
         return order
 
     async def _process_referral_bonus(
@@ -308,7 +257,6 @@ class OrderService:
             order_id: int,
             language_code: str
     ):
-        """Нараховує бонус рефереру"""
         if not buyer.referrer_id:
             return
 
@@ -319,14 +267,12 @@ class OrderService:
         if not referrer:
             return
 
-        # 5% від суми покупки
         bonus_coins = int(coins_spent * settings.REFERRAL_PURCHASE_PERCENT)
         if bonus_coins <= 0:
             return
 
         referrer.balance += bonus_coins
 
-        # Записуємо транзакцію
         transaction = Transaction(
             user_id=referrer.id,
             type=TransactionType.REFERRAL,
@@ -337,7 +283,6 @@ class OrderService:
         )
         self.db.add(transaction)
 
-        # Записуємо в лог рефералів
         referral_log = ReferralLog(
             referrer_id=referrer.id,
             referred_user_id=buyer.id,
@@ -348,7 +293,6 @@ class OrderService:
 
         await self.db.commit()
 
-        # Сповіщаємо реферера
         try:
             await telegram_service.send_message(
                 referrer.telegram_id,
@@ -365,7 +309,6 @@ class OrderService:
             new_balance: int,
             language_code: str
     ):
-        """Надсилає сповіщення про покупку"""
         product_names = []
         for p in products:
             t = p.get_translation(language_code)
@@ -378,17 +321,9 @@ class OrderService:
             f"💵 Залишок: {new_balance} монет\n\n"
             f"Перейдіть в розділ 'Мої покупки' для завантаження."
         )
-
         await telegram_service.send_message(user.telegram_id, message)
 
-    # ============ Legacy method for compatibility ============
-
     async def process_successful_order(self, order_id: int) -> Order:
-        """
-        Legacy метод для обробки замовлення після оплати
-        В новій системі не використовується, оскільки оплата миттєва
-        Залишено для сумісності з існуючим кодом
-        """
         order_res = await self.db.execute(
             select(Order).options(
                 selectinload(Order.user).selectinload(User.referrer),
@@ -429,5 +364,4 @@ class OrderService:
 
         await self.db.commit()
         await self.db.refresh(order)
-
         return order

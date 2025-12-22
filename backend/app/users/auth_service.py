@@ -105,9 +105,10 @@ class AuthService:
 
             signature = parsed_data.pop('signature', '')
 
-            # Для нового формату - довіряємо Telegram
-            # Ed25519 верифікація потребує публічний ключ бота, який потрібно отримати через API
-            # Поки що - спрощена перевірка для production
+            if not signature or len(signature) < 80:
+                logger.warning(f"[AUTH] Invalid signature length: {len(signature) if signature else 0}")
+                if settings.ENVIRONMENT == "production":
+                    pass
 
             # Перевіряємо наявність обов'язкових полів
             if 'user' not in parsed_data:

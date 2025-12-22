@@ -25,18 +25,12 @@ class Settings(BaseSettings):
     DEEPL_API_FREE: bool = True
     DEEPL_TARGET_LANGUAGES: List[str] = ["EN", "RU", "DE", "ES"]
 
-    # Gumroad Integration (замість Cryptomus)
+    # Gumroad Integration
     GUMROAD_WEBHOOK_SECRET: str = ""  # Для верифікації вебхуків
     GUMROAD_STORE_URL: str = "https://ohmyrevit.gumroad.com"  # URL вашого магазину
 
-    # Deprecated: Cryptomus settings (можна видалити пізніше)
-    CRYPTOMUS_API_KEY: str = ""
-    CRYPTOMUS_MERCHANT_ID: str = ""
-    CRYPTOMUS_WEBHOOK_SECRET: str = ""
-    CRYPTOMUS_API_URL: str = "https://api.cryptomus.com/v1"
-
     RESEND_API_KEY: str = ""
-    FROM_EMAIL: str = "noreply@ohmyrevit.com"
+    FROM_EMAIL: str = "noreply@ohmyrevit.pp.ua"
 
     FRONTEND_URL: str
     BACKEND_URL: str
