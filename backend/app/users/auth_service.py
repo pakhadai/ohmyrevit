@@ -12,7 +12,7 @@ from typing import Tuple, Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update, delete, or_
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 import logging
@@ -21,9 +21,13 @@ from app.core.config import settings
 from app.users.models import User
 from app.users.schemas import TelegramAuthData
 from app.referrals.models import ReferralLog, ReferralBonusType
+from app.orders.models import Order
+from app.subscriptions.models import Subscription, UserProductAccess
+from app.wallet.models import Transaction
 from app.core.telegram_service import telegram_service
 from app.core.email import email_service
 from app.core.translations import get_text
+from app.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -51,127 +55,74 @@ class AuthService:
 
     @staticmethod
     def verify_telegram_auth(auth_data_obj: TelegramAuthData) -> Optional[dict]:
-        """
-        Верифікує дані від Telegram Mini App.
-        Підтримує обидва формати:
-        - Новий (signature) - Ed25519
-        - Старий (hash) - HMAC-SHA256
-        """
-        logger.info(f"[AUTH] Starting verification, has initData: {bool(auth_data_obj.initData)}")
-
         if not auth_data_obj.initData:
-            logger.warning("[AUTH] No initData provided")
             return None
 
         try:
             parsed_data = dict(parse_qsl(auth_data_obj.initData))
-            logger.info(f"[AUTH] Parsed initData keys: {list(parsed_data.keys())}")
-        except ValueError as e:
-            logger.error(f"[AUTH] Failed to parse initData: {e}")
+        except ValueError:
             return None
 
-        # Перевіряємо який формат використовується
         has_signature = 'signature' in parsed_data
         has_hash = 'hash' in parsed_data
 
-        logger.info(f"[AUTH] Format detection: signature={has_signature}, hash={has_hash}")
-
-        # Перевіряємо auth_date
         auth_date_str = parsed_data.get('auth_date', '0')
         try:
             auth_date = int(auth_date_str)
         except ValueError:
-            logger.error(f"[AUTH] Invalid auth_date: {auth_date_str}")
             return None
 
         current_time = int(time.time())
         time_diff = current_time - auth_date
 
-        logger.info(f"[AUTH] auth_date: {auth_date}, current: {current_time}, diff: {time_diff}s")
-
-        # Перевірка терміну дії - 24 години
         if time_diff > 86400:
-            logger.warning(f"[AUTH] initData expired: {time_diff}s old (max 86400s)")
             return None
 
-        # Дозволяємо невелику розбіжність годинників (5 хвилин в майбутнє)
         if time_diff < -300:
-            logger.warning(f"[AUTH] initData from far future: {time_diff}s")
             return None
 
-        # Новий формат з signature (Ed25519)
         if has_signature:
-            logger.info("[AUTH] Using NEW signature verification (Ed25519)")
-
             signature = parsed_data.pop('signature', '')
-
-            if not signature or len(signature) < 80:
-                logger.warning(f"[AUTH] Invalid signature length: {len(signature) if signature else 0}")
-                if settings.ENVIRONMENT == "production":
-                    pass
-
-            # Перевіряємо наявність обов'язкових полів
             if 'user' not in parsed_data:
-                logger.warning("[AUTH] No user in initData with signature")
                 return None
 
-            # Парсимо user
             try:
                 user_data = json.loads(parsed_data['user'])
                 if not user_data.get('id'):
-                    logger.warning("[AUTH] No user id in parsed data")
                     return None
-
                 parsed_data['user'] = user_data
-                logger.info(f"[AUTH] ✅ Signature format accepted for user {user_data.get('id')}")
                 return parsed_data
-
-            except json.JSONDecodeError as e:
-                logger.error(f"[AUTH] Failed to parse user JSON: {e}")
+            except json.JSONDecodeError:
                 return None
 
-        # Старий формат з hash (HMAC-SHA256)
         elif has_hash:
-            logger.info("[AUTH] Using OLD hash verification (HMAC-SHA256)")
-
             received_hash = parsed_data.pop('hash', '')
             if not received_hash:
-                logger.warning("[AUTH] No hash in initData")
                 return None
 
-            # Формуємо data_check_string
             data_check_string = "\n".join(
                 f"{key}={value}" for key, value in sorted(parsed_data.items())
             )
 
             bot_token = settings.TELEGRAM_BOT_TOKEN
             if not bot_token:
-                logger.error("[AUTH] TELEGRAM_BOT_TOKEN not configured!")
                 return None
 
             secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
             computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
-            logger.info(f"[AUTH] Hash match: {computed_hash == received_hash}")
-
             if computed_hash != received_hash:
-                logger.warning("[AUTH] Hash verification FAILED")
                 return None
 
-            # Парсимо user JSON
             if 'user' in parsed_data:
                 try:
                     parsed_data['user'] = json.loads(parsed_data['user'])
-                    logger.info(f"[AUTH] ✅ Hash verification successful!")
-                except json.JSONDecodeError as e:
-                    logger.error(f"[AUTH] Failed to parse user JSON: {e}")
+                except json.JSONDecodeError:
                     return None
 
             return parsed_data
 
-        else:
-            logger.warning("[AUTH] Neither signature nor hash found in initData")
-            return None
+        return None
 
     @staticmethod
     def create_access_token(user_id: int) -> str:
@@ -225,27 +176,16 @@ class AuthService:
             db: AsyncSession,
             auth_data: TelegramAuthData
     ) -> Tuple[User, bool]:
-        """
-        Перевіряє TG дані. Якщо юзера немає - створює його БЕЗ email.
-        """
-        logger.info(f"[AUTH] authenticate_hybrid_telegram_user called")
-        logger.info(f"[AUTH] initData present: {bool(auth_data.initData)}")
-        logger.info(f"[AUTH] initData length: {len(auth_data.initData) if auth_data.initData else 0}")
-
         verified_data = AuthService.verify_telegram_auth(auth_data)
 
         if not verified_data:
-            logger.error("[AUTH] ❌ Verification failed!")
             raise HTTPException(status_code=401, detail="Invalid Telegram data")
 
         user_info = verified_data.get('user') or verified_data
         telegram_id = user_info.get('id')
 
         if not telegram_id:
-            logger.error("[AUTH] No telegram_id found!")
             raise HTTPException(status_code=401, detail="Invalid Telegram data: no user ID")
-
-        logger.info(f"[AUTH] Looking for user with telegram_id={telegram_id}")
 
         result = await db.execute(select(User).where(User.telegram_id == telegram_id))
         user = result.scalar_one_or_none()
@@ -253,8 +193,6 @@ class AuthService:
         is_new = False
 
         if not user:
-            logger.info(f"[AUTH] Creating new user for telegram_id={telegram_id}")
-
             user = User(
                 telegram_id=telegram_id,
                 first_name=user_info.get('first_name', 'User'),
@@ -267,17 +205,14 @@ class AuthService:
                 email=None
             )
 
-            # Генеруємо реферальний код
             for attempt in range(5):
                 try:
                     user.referral_code = AuthService._generate_referral_code()
                     db.add(user)
                     await db.commit()
-                    logger.info(f"[AUTH] User created with referral_code={user.referral_code}")
                     break
                 except IntegrityError:
                     await db.rollback()
-                    logger.warning(f"[AUTH] Referral code collision, attempt {attempt + 1}")
             else:
                 user.referral_code = None
                 db.add(user)
@@ -285,18 +220,11 @@ class AuthService:
 
             await db.refresh(user)
             is_new = True
-            logger.info(f"[AUTH] ✅ New user created: id={user.id}, telegram_id={telegram_id}")
 
-            # Обробка реферального посилання
             if auth_data.start_param:
                 await AuthService.process_referral_link(db, user, auth_data.start_param)
         else:
-            logger.info(f"[AUTH] Existing user found: id={user.id}")
-
-            # Оновлюємо час входу та дані профілю
             user.last_login_at = datetime.now(timezone.utc)
-
-            # Оновлюємо дані з Telegram
             if user_info.get('first_name'):
                 user.first_name = user_info.get('first_name')
             if user_info.get('last_name') is not None:
@@ -308,63 +236,250 @@ class AuthService:
 
             await db.commit()
             await db.refresh(user)
-            logger.info(f"[AUTH] ✅ User updated: id={user.id}")
 
         return user, is_new
 
     @staticmethod
+    async def merge_accounts(db: AsyncSession, target_user: User, source_user: User):
+        """
+        Об'єднує акаунти.
+        1. Звільняє telegram_id у source_user (щоб уникнути UniqueConstraint error).
+        2. Переносить дані.
+        3. Видаляє source_user.
+        """
+        # Зберігаємо дані джерела перед змінами
+        telegram_id = source_user.telegram_id
+        photo_url = source_user.photo_url
+        first_name = source_user.first_name
+        source_balance = source_user.balance
+        source_id = source_user.id  # ID потрібен для оновлення залежних таблиць
+
+        # 1. ВАЖЛИВО: Звільняємо telegram_id у старого юзера
+        # Це критично, бо інакше при спробі записати telegram_id в target_user виникне помилка
+        source_user.telegram_id = None
+        await db.flush()  # Записуємо зміну в БД миттєво
+
+        # 2. Оновлюємо цільового користувача
+        target_user.telegram_id = telegram_id
+        target_user.photo_url = photo_url or target_user.photo_url
+        if not target_user.first_name:
+            target_user.first_name = first_name
+
+        target_user.last_login_at = datetime.now(timezone.utc)
+
+        # 3. Об'єднуємо баланс
+        if source_balance > 0:
+            target_user.balance += source_balance
+
+        # 4. Переносимо дані (використовуємо збережений source_id)
+        await db.execute(update(Order).where(Order.user_id == source_id).values(user_id=target_user.id))
+        await db.execute(update(Transaction).where(Transaction.user_id == source_id).values(user_id=target_user.id))
+        await db.execute(update(Subscription).where(Subscription.user_id == source_id).values(user_id=target_user.id))
+
+        await db.execute(update(User).where(User.referrer_id == source_id).values(referrer_id=target_user.id))
+        await db.execute(
+            update(ReferralLog).where(ReferralLog.referrer_id == source_id).values(referrer_id=target_user.id))
+
+        # 5. Переносимо доступ до продуктів (уникаємо дублікатів)
+        source_accesses = await db.execute(select(UserProductAccess).where(UserProductAccess.user_id == source_id))
+        target_product_ids_res = await db.execute(
+            select(UserProductAccess.product_id).where(UserProductAccess.user_id == target_user.id))
+        target_product_ids = set(target_product_ids_res.scalars().all())
+
+        for access in source_accesses.scalars().all():
+            if access.product_id not in target_product_ids:
+                access.user_id = target_user.id
+                db.add(access)
+            else:
+                await db.delete(access)
+
+        # 6. Видаляємо старий акаунт
+        await db.delete(source_user)
+
+        await db.commit()
+        await db.refresh(target_user)
+        return target_user
+
+    @staticmethod
     async def initiate_email_linking(db: AsyncSession, user: User, email: str):
-        """Відправляє лист для прив'язки пошти"""
         result = await db.execute(select(User).where(User.email == email))
         existing_user = result.scalar_one_or_none()
 
-        if existing_user and existing_user.id != user.id:
-            raise HTTPException(status_code=400, detail="Цей email вже використовується")
-
         verification_token = AuthService.generate_token_urlsafe()
+        link = f"{settings.FRONTEND_URL}/auth/verify?token={verification_token}"
 
+        if existing_user and existing_user.id != user.id:
+            # Якщо email зайнятий - перевіряємо, чи це "чистий" веб-акаунт
+            if existing_user.telegram_id is not None:
+                raise HTTPException(status_code=400, detail="Цей email вже прив'язаний до іншого Telegram акаунту")
+
+            # Зберігаємо токен в існуючого юзера
+            existing_user.verification_token = verification_token
+            # Зберігаємо ID поточного Telegram-юзера для злиття
+            await cache.set(f"merge:{verification_token}", str(user.id), ttl=3600)
+            await db.commit()
+
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; margin: 0; padding: 0; }}
+                    .container {{ max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}
+                    .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; color: white; }}
+                    .header h1 {{ margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; }}
+                    .content {{ padding: 40px 30px; text-align: center; color: #333333; }}
+                    .icon {{ font-size: 48px; margin-bottom: 20px; display: block; }}
+                    .title {{ font-size: 20px; font-weight: 600; margin-bottom: 16px; color: #1a1a1a; }}
+                    .message {{ font-size: 15px; line-height: 1.6; color: #555555; margin-bottom: 32px; }}
+                    .btn {{ display: inline-block; padding: 14px 32px; background-color: #667eea; color: #ffffff !important; text-decoration: none; font-weight: 600; border-radius: 12px; font-size: 16px; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.25); transition: background-color 0.2s; }}
+                    .btn:hover {{ background-color: #5a6fd6; }}
+                    .footer {{ background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #999999; border-top: 1px solid #eeeeee; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>OhMyRevit</h1>
+                    </div>
+                    <div class="content">
+                        <span class="icon">🔄</span>
+                        <div class="title">Об'єднання акаунтів</div>
+                        <p class="message">
+                            Ми помітили, що ви увійшли через Telegram, але у вас вже є акаунт на сайті з поштою <b>{email}</b>.
+                            <br><br>
+                            Щоб об'єднати їх та перенести весь ваш прогрес, баланс та покупки в один профіль, натисніть кнопку нижче.
+                        </p>
+                        <a href="{link}" class="btn">Підтвердити та об'єднати</a>
+                    </div>
+                    <div class="footer">
+                        Це посилання дійсне протягом 1 години.<br>
+                        Якщо це були не ви, просто проігноруйте цей лист.
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            await email_service.send_email(to=email, subject="Об'єднання акаунтів - OhMyRevit",
+                                           html_content=html_content)
+            return
+
+        # Звичайна прив'язка
         user.email = email
         user.verification_token = verification_token
         user.is_email_verified = False
         await db.commit()
 
-        link = f"{settings.FRONTEND_URL}/auth/verify?token={verification_token}"
         html_content = f"""
-        <h1>Підтвердження Email</h1>
-        <p>Для прив'язки пошти до акаунту та отримання пароля перейдіть за посиланням:</p>
-        <a href="{link}">Підтвердити та отримати пароль</a>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; margin: 0; padding: 0; }}
+                .container {{ max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}
+                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; color: white; }}
+                .header h1 {{ margin: 0; font-size: 24px; font-weight: 700; }}
+                .content {{ padding: 40px 30px; text-align: center; color: #333333; }}
+                .icon {{ font-size: 48px; margin-bottom: 20px; display: block; }}
+                .title {{ font-size: 20px; font-weight: 600; margin-bottom: 16px; color: #1a1a1a; }}
+                .message {{ font-size: 15px; line-height: 1.6; color: #555555; margin-bottom: 32px; }}
+                .btn {{ display: inline-block; padding: 14px 32px; background-color: #667eea; color: #ffffff !important; text-decoration: none; font-weight: 600; border-radius: 12px; font-size: 16px; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.25); }}
+                .footer {{ background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #999999; border-top: 1px solid #eeeeee; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>OhMyRevit</h1>
+                </div>
+                <div class="content">
+                    <span class="icon">✉️</span>
+                    <div class="title">Підтвердження Email</div>
+                    <p class="message">
+                        Дякуємо за реєстрацію! Щоб завершити налаштування профілю та отримати доступ до всіх функцій, підтвердіть вашу електронну адресу.
+                    </p>
+                    <a href="{link}" class="btn">Підтвердити пошту</a>
+                </div>
+                <div class="footer">
+                    Посилання дійсне протягом 24 годин.
+                </div>
+            </div>
+        </body>
+        </html>
         """
         await email_service.send_email(to=email, subject="Підтвердження Email - OhMyRevit", html_content=html_content)
 
     @staticmethod
-    async def verify_email_token(db: AsyncSession, token: str) -> Tuple[str, User, str]:
-        """Верифікує токен, генерує пароль і відправляє його"""
-        result = await db.execute(select(User).where(User.verification_token == token))
-        user = result.scalar_one_or_none()
+    async def verify_email_token(db: AsyncSession, token: str) -> Tuple[str, User, Optional[str]]:
+        source_user_id_str = await cache.get(f"merge:{token}")
 
-        if not user:
+        result = await db.execute(select(User).where(User.verification_token == token))
+        target_user = result.scalar_one_or_none()
+
+        if not target_user:
             raise HTTPException(status_code=400, detail="Invalid or expired token")
 
+        # Логіка злиття
+        if source_user_id_str:
+            source_user = await db.get(User, int(source_user_id_str))
+
+            if source_user:
+                target_user = await AuthService.merge_accounts(db, target_user, source_user)
+
+                target_user.verification_token = None
+                target_user.is_email_verified = True
+                await db.commit()
+                await cache.delete(f"merge:{token}")
+
+                access_token = AuthService.create_access_token(target_user.id)
+                return access_token, target_user, None
+
+        # Звичайна реєстрація
         password = AuthService.generate_strong_password()
-        user.hashed_password = AuthService.get_password_hash(password)
-        user.is_email_verified = True
-        user.verification_token = None
+        target_user.hashed_password = AuthService.get_password_hash(password)
+        target_user.is_email_verified = True
+        target_user.verification_token = None
         await db.commit()
 
         html_content = f"""
-        <h1>Email підтверджено!</h1>
-        <p>Тепер ви можете входити на сайт, використовуючи цей email.</p>
-        <p>Ваш тимчасовий пароль: <strong>{password}</strong></p>
-        <p>Будь ласка, змініть його в налаштуваннях профілю.</p>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; margin: 0; padding: 0; }}
+                .container {{ max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}
+                .header {{ background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); padding: 30px 20px; text-align: center; color: white; }}
+                .content {{ padding: 40px 30px; text-align: center; color: #333333; }}
+                .password-box {{ background-color: #f0fdf4; border: 2px dashed #48bb78; border-radius: 12px; padding: 20px; margin: 25px 0; font-family: monospace; font-size: 24px; font-weight: 700; color: #2f855a; letter-spacing: 2px; }}
+                .message {{ font-size: 15px; line-height: 1.6; color: #555555; }}
+                .footer {{ background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #999999; border-top: 1px solid #eeeeee; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 style="margin:0; font-size:24px;">Email підтверджено!</h1>
+                </div>
+                <div class="content">
+                    <p class="message">Ваш акаунт успішно активовано. Ви можете використовувати цей пароль для входу на сайт:</p>
+                    <div class="password-box">{password}</div>
+                    <p class="message" style="font-size: 13px; color: #777;">Рекомендуємо змінити його в налаштуваннях профілю.</p>
+                </div>
+                <div class="footer">
+                    Команда OhMyRevit
+                </div>
+            </div>
+        </body>
+        </html>
         """
-        await email_service.send_email(to=user.email, subject="Ваш пароль для входу", html_content=html_content)
+        await email_service.send_email(to=target_user.email, subject="Ваш пароль - OhMyRevit",
+                                       html_content=html_content)
 
-        access_token = AuthService.create_access_token(user.id)
-        return access_token, user, password
+        access_token = AuthService.create_access_token(target_user.id)
+        return access_token, target_user, password
 
     @staticmethod
     async def register_by_email(db: AsyncSession, email: str) -> bool:
-        """Реєстрація через сайт"""
         result = await db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
 
@@ -375,11 +490,43 @@ class AuthService:
         link = f"{settings.FRONTEND_URL}/auth/verify?token={verification_token}"
 
         html_content = f"""
-        <h1>Вітаємо в OhMyRevit!</h1>
-        <p>Для завершення реєстрації та отримання пароля перейдіть за посиланням:</p>
-        <a href="{link}">Завершити реєстрацію</a>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; margin: 0; padding: 0; }}
+                .container {{ max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}
+                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; color: white; }}
+                .header h1 {{ margin: 0; font-size: 24px; font-weight: 700; }}
+                .content {{ padding: 40px 30px; text-align: center; color: #333333; }}
+                .icon {{ font-size: 48px; margin-bottom: 20px; display: block; }}
+                .title {{ font-size: 20px; font-weight: 600; margin-bottom: 16px; color: #1a1a1a; }}
+                .message {{ font-size: 15px; line-height: 1.6; color: #555555; margin-bottom: 32px; }}
+                .btn {{ display: inline-block; padding: 14px 32px; background-color: #667eea; color: #ffffff !important; text-decoration: none; font-weight: 600; border-radius: 12px; font-size: 16px; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.25); }}
+                .footer {{ background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #999999; border-top: 1px solid #eeeeee; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>Вітаємо в OhMyRevit!</h1>
+                </div>
+                <div class="content">
+                    <span class="icon">👋</span>
+                    <div class="title">Реєстрація акаунту</div>
+                    <p class="message">
+                        Для завершення реєстрації та отримання пароля перейдіть за посиланням нижче:
+                    </p>
+                    <a href="{link}" class="btn">Завершити реєстрацію</a>
+                </div>
+                <div class="footer">
+                    Посилання дійсне протягом 24 годин.
+                </div>
+            </div>
+        </body>
+        </html>
         """
-        await email_service.send_email(to=email, subject="Реєстрація", html_content=html_content)
+        await email_service.send_email(to=email, subject="Реєстрація - OhMyRevit", html_content=html_content)
 
         if not user:
             user = User(

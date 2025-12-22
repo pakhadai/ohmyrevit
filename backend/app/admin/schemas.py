@@ -28,11 +28,12 @@ class DashboardStats(BaseModel):
 class UserBrief(BaseModel):
     """Скорочена інформація про користувача"""
     id: int
-    telegram_id: int
-    username: Optional[str]
+    # ВИПРАВЛЕНО: зроблено поле опціональним, оскільки web-користувачі не мають telegram_id
+    telegram_id: Optional[int] = None
+    username: Optional[str] = None
     first_name: str
-    last_name: Optional[str]
-    email: Optional[str]
+    last_name: Optional[str] = None
+    email: Optional[str] = None
     is_admin: bool
     is_active: bool = True
     balance: int
@@ -205,10 +206,10 @@ class TransactionForUser(BaseModel):
 
 class UserDetailResponse(UserBrief):
     """Повна інформація про користувача для адмін-панелі"""
-    phone: Optional[str]
-    language_code: Optional[str]
-    last_login_at: Optional[datetime]
-    last_bonus_claim_date: Optional[date]
+    phone: Optional[str] = None
+    language_code: Optional[str] = None
+    last_login_at: Optional[datetime] = None
+    last_bonus_claim_date: Optional[date] = None
 
     # Пов'язані дані
     subscriptions: List[SubscriptionForUser] = []
