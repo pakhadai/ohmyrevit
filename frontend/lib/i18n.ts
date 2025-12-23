@@ -1,4 +1,3 @@
-// frontend/lib/i18n.ts
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { authTranslations } from './translations-auth';
@@ -25,16 +24,12 @@ i18n
     supportedLngs: settings.supportedLanguages,
     fallbackLng: settings.defaultLanguage,
 
-    // В розробці краще бачити помилки, але в продакшені вимикаємо
     debug: process.env.NODE_ENV === 'development',
 
     backend: {
       loadPath: '/locales/{{lng}}.json',
     },
 
-    // Пріоритет завантаження перекладів:
-    // 1. JSON файли (через HttpApi) - вони головні
-    // 2. TypeScript модулі - як fallback або для частини компонентів
     partialBundledLanguages: true,
 
     detection: {
@@ -42,7 +37,6 @@ i18n
       caches: ['localStorage'],
       lookupLocalStorage: 'language-storage',
 
-      // Кастомний парсер для Zustand persist storage
       parse: (languages: readonly string[]): string | undefined => {
         if (!isBrowser) return undefined;
         try {
@@ -54,7 +48,6 @@ i18n
             const persistedState = JSON.parse(languageStorage);
             lang = persistedState?.state?.language;
           } catch (e) {
-            // Fallback якщо формат просто string
             const rawValue = languageStorage.replace(/"/g, '');
             if (languages.includes(rawValue)) lang = rawValue;
           }
@@ -71,12 +64,10 @@ i18n
     },
 
     react: {
-      useSuspense: false, // Важливо для Next.js SSR
+      useSuspense: false,
     },
   });
 
-// Додаємо ресурси з TS файлів вручну, щоб вони були доступні миттєво
-// Це гібридний підхід: основні тексти в JSON, компоненти в TS
 ['uk', 'en'].forEach((lang) => {
   const tsResources = {
     ...authTranslations[lang as 'uk'|'en']?.auth,
@@ -88,8 +79,10 @@ i18n
     ...profileSubpagesTranslations[lang as 'uk'|'en']?.settings,
     ...profileSubpagesTranslations[lang as 'uk'|'en']?.support,
     ...profileSubpagesTranslations[lang as 'uk'|'en']?.faq,
-    ...subscriptionTranslations[lang as 'uk'|'en']?.subscription,
-    ...profileTranslations[lang as 'uk'|'en']?.profilePages, // Додано
+    // Виправлено: прибрано .subscription в кінці, щоб зберегти namespace 'subscription'
+    ...subscriptionTranslations[lang as 'uk'|'en'],
+    // Виправлено: прибрано .profilePages в кінці, щоб зберегти namespace 'profilePages'
+    ...profileTranslations[lang as 'uk'|'en'],
   };
 
   i18n.addResourceBundle(lang, 'translation', tsResources, true, true);

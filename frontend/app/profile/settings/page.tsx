@@ -2,21 +2,35 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, Sun, Moon, Globe, Bell, Shield, Trash2, ChevronRight, Loader
+  ArrowLeft, Sun, Moon, Globe, Bell, Shield, Trash2, ChevronRight,
+  Loader, Mail, Lock, Check, X, Eye, EyeOff
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { useTheme, ThemeName } from '@/lib/theme';
+import { useAuthStore } from '@/store/authStore';
+import { profileAPI } from '@/lib/api';
+
+const LANGUAGES = [
+  { code: 'uk', name: 'Українська', flag: '🇺🇦' },
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+];
 
 export default function SettingsPage() {
   const { theme, themeName, setThemeName } = useTheme();
   const router = useRouter();
   const { t, i18n } = useTranslation();
+  const { user, refreshUser } = useAuthStore();
 
   const [notifications, setNotifications] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const handleThemeChange = (newTheme: ThemeName) => {
     setThemeName(newTheme);
@@ -55,6 +69,68 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-4">
+          <div
+            className="p-5"
+            style={{
+              backgroundColor: theme.colors.card,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.radius.xl,
+            }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <Mail size={20} style={{ color: theme.colors.blue }} />
+              <h2 className="font-semibold" style={{ color: theme.colors.text }}>
+                {t('settings.email')}
+              </h2>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                  {user?.email || t('settings.emailNotLinked')}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowEmailModal(true)}
+                className="px-4 py-2 text-sm font-medium transition-all"
+                style={{
+                  backgroundColor: theme.colors.primaryLight,
+                  color: theme.colors.primary,
+                  borderRadius: theme.radius.lg,
+                }}
+              >
+                {user?.email ? t('settings.changeEmail') : t('settings.linkEmail')}
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="p-5"
+            style={{
+              backgroundColor: theme.colors.card,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.radius.xl,
+            }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <Lock size={20} style={{ color: theme.colors.purple }} />
+              <h2 className="font-semibold" style={{ color: theme.colors.text }}>
+                {t('settings.password')}
+              </h2>
+            </div>
+            <button
+              onClick={() => setShowPasswordModal(true)}
+              className="w-full py-3 text-sm font-medium transition-all"
+              style={{
+                backgroundColor: theme.colors.surface,
+                color: theme.colors.text,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.lg,
+              }}
+            >
+              {t('settings.changePassword')}
+            </button>
+          </div>
+
           <div
             className="p-5"
             style={{
@@ -118,30 +194,21 @@ export default function SettingsPage() {
               </h2>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => handleLanguageChange('uk')}
-                className="py-3 px-4 font-medium text-sm transition-all"
-                style={{
-                  backgroundColor: i18n.language === 'uk' ? theme.colors.blueLight : theme.colors.surface,
-                  border: i18n.language === 'uk' ? `2px solid ${theme.colors.blue}` : `1px solid ${theme.colors.border}`,
-                  color: i18n.language === 'uk' ? theme.colors.blue : theme.colors.textSecondary,
-                  borderRadius: theme.radius.lg,
-                }}
-              >
-                🇺🇦 Українська
-              </button>
-              <button
-                onClick={() => handleLanguageChange('en')}
-                className="py-3 px-4 font-medium text-sm transition-all"
-                style={{
-                  backgroundColor: i18n.language === 'en' ? theme.colors.blueLight : theme.colors.surface,
-                  border: i18n.language === 'en' ? `2px solid ${theme.colors.blue}` : `1px solid ${theme.colors.border}`,
-                  color: i18n.language === 'en' ? theme.colors.blue : theme.colors.textSecondary,
-                  borderRadius: theme.radius.lg,
-                }}
-              >
-                🇬🇧 English
-              </button>
+              {LANGUAGES.map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => handleLanguageChange(lang.code)}
+                  className="py-3 px-4 font-medium text-sm transition-all text-left"
+                  style={{
+                    backgroundColor: i18n.language === lang.code ? theme.colors.blueLight : theme.colors.surface,
+                    border: i18n.language === lang.code ? `2px solid ${theme.colors.blue}` : `1px solid ${theme.colors.border}`,
+                    color: i18n.language === lang.code ? theme.colors.blue : theme.colors.textSecondary,
+                    borderRadius: theme.radius.lg,
+                  }}
+                >
+                  {lang.flag} {lang.name}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -179,6 +246,7 @@ export default function SettingsPage() {
                 <motion.div
                   className="absolute top-1 w-5 h-5"
                   animate={{ left: notifications ? 'calc(100% - 24px)' : '4px' }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   style={{
                     backgroundColor: '#FFF',
                     borderRadius: theme.radius.full,
@@ -267,6 +335,295 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showEmailModal && (
+          <EmailModal
+            onClose={() => setShowEmailModal(false)}
+            onSuccess={() => {
+              setShowEmailModal(false);
+              refreshUser();
+            }}
+            currentEmail={user?.email}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showPasswordModal && (
+          <PasswordModal
+            onClose={() => setShowPasswordModal(false)}
+            onSuccess={() => setShowPasswordModal(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+function EmailModal({ onClose, onSuccess, currentEmail }: {
+  onClose: () => void;
+  onSuccess: () => void;
+  currentEmail?: string;
+}) {
+  const { theme } = useTheme();
+  const { t } = useTranslation();
+  const [email, setEmail] = useState(currentEmail || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      toast.error(t('settings.enterEmail'));
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error(t('settings.invalidEmail'));
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await profileAPI.updateProfile({ email });
+      toast.success(t('settings.emailUpdated'));
+      onSuccess();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || t('settings.emailUpdateError'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm"
+        style={{
+          backgroundColor: theme.colors.card,
+          border: `1px solid ${theme.colors.border}`,
+          borderRadius: theme.radius['2xl'],
+        }}
+      >
+        <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: theme.colors.border }}>
+          <h2 className="text-lg font-bold" style={{ color: theme.colors.text }}>
+            {currentEmail ? t('settings.changeEmail') : t('settings.linkEmail')}
+          </h2>
+          <button onClick={onClose} className="p-2" style={{ color: theme.colors.textMuted }}>
+            <X size={20} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="text-sm font-medium mb-2 block" style={{ color: theme.colors.textSecondary }}>
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              className="w-full px-4 py-3 text-sm outline-none"
+              style={{
+                backgroundColor: theme.colors.surface,
+                color: theme.colors.text,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.lg,
+              }}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-3 font-semibold flex items-center justify-center gap-2"
+            style={{
+              backgroundColor: theme.colors.primary,
+              color: '#FFF',
+              borderRadius: theme.radius.xl,
+              opacity: isSubmitting ? 0.5 : 1,
+            }}
+          >
+            {isSubmitting ? <Loader size={18} className="animate-spin" /> : <Check size={18} />}
+            {t('common.save')}
+          </button>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function PasswordModal({ onClose, onSuccess }: {
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const { theme } = useTheme();
+  const { t } = useTranslation();
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error(t('settings.fillAllFields'));
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error(t('settings.passwordTooShort'));
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error(t('settings.passwordsMismatch'));
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await profileAPI.changePassword({ currentPassword, newPassword });
+      toast.success(t('settings.passwordChanged'));
+      onSuccess();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || t('settings.passwordChangeError'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm"
+        style={{
+          backgroundColor: theme.colors.card,
+          border: `1px solid ${theme.colors.border}`,
+          borderRadius: theme.radius['2xl'],
+        }}
+      >
+        <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: theme.colors.border }}>
+          <h2 className="text-lg font-bold" style={{ color: theme.colors.text }}>
+            {t('settings.changePassword')}
+          </h2>
+          <button onClick={onClose} className="p-2" style={{ color: theme.colors.textMuted }}>
+            <X size={20} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="text-sm font-medium mb-2 block" style={{ color: theme.colors.textSecondary }}>
+              {t('settings.currentPassword')}
+            </label>
+            <div className="relative">
+              <input
+                type={showCurrent ? 'text' : 'password'}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full px-4 py-3 pr-12 text-sm outline-none"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.text,
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: theme.radius.lg,
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrent(!showCurrent)}
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+                style={{ color: theme.colors.textMuted }}
+              >
+                {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-2 block" style={{ color: theme.colors.textSecondary }}>
+              {t('settings.newPassword')}
+            </label>
+            <div className="relative">
+              <input
+                type={showNew ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full px-4 py-3 pr-12 text-sm outline-none"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.text,
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: theme.radius.lg,
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowNew(!showNew)}
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+                style={{ color: theme.colors.textMuted }}
+              >
+                {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-2 block" style={{ color: theme.colors.textSecondary }}>
+              {t('settings.confirmNewPassword')}
+            </label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full px-4 py-3 text-sm outline-none"
+              style={{
+                backgroundColor: theme.colors.surface,
+                color: theme.colors.text,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.lg,
+              }}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-3 font-semibold flex items-center justify-center gap-2"
+            style={{
+              backgroundColor: theme.colors.primary,
+              color: '#FFF',
+              borderRadius: theme.radius.xl,
+              opacity: isSubmitting ? 0.5 : 1,
+            }}
+          >
+            {isSubmitting ? <Loader size={18} className="animate-spin" /> : <Check size={18} />}
+            {t('settings.changePassword')}
+          </button>
+        </form>
+      </motion.div>
+    </motion.div>
   );
 }
