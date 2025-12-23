@@ -1,655 +1,493 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useAuthStore } from '@/store/authStore';
-import {
-  Settings, LogOut, Download, Heart, Gift, Users, HelpCircle, FileText,
-  ChevronRight, Wallet, Shield, User as UserIcon, Copy, Sparkles
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
+import { Crown, Sparkles, ArrowRight, Gift, Send, Folder, User, Star, Check } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useAuthStore } from '@/store/authStore';
+import { productsAPI, profileAPI, subscriptionsAPI } from '@/lib/api';
+import { Product } from '@/types';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { useTheme } from '@/lib/theme';
 
-// --- ТИПИ ---
-interface MenuItem {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-  iconColor: string;
-  iconBg: string;
-}
-
-// --- ТЕМА (з підтримкою Telegram) ---
-const getTheme = (isDark: boolean) => ({
-  bg: isDark
-    ? 'linear-gradient(to bottom, #1A1A1A, #0D0D0D)'
-    : 'linear-gradient(to bottom, #FDFCFA, #F5F3F0)',
-  card: isDark ? '#2A2A2A' : '#FFFFFF',
-  cardBorder: isDark ? '#3A3A3A' : '#F0F0F0',
-  textMain: isDark ? '#FFFFFF' : '#1A1A1A',
-  textSecondary: isDark ? '#A0A0A0' : '#666666',
-  textMuted: isDark ? '#707070' : '#9CA3AF',
-  surface: isDark ? '#333333' : '#F5F5F7',
-  surfaceHover: isDark ? '#404040' : '#EEEEF0',
-  menuHover: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
-  menuActive: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-});
-
-// --- SKELETON КОМПОНЕНТИ ---
-const SkeletonBox = ({ className, isDark }: { className: string; isDark: boolean }) => (
-  <div
-    className={`animate-pulse rounded-2xl ${className}`}
-    style={{ backgroundColor: isDark ? '#333' : '#E5E5E5' }}
-  />
-);
-
-const ProfileSkeleton = ({ isDark }: { isDark: boolean }) => {
-  const theme = getTheme(isDark);
-
-  return (
-    <div className="min-h-screen pb-12" style={{ background: theme.bg }}>
-      <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-12 pt-8 sm:pt-12 pb-36">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
-          {/* Ліва колонка */}
-          <div className="lg:col-span-4 space-y-6">
-            <div
-              className="rounded-[32px] p-6"
-              style={{ backgroundColor: theme.card, borderColor: theme.cardBorder, borderWidth: 1 }}
-            >
-              <div className="flex items-center gap-5">
-                <SkeletonBox className="w-24 h-24 !rounded-[24px]" isDark={isDark} />
-                <div className="flex-1 space-y-3">
-                  <SkeletonBox className="h-6 w-32" isDark={isDark} />
-                  <SkeletonBox className="h-4 w-24" isDark={isDark} />
-                  <SkeletonBox className="h-8 w-28 !rounded-full" isDark={isDark} />
-                </div>
-              </div>
-              <div className="mt-4">
-                <SkeletonBox className="h-20 w-full !rounded-[24px]" isDark={isDark} />
-              </div>
-            </div>
-          </div>
-
-          {/* Права колонка */}
-          <div className="lg:col-span-8 space-y-6">
-            {[2, 2, 4].map((count, groupIndex) => (
-              <div key={groupIndex}>
-                <SkeletonBox className="h-4 w-20 mb-3 ml-4" isDark={isDark} />
-                <div
-                  className="rounded-[28px] p-2"
-                  style={{ backgroundColor: theme.card, borderColor: theme.cardBorder, borderWidth: 1 }}
-                >
-                  {Array.from({ length: count }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-4 p-4">
-                      <SkeletonBox className="w-11 h-11 !rounded-[16px]" isDark={isDark} />
-                      <SkeletonBox className="h-5 w-32" isDark={isDark} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- МОДАЛЬНЕ ВІКНО ПІДТВЕРДЖЕННЯ ---
-const ConfirmModal = ({
-  isOpen,
-  onClose,
-  onConfirm,
-  title,
-  message,
-  confirmText,
-  cancelText,
-  isDark,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  title: string;
-  message: string;
-  confirmText: string;
-  cancelText: string;
-  isDark: boolean;
-}) => {
-  const theme = getTheme(isDark);
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div
-        className="relative w-full max-w-sm rounded-[28px] p-6 shadow-2xl"
-        style={{ backgroundColor: theme.card }}
-      >
-        <h3
-          className="text-xl font-bold mb-2"
-          style={{ color: theme.textMain }}
-        >
-          {title}
-        </h3>
-        <p
-          className="text-sm mb-6"
-          style={{ color: theme.textSecondary }}
-        >
-          {message}
-        </p>
-
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 px-4 rounded-2xl font-semibold text-sm transition-all active:scale-95"
-            style={{
-              backgroundColor: theme.surface,
-              color: theme.textMain,
-            }}
-          >
-            {cancelText}
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 py-3 px-4 rounded-2xl font-semibold text-sm bg-red-500 text-white hover:bg-red-600 transition-all active:scale-95"
-          >
-            {confirmText}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- ГОЛОВНИЙ КОМПОНЕНТ ---
-export default function ProfilePage() {
-  const { user, logout } = useAuthStore();
-  const [isHydrated, setIsHydrated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
+export default function HomePage() {
   const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
   const { t } = useTranslation();
+  const { theme, isDark } = useTheme();
 
-  // Ініціалізація теми Telegram
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [bonusInfo, setBonusInfo] = useState<any>(null);
+  const [subStatus, setSubStatus] = useState<any>(null);
+
   useEffect(() => {
-    setIsHydrated(true);
-
-    // Перевіряємо Telegram WebApp
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg) {
-      // Встановлюємо тему з Telegram
-      const colorScheme = tg.colorScheme || 'light';
-      setIsDarkMode(colorScheme === 'dark');
-
-      // Слухаємо зміни теми
-      tg.onEvent('themeChanged', () => {
-        setIsDarkMode(tg.colorScheme === 'dark');
-      });
-
-      // Налаштовуємо кнопку "Назад"
-      tg.BackButton.show();
-      tg.BackButton.onClick(() => {
-        router.back();
-      });
-
-      // Розширюємо на весь екран
-      tg.expand();
-    } else {
-      // Fallback для браузера - перевіряємо системну тему
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setIsDarkMode(prefersDark);
-
-      // Слухаємо зміни системної теми
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
-      mediaQuery.addEventListener('change', handleChange);
-
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    }
-  }, [router]);
-
-  // Симуляція завантаження даних
-  useEffect(() => {
-    if (isHydrated) {
-      const timer = setTimeout(() => setIsLoading(false), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isHydrated]);
-
-  // Приховуємо кнопку "Назад" при розмонтуванні
-  useEffect(() => {
-    return () => {
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg) {
-        tg.BackButton.hide();
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [productsData, bonusData, subData] = await Promise.all([
+          productsAPI.getProducts({ sort_by: 'newest', limit: 6 }),
+          isAuthenticated ? profileAPI.getBonusInfo() : Promise.resolve(null),
+          isAuthenticated ? subscriptionsAPI.getStatus() : Promise.resolve(null)
+        ]);
+        setProducts(productsData.products || []);
+        setBonusInfo(bonusData);
+        setSubStatus(subData);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
     };
-  }, []);
+    fetchData();
+  }, [isAuthenticated]);
 
-  const theme = getTheme(isDarkMode);
+  const handleClaimBonus = async () => {
+    if (!bonusInfo?.can_claim_today) return;
+    try {
+      const res = await profileAPI.claimDailyBonus();
+      if (res.success) {
+        toast.success(`+${res.bonus_amount} OMR`);
+        setBonusInfo({ ...bonusInfo, can_claim_today: false, balance: res.new_balance });
+      }
+    } catch {
+      toast.error(t('bonus.toasts.claimError'));
+    }
+  };
 
-  const handleLogout = useCallback(() => {
-    setShowLogoutModal(true);
-  }, []);
-
-  const confirmLogout = useCallback(() => {
-    logout();
-    setShowLogoutModal(false);
-
-    // Закриваємо Mini App якщо в Telegram
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg) {
-      tg.close();
+  const openTelegram = () => {
+    const url = 'https://t.me/ohmyrevit';
+    if ((window as any).Telegram?.WebApp) {
+      (window as any).Telegram.WebApp.openTelegramLink(url);
     } else {
-      router.push('/');
+      window.open(url, '_blank');
     }
-  }, [logout, router]);
+  };
 
-  const copyId = useCallback(() => {
-    if (user?.telegramId || user?.id) {
-      const idToCopy = (user?.telegramId || user?.id).toString();
-      navigator.clipboard.writeText(idToCopy);
-      toast.success(t('profilePages.main.idCopied') || 'ID скопійовано', {
-        style: {
-          borderRadius: '12px',
-          background: isDarkMode ? '#333' : '#333',
-          color: '#fff',
-        },
-      });
-    }
-  }, [user, t, isDarkMode]);
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return t('home.greeting.morning', 'Доброго ранку');
+    if (hour >= 12 && hour < 18) return t('home.greeting.afternoon', 'Доброго дня');
+    if (hour >= 18 && hour < 22) return t('home.greeting.evening', 'Доброго вечора');
+    return t('home.greeting.night', 'Доброї ночі');
+  };
 
-  // --- МЕНЮ ГРУПИ (з консистентними стилями) ---
-
-  const groupMain: MenuItem[] = [
-    {
-      href: '/profile/wallet',
-      label: t('profilePages.main.menu.wallet') || 'Гаманець',
-      icon: Wallet,
-      iconColor: 'text-blue-500',
-      iconBg: isDarkMode ? 'bg-blue-500/20' : 'bg-blue-50',
-    },
-    {
-      href: '/profile/settings',
-      label: t('profilePages.main.menu.settings') || 'Налаштування',
-      icon: Settings,
-      iconColor: 'text-slate-500',
-      iconBg: isDarkMode ? 'bg-slate-500/20' : 'bg-slate-50',
-    },
-  ];
-
-  const groupContent: MenuItem[] = [
-    {
-      href: '/profile/downloads',
-      label: t('profilePages.main.menu.downloads') || 'Завантаження',
-      icon: Download,
-      iconColor: 'text-green-500',
-      iconBg: isDarkMode ? 'bg-green-500/20' : 'bg-green-50',
-    },
-    {
-      href: '/profile/collections',
-      label: t('profilePages.main.menu.collections') || 'Колекції',
-      icon: Heart,
-      iconColor: 'text-pink-500',
-      iconBg: isDarkMode ? 'bg-pink-500/20' : 'bg-pink-50',
-    },
-  ];
-
-  const groupGeneral: MenuItem[] = [
-    {
-      href: '/profile/bonuses',
-      label: t('profilePages.main.menu.bonuses') || 'Бонуси',
-      icon: Gift,
-      iconColor: 'text-purple-500',
-      iconBg: isDarkMode ? 'bg-purple-500/20' : 'bg-purple-50',
-    },
-    {
-      href: '/profile/referrals',
-      label: t('profilePages.main.menu.referrals') || 'Реферали',
-      icon: Users,
-      iconColor: 'text-orange-500',
-      iconBg: isDarkMode ? 'bg-orange-500/20' : 'bg-orange-50',
-    },
-    {
-      href: '/profile/support',
-      label: t('profilePages.main.menu.support') || 'Підтримка',
-      icon: HelpCircle,
-      iconColor: 'text-cyan-500',
-      iconBg: isDarkMode ? 'bg-cyan-500/20' : 'bg-cyan-50',
-    },
-    {
-      href: '/profile/faq',
-      label: t('profilePages.main.menu.faq') || 'FAQ',
-      icon: FileText,
-      iconColor: 'text-amber-500',
-      iconBg: isDarkMode ? 'bg-amber-500/20' : 'bg-amber-50',
-    },
-  ];
-
-  // --- КОМПОНЕНТ ПУНКТУ МЕНЮ ---
-  const MenuItemComponent = ({ item, isLast }: { item: MenuItem; isLast: boolean }) => (
-    <Link href={item.href}>
-      <div
-        className={`group flex items-center justify-between p-4 transition-colors cursor-pointer rounded-2xl`}
-        style={{
-          borderBottom: !isLast ? `1px solid ${theme.cardBorder}` : 'none',
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.menuHover)}
-        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-      >
-        <div className="flex items-center gap-4">
-          <div className={`w-11 h-11 rounded-[16px] flex items-center justify-center transition-colors ${item.iconBg}`}>
-            <item.icon size={22} className={item.iconColor} strokeWidth={1.8} />
-          </div>
-          <span
-            className="text-[15px] font-medium"
-            style={{ color: theme.textMain }}
-          >
-            {item.label}
-          </span>
-        </div>
-        <ChevronRight
-          size={18}
-          className="transition-colors"
-          style={{ color: theme.textMuted }}
-        />
-      </div>
-    </Link>
-  );
-
-  // --- РЕНДЕР ---
-
-  if (!isHydrated) return null;
-
-  if (isLoading) {
-    return <ProfileSkeleton isDark={isDarkMode} />;
-  }
+  const isActive = subStatus?.has_active_subscription;
 
   return (
-    <>
-      <div
-        className="min-h-screen pb-12 overflow-x-hidden"
-        style={{ background: theme.bg }}
-      >
-        <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-12 pt-8 sm:pt-12 pb-36">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
+    <div className="min-h-screen" style={{ background: theme.colors.bgGradient }}>
+      <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-12 pt-8 sm:pt-12 pb-36">
 
-            {/* --- ЛІВА КОЛОНКА (Профіль) --- */}
-            <div className="lg:col-span-4 lg:sticky lg:top-24 space-y-6">
+        <header className="flex items-center justify-between mb-8 sm:mb-12">
+          <div className="flex items-center gap-4 sm:gap-5">
+            <Link href="/profile">
+              <div className="relative group">
+                <div
+                  className="w-14 h-14 sm:w-16 sm:h-16 overflow-hidden flex items-center justify-center transition-all duration-300 group-hover:shadow-md"
+                  style={{
+                    backgroundColor: theme.colors.card,
+                    boxShadow: theme.shadows.md,
+                    border: `1px solid ${theme.colors.border}`,
+                    borderRadius: theme.radius.xl,
+                  }}
+                >
+                  {user?.photoUrl ? (
+                    <img src={user.photoUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      style={{ backgroundColor: theme.colors.surface }}
+                    >
+                      <User size={24} style={{ color: theme.colors.textMuted }} />
+                    </div>
+                  )}
+                </div>
+                {isActive && (
+                  <div
+                    className="absolute -bottom-1 -right-1 w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center"
+                    style={{
+                      backgroundColor: theme.colors.accentDark,
+                      boxShadow: theme.shadows.md,
+                      borderRadius: theme.radius.md,
+                    }}
+                  >
+                    <Crown size={12} color="#FFF" />
+                  </div>
+                )}
+              </div>
+            </Link>
+            <div>
+              <p className="text-sm sm:text-base font-medium" style={{ color: theme.colors.textMuted }}>
+                {getGreeting()}
+              </p>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight" style={{ color: theme.colors.text }}>
+                {user?.firstName || t('home.guest', 'Гість')}
+              </h1>
+            </div>
+          </div>
 
-              {/* КАРТКА ПРОФІЛЮ */}
+          <Link href="/profile/wallet">
+            <div
+              className="flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3 sm:py-4 transition-all duration-300 hover:scale-[1.02]"
+              style={{
+                backgroundColor: theme.colors.card,
+                boxShadow: theme.shadows.md,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.xl,
+              }}
+            >
+              <div className="text-right">
+                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                  {t('wallet.yourBalance', 'Баланс')}
+                </p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold" style={{ color: theme.colors.text }}>
+                  {user?.balance?.toLocaleString() || 0}
+                  <span className="text-sm sm:text-base font-medium ml-1" style={{ color: theme.colors.textSecondary }}>
+                    OMR
+                  </span>
+                </p>
+              </div>
               <div
-                className="rounded-[32px] overflow-hidden shadow-sm"
+                className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center"
                 style={{
-                  backgroundColor: theme.card,
-                  border: `1px solid ${theme.cardBorder}`,
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: theme.radius.lg,
                 }}
               >
-                <div className="p-6 pb-2">
-                  <div className="flex items-center gap-5">
-                    {/* Аватар */}
-                    <div className="relative shrink-0">
-                      <div
-                        className="w-24 h-24 rounded-[24px] overflow-hidden flex items-center justify-center shadow-inner"
-                        style={{
-                          backgroundColor: theme.surface,
-                          border: `1px solid ${theme.cardBorder}`,
-                        }}
-                      >
-                        {user?.photoUrl ? (
-                          <img
-                            src={user.photoUrl}
-                            alt="Profile"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <UserIcon size={36} style={{ color: theme.textMuted }} />
-                        )}
-                      </div>
-                      {user?.isAdmin && (
-                        <div
-                          className="absolute -bottom-2 -right-2 bg-black text-white p-1.5 rounded-xl shadow-lg"
-                          style={{ borderWidth: 4, borderColor: theme.card }}
-                          title={t('profilePages.main.admin.badge') || 'Адміністратор'}
-                        >
-                          <Shield size={14} fill="currentColor" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Інфо */}
-                    <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
-                      <div>
-                        <h1
-                          className="text-xl font-bold leading-tight tracking-tight truncate"
-                          style={{ color: theme.textMain }}
-                        >
-                          {user?.firstName} {user?.lastName}
-                        </h1>
-                        {user?.username && (
-                          <p
-                            className="text-sm font-medium"
-                            style={{ color: theme.textSecondary }}
-                          >
-                            @{user.username}
-                          </p>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={copyId}
-                        className="group flex items-center gap-2 w-fit px-3 py-1.5 rounded-full transition-all active:scale-95"
-                        style={{
-                          backgroundColor: theme.surface,
-                          border: `1px solid ${theme.cardBorder}`,
-                        }}
-                      >
-                        <span
-                          className="text-[10px] font-bold uppercase tracking-wider"
-                          style={{ color: theme.textMuted }}
-                        >
-                          ID
-                        </span>
-                        <span
-                          className="text-xs font-mono font-medium"
-                          style={{ color: theme.textSecondary }}
-                        >
-                          {user?.telegramId || user?.id}
-                        </span>
-                        <Copy size={12} style={{ color: theme.textMuted }} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Баланс */}
-                <div className="p-2">
-                  <Link href="/profile/wallet">
-                    <div
-                      className="p-4 rounded-[24px] transition-all cursor-pointer flex items-center justify-between group active:scale-[0.99]"
-                      style={{ backgroundColor: theme.surface }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.surfaceHover)}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = theme.surface)}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform"
-                          style={{ backgroundColor: theme.card }}
-                        >
-                          <Image src="/omr_coin.png" alt="OMR" width={28} height={28} />
-                        </div>
-                        <div className="flex flex-col">
-                          <span
-                            className="text-xs font-bold uppercase tracking-wider mb-0.5"
-                            style={{ color: theme.textMuted }}
-                          >
-                            {t('profilePages.main.balance') || 'Баланс'}
-                          </span>
-                          <div className="flex items-baseline gap-1.5">
-                            <span
-                              className="text-2xl font-bold"
-                              style={{ color: theme.textMain }}
-                            >
-                              {user?.balance?.toLocaleString() || '0'}
-                            </span>
-                            <span
-                              className="text-sm font-semibold"
-                              style={{ color: theme.textSecondary }}
-                            >
-                              OMR
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-                        style={{ backgroundColor: theme.card, color: theme.textMuted }}
-                      >
-                        <ChevronRight size={18} />
-                      </div>
-                    </div>
-                  </Link>
-                </div>
-              </div>
-
-              {/* ВИХІД */}
-              <div className="flex justify-center">
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-full transition-all active:scale-95"
-                >
-                  <LogOut size={18} />
-                  <span>{t('profilePages.main.logout') || 'Вийти'}</span>
-                </button>
+                <Image src="/omr_coin.png" alt="" width={28} height={28} className="sm:w-8 sm:h-8 opacity-90" />
               </div>
             </div>
+          </Link>
+        </header>
 
-            {/* --- ПРАВА КОЛОНКА (Меню) --- */}
-            <div className="lg:col-span-8 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 mb-8 sm:mb-10">
 
-              {/* КНОПКА АДМІНА */}
-              {user?.isAdmin && (
-                <Link href="/admin" className="block">
-                  <div className="w-full p-5 rounded-[28px] bg-gradient-to-r from-gray-900 to-gray-800 text-white flex items-center justify-between shadow-xl hover:shadow-2xl hover:translate-y-[-2px] transition-all cursor-pointer">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-sm">
-                        <Sparkles size={24} className="text-yellow-300" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg">
-                          {t('profilePages.main.admin.title') || 'Панель адміністратора'}
-                        </h3>
-                        <p className="text-sm text-white/60">
-                          {t('profilePages.main.admin.description') || 'Керування користувачами та контентом'}
-                        </p>
-                      </div>
-                    </div>
-                    <ChevronRight size={20} className="text-white/50" />
+          <div
+            onClick={() => router.push('/subscription')}
+            className="lg:col-span-2 cursor-pointer transition-all duration-300 hover:translate-y-[-2px]"
+            style={{
+              backgroundColor: theme.colors.card,
+              border: `1px solid ${theme.colors.border}`,
+              boxShadow: theme.shadows.lg,
+              borderRadius: theme.radius['3xl'],
+            }}
+          >
+            <div className="p-6 sm:p-8 lg:p-10 min-h-[200px] sm:min-h-[240px] flex flex-col justify-between">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div
+                    className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 mb-4"
+                    style={{
+                      backgroundColor: theme.colors.accentDark,
+                      borderRadius: theme.radius.full,
+                    }}
+                  >
+                    <Crown size={14} color="#FFF" />
+                    <span className="text-xs font-bold uppercase tracking-wide text-white">
+                      {isActive ? t('subscription.premiumActive', 'Активний') : 'Premium Club'}
+                    </span>
                   </div>
-                </Link>
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3" style={{ color: theme.colors.text }}>
+                    {isActive
+                      ? t('home.premium.clubTitle', 'Ваша підписка')
+                      : t('subscription.premiumTitle', 'Отримай Premium')}
+                  </h2>
+                  <p className="text-sm sm:text-base max-w-xs leading-relaxed font-medium" style={{ color: theme.colors.textSecondary }}>
+                    {isActive
+                      ? t('subscription.daysRemaining', 'Залишилось') + ` ${subStatus?.subscription?.days_remaining || 0} ` + t('profilePages.bonuses.days', 'днів')
+                      : t('subscription.pageSubtitle', 'Повний доступ до всього контенту та ексклюзивні можливості.')}
+                  </p>
+                </div>
+                <div className="w-20 h-20 sm:w-32 sm:h-32 flex items-center justify-center flex-shrink-0">
+                  <Crown
+                    size={64}
+                    className="sm:hidden"
+                    style={{ color: theme.colors.accentDark, opacity: 0.9 }}
+                    strokeWidth={1.2}
+                    fill={theme.colors.surface}
+                  />
+                  <Crown
+                    size={96}
+                    className="hidden sm:block"
+                    style={{ color: theme.colors.accentDark, opacity: 0.9 }}
+                    strokeWidth={1.2}
+                    fill={theme.colors.surface}
+                  />
+                </div>
+              </div>
+
+              {!isActive && (
+                <div className="flex items-center justify-between mt-6 sm:mt-8">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    {[
+                      t('subscription.feature1Short', '100+ файлів'),
+                      t('subscription.feature2Short', 'Оновлення'),
+                      t('subscription.feature3Short', 'Підтримка')
+                    ].map((text, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5"
+                        style={{
+                          backgroundColor: theme.colors.surface,
+                          borderRadius: theme.radius.full,
+                        }}
+                      >
+                        <Check size={12} style={{ color: theme.colors.accentDark }} strokeWidth={3} />
+                        <span
+                          className="text-[10px] sm:text-xs font-semibold hidden sm:inline"
+                          style={{ color: theme.colors.accentDark }}
+                        >
+                          {text}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div
+                    className="w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center transition-all hover:scale-105"
+                    style={{
+                      backgroundColor: theme.colors.accentDark,
+                      borderRadius: theme.radius.lg,
+                    }}
+                  >
+                    <ArrowRight size={20} color="#FFF" className="sm:w-6 sm:h-6" />
+                  </div>
+                </div>
               )}
 
-              {/* ОСНОВНЕ */}
-              <div>
-                <h3
-                  className="text-xs font-bold uppercase tracking-wider mb-3 ml-4"
-                  style={{ color: theme.textMuted }}
-                >
-                  {t('profilePages.main.sections.main') || 'Головне'}
-                </h3>
+              {isActive && (
+                <div className="flex items-center gap-3 mt-6">
+                  <div
+                    className="flex-1 px-4 py-3"
+                    style={{
+                      background: theme.colors.bgGradient,
+                      border: `1px solid ${theme.colors.border}`,
+                      borderRadius: theme.radius.lg,
+                    }}
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: theme.colors.textMuted }}>
+                      {t('subscription.activeUntil', 'Активний до')}
+                    </p>
+                    <p className="text-sm sm:text-base font-bold" style={{ color: theme.colors.text }}>
+                      {subStatus?.subscription?.end_date
+                        ? new Date(subStatus.subscription.end_date).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })
+                        : '—'}
+                    </p>
+                  </div>
+                  <div
+                    className="w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center transition-transform hover:scale-105"
+                    style={{
+                      backgroundColor: theme.colors.card,
+                      border: `1px solid ${theme.colors.border}`,
+                      borderRadius: theme.radius.lg,
+                    }}
+                  >
+                    <ArrowRight size={20} style={{ color: theme.colors.text }} />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 lg:grid-cols-1 gap-3 sm:gap-4">
+            {isAuthenticated && (
+              <button
+                onClick={handleClaimBonus}
+                className="p-4 sm:p-5 text-left transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                style={{
+                  backgroundColor: bonusInfo?.can_claim_today ? theme.colors.accentDark : theme.colors.card,
+                  border: `1px solid ${bonusInfo?.can_claim_today ? theme.colors.accentDark : theme.colors.border}`,
+                  boxShadow: theme.shadows.md,
+                  borderRadius: theme.radius.xl,
+                  color: bonusInfo?.can_claim_today ? '#FFF' : theme.colors.text,
+                }}
+              >
                 <div
-                  className="rounded-[28px] p-2 shadow-sm overflow-hidden"
+                  className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-3"
                   style={{
-                    backgroundColor: theme.card,
-                    border: `1px solid ${theme.cardBorder}`,
+                    backgroundColor: bonusInfo?.can_claim_today ? 'rgba(255,255,255,0.15)' : theme.colors.surface,
+                    borderRadius: theme.radius.lg,
                   }}
                 >
-                  {groupMain.map((item, index) => (
-                    <MenuItemComponent
-                      key={item.href}
-                      item={item}
-                      isLast={index === groupMain.length - 1}
-                    />
-                  ))}
+                  <Gift size={20} style={{ color: bonusInfo?.can_claim_today ? '#FFF' : theme.colors.orange }} />
                 </div>
-              </div>
-
-              {/* КОНТЕНТ */}
-              <div>
-                <h3
-                  className="text-xs font-bold uppercase tracking-wider mb-3 ml-4"
-                  style={{ color: theme.textMuted }}
+                <p
+                  className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider"
+                  style={{ color: bonusInfo?.can_claim_today ? 'rgba(255,255,255,0.7)' : theme.colors.textMuted }}
                 >
-                  {t('profilePages.main.sections.content') || 'Мій контент'}
-                </h3>
+                  {t('bonus.dailyBonus', 'Бонус')}
+                </p>
+                <p className="text-sm sm:text-base font-bold">
+                  {bonusInfo?.can_claim_today ? t('bonus.claimButton', 'Забрати') : t('bonus.claimed', 'Готово ✓')}
+                </p>
+              </button>
+            )}
+
+            <Link href="/profile/collections" className="block">
+              <div
+                className="h-full p-4 sm:p-5 transition-all duration-300 hover:scale-[1.02]"
+                style={{
+                  backgroundColor: theme.colors.card,
+                  boxShadow: theme.shadows.md,
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: theme.radius.xl,
+                }}
+              >
                 <div
-                  className="rounded-[28px] p-2 shadow-sm overflow-hidden"
+                  className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-3"
                   style={{
-                    backgroundColor: theme.card,
-                    border: `1px solid ${theme.cardBorder}`,
+                    backgroundColor: theme.colors.surface,
+                    borderRadius: theme.radius.lg,
                   }}
                 >
-                  {groupContent.map((item, index) => (
-                    <MenuItemComponent
-                      key={item.href}
-                      item={item}
-                      isLast={index === groupContent.length - 1}
-                    />
-                  ))}
+                  <Folder size={20} style={{ color: theme.colors.purple }} />
                 </div>
+                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                  {t('profilePages.main.menu.myLabel', 'Мої')}
+                </p>
+                <p className="text-sm sm:text-base font-bold" style={{ color: theme.colors.text }}>
+                  {t('profilePages.main.menu.collections', 'Збережені')}
+                </p>
               </div>
+            </Link>
 
-              {/* ІНШЕ */}
-              <div>
-                <h3
-                  className="text-xs font-bold uppercase tracking-wider mb-3 ml-4"
-                  style={{ color: theme.textMuted }}
-                >
-                  {t('profilePages.main.sections.other') || 'Інше'}
-                </h3>
-                <div
-                  className="rounded-[28px] p-2 shadow-sm overflow-hidden"
-                  style={{
-                    backgroundColor: theme.card,
-                    border: `1px solid ${theme.cardBorder}`,
-                  }}
-                >
-                  {groupGeneral.map((item, index) => (
-                    <MenuItemComponent
-                      key={item.href}
-                      item={item}
-                      isLast={index === groupGeneral.length - 1}
-                    />
-                  ))}
-                </div>
+            <div
+              onClick={openTelegram}
+              className="p-4 sm:p-5 cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95"
+              style={{
+                backgroundColor: theme.colors.card,
+                boxShadow: theme.shadows.md,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.xl,
+              }}
+            >
+              <div
+                className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-3"
+                style={{
+                  backgroundColor: theme.colors.blueLight,
+                  borderRadius: theme.radius.lg,
+                }}
+              >
+                <Send size={20} style={{ color: theme.colors.blue }} />
               </div>
-
+              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                {t('home.telegram.label', 'Наш')}
+              </p>
+              <p className="text-sm sm:text-base font-bold" style={{ color: theme.colors.text }}>
+                Telegram
+              </p>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* МОДАЛЬНЕ ВІКНО ПІДТВЕРДЖЕННЯ ВИХОДУ */}
-      <ConfirmModal
-        isOpen={showLogoutModal}
-        onClose={() => setShowLogoutModal(false)}
-        onConfirm={confirmLogout}
-        title={t('profilePages.main.logoutModal.title') || 'Вийти з акаунту?'}
-        message={t('profilePages.main.logoutModal.message') || 'Ви впевнені, що хочете вийти? Вам потрібно буде увійти знову.'}
-        confirmText={t('profilePages.main.logoutModal.confirm') || 'Вийти'}
-        cancelText={t('profilePages.main.logoutModal.cancel') || 'Скасувати'}
-        isDark={isDarkMode}
-      />
-    </>
+        <section>
+          <div className="flex items-center justify-between mb-5 sm:mb-6">
+            <h3 className="text-lg sm:text-xl lg:text-2xl font-bold flex items-center gap-2" style={{ color: theme.colors.text }}>
+              <Sparkles size={20} style={{ color: theme.colors.primary }} />
+              {t('home.newArrivals', 'Нові надходження')}
+            </h3>
+            <Link href="/marketplace">
+              <span
+                className="text-xs sm:text-sm font-semibold px-4 py-2 transition-all hover:scale-105"
+                style={{
+                  backgroundColor: theme.colors.card,
+                  color: theme.colors.text,
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: theme.radius.full,
+                }}
+              >
+                {t('home.allProducts', 'Переглянути всі')} →
+              </span>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5">
+            {loading ? (
+              [...Array(6)].map((_, i) => (
+                <div
+                  key={i}
+                  className="aspect-[3/4] animate-pulse"
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    borderRadius: theme.radius.xl,
+                  }}
+                />
+              ))
+            ) : (
+              products.map((product) => (
+                <Link key={product.id} href={`/product/${product.id}`}>
+                  <div
+                    className="group overflow-hidden transition-all duration-300 hover:scale-[1.02]"
+                    style={{
+                      backgroundColor: theme.colors.card,
+                      boxShadow: theme.shadows.md,
+                      border: `1px solid ${theme.colors.border}`,
+                      borderRadius: theme.radius.xl,
+                    }}
+                  >
+                    <div
+                      className="relative aspect-square overflow-hidden"
+                      style={{ backgroundColor: theme.colors.surface }}
+                    >
+                      <Image
+                        src={product.main_image_url}
+                        alt={product.title}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute top-2 sm:top-3 right-2 sm:right-3">
+                        {product.product_type === 'free' ? (
+                          <span
+                            className="text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-1 backdrop-blur-md"
+                            style={{
+                              backgroundColor: 'rgba(255,255,255,0.85)',
+                              color: theme.colors.textSecondary,
+                              borderRadius: theme.radius.full,
+                            }}
+                          >
+                            {t('product.free', 'FREE')}
+                          </span>
+                        ) : (
+                          <span
+                            className="text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-1 flex items-center gap-0.5"
+                            style={{
+                              backgroundColor: theme.colors.accentDark,
+                              color: '#FFF',
+                              borderRadius: theme.radius.full,
+                            }}
+                          >
+                            <Star size={10} fill="currentColor" /> PRO
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-3 sm:p-4">
+                      <h4
+                        className="text-sm sm:text-base font-semibold line-clamp-1 mb-1.5"
+                        style={{ color: theme.colors.text }}
+                      >
+                        {product.title}
+                      </h4>
+                      <span
+                        className="text-[10px] sm:text-xs font-semibold px-2 py-0.5"
+                        style={{
+                          backgroundColor: theme.colors.surface,
+                          color: theme.colors.textSecondary,
+                          borderRadius: theme.radius.full,
+                        }}
+                      >
+                        {product.file_size_mb} MB
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </section>
+
+      </div>
+    </div>
   );
 }

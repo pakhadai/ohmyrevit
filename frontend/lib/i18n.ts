@@ -1,10 +1,49 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import { authTranslations } from './translations-auth';
+import { collectionsTranslations } from './translations-collections';
+import { profileSubpagesTranslations } from './translations-profile-subpages';
+import { subscriptionTranslations } from './translations-subscription';
 import HttpApi from 'i18next-http-backend';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { settings } from '@/lib/settings';
 
 const isBrowser = typeof window !== 'undefined';
+
+const resources = {
+  uk: {
+    translation: {
+      ...existingUk,
+      ...authTranslations.uk.auth,
+      ...collectionsTranslations.uk.collections,
+      ...existingUk,
+      ...profileSubpagesTranslations.uk.wallet,
+      ...profileSubpagesTranslations.uk.bonuses,
+      ...profileSubpagesTranslations.uk.referrals,
+      ...profileSubpagesTranslations.uk.downloads,
+      ...profileSubpagesTranslations.uk.settings,
+      ...profileSubpagesTranslations.uk.support,
+      ...profileSubpagesTranslations.uk.faq,
+      ...subscriptionTranslations.uk.subscription,
+    }
+  },
+  en: {
+    translation: {
+      ...existingEn,
+      ...authTranslations.en.auth,
+      ...collectionsTranslations.en.collections,
+      ...existingEn,
+      ...profileSubpagesTranslations.en.wallet,
+      ...profileSubpagesTranslations.en.bonuses,
+      ...profileSubpagesTranslations.en.referrals,
+      ...profileSubpagesTranslations.en.downloads,
+      ...profileSubpagesTranslations.en.settings,
+      ...profileSubpagesTranslations.en.support,
+      ...profileSubpagesTranslations.en.faq,
+      ...subscriptionTranslations.en.subscription,
+    }
+  }
+};
 
 i18n
   .use(isBrowser ? HttpApi : {

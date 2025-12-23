@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { X, Mail, ArrowRight, Loader } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Mail, Loader, CheckCircle2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import api from '@/lib/api';
+import { useAuthStore } from '@/store/authStore';
+import { profileAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { useTheme } from '@/lib/theme';
 
 interface EmailLinkModalProps {
   onClose: () => void;
@@ -13,101 +15,158 @@ interface EmailLinkModalProps {
 }
 
 export default function EmailLinkModal({ onClose, onSuccess }: EmailLinkModalProps) {
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
+  const { theme } = useTheme();
   const { t } = useTranslation();
+  const { refreshUser } = useAuthStore();
+  const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email.trim()) {
+      toast.error(t('auth.enterEmail'));
+      return;
+    }
 
-    setLoading(true);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error(t('auth.invalidEmail'));
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      await api.post('/auth/link-email', { email });
-      setSent(true);
-      toast.success(t('auth.emailLinkSent', 'Лист підтвердження відправлено!'));
+      await profileAPI.updateProfile({ email });
+      await refreshUser();
+      setIsSuccess(true);
+      toast.success(t('auth.emailLinked'));
+      setTimeout(() => {
+        onSuccess();
+      }, 1500);
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || t('auth.emailLinkError', 'Помилка відправки'));
+      const message = error.response?.data?.detail || t('auth.emailLinkError');
+      toast.error(message);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
-      onClick={onClose}
-    >
+    <AnimatePresence>
       <motion.div
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.9, y: 20 }}
-        className="bg-card rounded-2xl p-6 w-full max-w-sm shadow-xl border border-border"
-        onClick={e => e.stopPropagation()}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+        onClick={onClose}
       >
-        <div className="flex justify-between items-start mb-4">
-          <h2 className="text-xl font-bold text-foreground">
-            {sent ? t('auth.checkEmail', 'Перевірте пошту') : t('auth.linkEmailTitle', 'Потрібен Email')}
-          </h2>
-          <button onClick={onClose} className="p-1 hover:bg-muted rounded-full transition-colors">
-            <X size={20} />
-          </button>
-        </div>
-
-        {sent ? (
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto text-green-500">
-                <Mail size={32} />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Ми відправили посилання на <b>{email}</b>.
-              Перейдіть за ним, щоб підтвердити пошту, отримати пароль та завершити покупку.
-            </p>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-sm"
+          style={{
+            backgroundColor: theme.colors.card,
+            border: `1px solid ${theme.colors.border}`,
+            borderRadius: theme.radius['2xl'],
+            boxShadow: theme.shadows.xl,
+          }}
+        >
+          <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: theme.colors.border }}>
+            <h2 className="text-lg font-bold" style={{ color: theme.colors.text }}>
+              {t('auth.linkEmail')}
+            </h2>
             <button
-                onClick={onClose}
-                className="btn-primary w-full py-2.5 mt-4"
+              onClick={onClose}
+              className="p-2 transition-colors"
+              style={{
+                color: theme.colors.textMuted,
+                borderRadius: theme.radius.md,
+              }}
             >
-                Зрозуміло
+              <X size={20} />
             </button>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Для оформлення покупки та доступу до товарів через сайт нам потрібна ваша пошта. Ми також надішлемо вам пароль.
-            </p>
 
-            <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Email</label>
-                <input
+          <div className="p-5">
+            {isSuccess ? (
+              <div className="text-center py-6">
+                <div
+                  className="w-16 h-16 mx-auto mb-4 flex items-center justify-center"
+                  style={{
+                    backgroundColor: theme.colors.successLight,
+                    borderRadius: theme.radius.full,
+                  }}
+                >
+                  <CheckCircle2 size={32} style={{ color: theme.colors.success }} />
+                </div>
+                <h3 className="text-lg font-semibold mb-2" style={{ color: theme.colors.text }}>
+                  {t('auth.emailLinkedSuccess')}
+                </h3>
+                <p className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                  {t('auth.canContinue')}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div
+                  className="w-14 h-14 mx-auto mb-4 flex items-center justify-center"
+                  style={{
+                    backgroundColor: theme.colors.primaryLight,
+                    borderRadius: theme.radius.full,
+                  }}
+                >
+                  <Mail size={24} style={{ color: theme.colors.primary }} />
+                </div>
+
+                <p className="text-sm text-center mb-6" style={{ color: theme.colors.textSecondary }}>
+                  {t('auth.emailRequiredForPurchase')}
+                </p>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="example@mail.com"
-                    className="w-full px-4 py-3 bg-muted/50 border border-transparent rounded-xl focus:bg-background focus:border-primary/50 outline-none transition-all"
-                    required
-                    autoFocus
-                />
-            </div>
+                    placeholder="your@email.com"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 text-sm outline-none transition-all disabled:opacity-50"
+                    style={{
+                      backgroundColor: theme.colors.surface,
+                      color: theme.colors.text,
+                      border: `1px solid ${theme.colors.border}`,
+                      borderRadius: theme.radius.lg,
+                    }}
+                  />
 
-            <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary w-full py-3 flex items-center justify-center gap-2"
-            >
-                {loading ? <Loader className="animate-spin" size={18} /> : (
-                    <>
-                        <span>Надіслати</span>
-                        <ArrowRight size={18} />
-                    </>
-                )}
-            </button>
-          </form>
-        )}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-3 font-semibold flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                    style={{
+                      backgroundColor: theme.colors.primary,
+                      color: '#FFF',
+                      borderRadius: theme.radius.xl,
+                    }}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader size={18} className="animate-spin" />
+                        <span>{t('common.saving')}</span>
+                      </>
+                    ) : (
+                      <span>{t('auth.linkEmail')}</span>
+                    )}
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </AnimatePresence>
   );
 }

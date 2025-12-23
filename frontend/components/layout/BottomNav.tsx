@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useCartStore } from '@/store/cartStore';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '@/lib/theme';
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -14,6 +15,7 @@ export default function BottomNav() {
   const lastScrollY = useRef(0);
   const cartItemsCount = useCartStore((state) => state.items.length);
   const { t } = useTranslation();
+  const { theme, isDark } = useTheme();
 
   useEffect(() => {
     let lastTick = 0;
@@ -51,15 +53,14 @@ export default function BottomNav() {
           opacity: isVisible ? 1 : 0
         }}
         transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-        // ОПТИМІЗАЦІЯ:
-        // 1. bg-header/70 -> bg-header/95 (більш непрозорий фон)
-        // 2. backdrop-blur-2xl -> backdrop-blur-sm (мінімальне розмиття або взагалі без нього)
-        // 3. shadow-2xl -> shadow-lg (менша тінь)
-        className="pointer-events-auto relative flex items-center
-                   bg-header/95 backdrop-blur-sm
-                   border border-black/5 dark:border-white/10
-                   shadow-lg shadow-black/5 dark:shadow-black/40
-                   rounded-[32px] px-2 py-2 gap-1 min-w-[320px]"
+        className="pointer-events-auto relative flex items-center px-2 py-2 gap-1 min-w-[320px]"
+        style={{
+          backgroundColor: isDark ? 'rgba(31, 31, 31, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(8px)',
+          border: `1px solid ${theme.colors.border}`,
+          borderRadius: theme.radius['3xl'],
+          boxShadow: theme.shadows.lg,
+        }}
       >
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -74,8 +75,11 @@ export default function BottomNav() {
               {isActive && (
                 <motion.div
                   layoutId="nav-pill"
-                  className="absolute inset-0 bg-primary rounded-[24px]"
-                  // Зменшено тривалість анімації для чіткості
+                  className="absolute inset-0"
+                  style={{
+                    backgroundColor: theme.colors.primary,
+                    borderRadius: theme.radius.xl,
+                  }}
                   transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
                 />
               )}
@@ -85,18 +89,21 @@ export default function BottomNav() {
                   <Icon
                     size={22}
                     strokeWidth={2.5}
-                    className={`transition-colors duration-200 ${
-                      isActive
-                        ? 'text-primary-foreground'
-                        : 'text-muted-foreground group-hover:text-foreground'
-                    }`}
+                    style={{
+                      color: isActive ? '#FFFFFF' : theme.colors.textMuted,
+                      transition: 'color 0.2s',
+                    }}
                   />
 
                   {item.badge > 0 && (
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full border-2 border-white dark:border-[#1F1F2A]"
+                      className="absolute -top-1.5 -right-1.5 text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full"
+                      style={{
+                        backgroundColor: theme.colors.error,
+                        border: `2px solid ${theme.colors.card}`,
+                      }}
                     >
                       {item.badge}
                     </motion.span>

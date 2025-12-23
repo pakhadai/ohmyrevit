@@ -1,120 +1,121 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { Loader, LogIn } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import api from '@/lib/api';
-import toast from 'react-hot-toast';
-import Link from 'next/link';
-import { Mail, Lock, Loader } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useTheme } from '@/lib/theme';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { theme } = useTheme();
   const router = useRouter();
-  const { setToken, setUser } = useAuthStore();
+  const { isAuthenticated, isLoading, loginWithTelegram } = useAuthStore();
+  const { t } = useTranslation();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await api.post('/auth/login', { email, password });
-      const data = res.data;
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/');
+      return;
+    }
 
-      // Ручний маппінг даних для веб-входу
-      const accessToken = data.access_token;
-      const rawUser = data.user;
-
-      if (accessToken && rawUser) {
-          setToken(accessToken);
-          setUser({
-            id: rawUser.id,
-            telegramId: rawUser.telegram_id,
-            username: rawUser.username,
-            firstName: rawUser.first_name,
-            lastName: rawUser.last_name,
-            email: rawUser.email,
-            photoUrl: rawUser.photo_url,
-            languageCode: rawUser.language_code || 'uk',
-            isAdmin: rawUser.is_admin,
-            balance: rawUser.balance || 0,
-            bonusStreak: rawUser.bonus_streak || 0,
-            referralCode: rawUser.referral_code
-          });
-          toast.success('Вхід успішний');
-          router.push('/');
-      } else {
-          toast.error('Помилка даних сервера');
+    const initAuth = async () => {
+      const WebApp = (window as any).Telegram?.WebApp;
+      if (WebApp?.initDataUnsafe?.user) {
+        try {
+          await loginWithTelegram(WebApp.initData);
+          router.replace('/');
+        } catch (error) {
+          console.error('Auto-login failed:', error);
+        }
       }
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Невірний логін або пароль';
-      toast.error(msg);
-    } finally {
-      setLoading(false);
+    };
+
+    const timer = setTimeout(initAuth, 500);
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, loginWithTelegram, router]);
+
+  const handleTelegramLogin = async () => {
+    const WebApp = (window as any).Telegram?.WebApp;
+    if (WebApp?.initData) {
+      try {
+        await loginWithTelegram(WebApp.initData);
+        router.replace('/');
+      } catch (error) {
+        console.error('Login failed:', error);
+      }
     }
   };
 
+  if (isLoading) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: theme.colors.bgGradient }}
+      >
+        <Loader className="w-10 h-10 animate-spin" style={{ color: theme.colors.primary }} />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-foreground">З поверненням! 👋</h1>
-          <p className="text-sm text-muted-foreground mt-2">Увійдіть у свій акаунт</p>
-        </div>
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-2">
-            <div className="relative">
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3.5 bg-muted/50 border border-transparent rounded-xl text-foreground focus:bg-background focus:border-primary/30 focus:ring-0 outline-none transition-all"
-                required
-              />
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-            </div>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-6"
+      style={{ background: theme.colors.bgGradient }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-sm"
+      >
+        <div
+          className="p-8 text-center"
+          style={{
+            backgroundColor: theme.colors.card,
+            border: `1px solid ${theme.colors.border}`,
+            borderRadius: theme.radius['2xl'],
+            boxShadow: theme.shadows.lg,
+          }}
+        >
+          <div
+            className="w-20 h-20 mx-auto mb-6 flex items-center justify-center"
+            style={{
+              background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.accent})`,
+              borderRadius: theme.radius.full,
+            }}
+          >
+            <LogIn size={36} color="#FFF" />
           </div>
 
-          <div className="space-y-2">
-            <div className="relative">
-              <input
-                type="password"
-                placeholder="Пароль"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3.5 bg-muted/50 border border-transparent rounded-xl text-foreground focus:bg-background focus:border-primary/30 focus:ring-0 outline-none transition-all"
-                required
-              />
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <Link href="/forgot-password" className="text-sm text-primary hover:underline">
-              Забули пароль?
-            </Link>
-          </div>
+          <h1 className="text-2xl font-bold mb-2" style={{ color: theme.colors.text }}>
+            {t('auth.welcome')}
+          </h1>
+          <p className="text-sm mb-8" style={{ color: theme.colors.textSecondary }}>
+            {t('auth.loginSubtitle')}
+          </p>
 
           <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-70"
+            onClick={handleTelegramLogin}
+            className="w-full py-3.5 font-semibold flex items-center justify-center gap-2 transition-all active:scale-95"
+            style={{
+              backgroundColor: '#0088cc',
+              color: '#FFF',
+              borderRadius: theme.radius.xl,
+            }}
           >
-            {loading && <Loader className="animate-spin w-5 h-5" />}
-            {loading ? 'Вхід...' : 'Увійти'}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+            </svg>
+            {t('auth.continueWithTelegram')}
           </button>
-        </form>
 
-        <div className="text-center text-sm text-muted-foreground">
-          Немає акаунту?{' '}
-          <Link href="/register" className="text-primary hover:underline font-medium">
-            Зареєструватися
-          </Link>
+          <p className="text-xs mt-6" style={{ color: theme.colors.textMuted }}>
+            {t('auth.termsNotice')}
+          </p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -1,93 +1,130 @@
 'use client';
-import { useState } from 'react';
-import api from '@/lib/api';
-import toast from 'react-hot-toast';
-import Link from 'next/link';
-import { Mail, ArrowRight, Loader } from 'lucide-react';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { Loader, UserPlus } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
+import { useTranslation } from 'react-i18next';
+import { useTheme } from '@/lib/theme';
 
 export default function RegisterPage() {
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
+  const { theme } = useTheme();
+  const router = useRouter();
+  const { isAuthenticated, isLoading, loginWithTelegram } = useAuthStore();
+  const { t } = useTranslation();
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await api.post('/auth/register', { email });
-      setSent(true);
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Помилка реєстрації');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/');
+      return;
+    }
+
+    const initAuth = async () => {
+      const WebApp = (window as any).Telegram?.WebApp;
+      if (WebApp?.initDataUnsafe?.user) {
+        try {
+          await loginWithTelegram(WebApp.initData);
+          router.replace('/');
+        } catch (error) {
+          console.error('Auto-register failed:', error);
+        }
+      }
+    };
+
+    const timer = setTimeout(initAuth, 500);
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, loginWithTelegram, router]);
+
+  const handleTelegramRegister = async () => {
+    const WebApp = (window as any).Telegram?.WebApp;
+    if (WebApp?.initData) {
+      try {
+        await loginWithTelegram(WebApp.initData);
+        router.replace('/');
+      } catch (error) {
+        console.error('Registration failed:', error);
+      }
     }
   };
 
-  if (sent) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <div className="max-w-md w-full bg-card p-8 rounded-3xl border border-border shadow-xl text-center space-y-6">
-          <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto animate-bounce">
-            <Mail size={40} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold mb-2">Перевірте пошту! 📧</h1>
-            <p className="text-muted-foreground">
-              Ми надіслали посилання для підтвердження на <b>{email}</b>.
-              <br/>
-              Перейдіть за ним, щоб отримати пароль для входу.
-            </p>
-          </div>
-          <Link href="/login" className="btn-primary w-full block py-3 text-center">
-            Повернутися до входу
-          </Link>
-        </div>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: theme.colors.bgGradient }}
+      >
+        <Loader className="w-10 h-10 animate-spin" style={{ color: theme.colors.primary }} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-            <h1 className="text-3xl font-bold mb-2">Реєстрація</h1>
-            <p className="text-muted-foreground">Створіть акаунт для доступу до покупок</p>
-        </div>
-
-        <form onSubmit={handleRegister} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium ml-1">Ваш Email</label>
-            <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                <input
-                    type="email"
-                    placeholder="name@example.com"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 rounded-xl border bg-card focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                    required
-                />
-            </div>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-6"
+      style={{ background: theme.colors.bgGradient }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-sm"
+      >
+        <div
+          className="p-8 text-center"
+          style={{
+            backgroundColor: theme.colors.card,
+            border: `1px solid ${theme.colors.border}`,
+            borderRadius: theme.radius['2xl'],
+            boxShadow: theme.shadows.lg,
+          }}
+        >
+          <div
+            className="w-20 h-20 mx-auto mb-6 flex items-center justify-center"
+            style={{
+              background: `linear-gradient(135deg, ${theme.colors.accent}, ${theme.colors.primary})`,
+              borderRadius: theme.radius.full,
+            }}
+          >
+            <UserPlus size={36} color="#FFF" />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full py-3.5 rounded-xl flex items-center justify-center gap-2 text-lg font-semibold"
-          >
-            {loading ? <Loader className="animate-spin" /> : (
-                <>
-                    Продовжити
-                    <ArrowRight size={20} />
-                </>
-            )}
-          </button>
-        </form>
+          <h1 className="text-2xl font-bold mb-2" style={{ color: theme.colors.text }}>
+            {t('auth.createAccount')}
+          </h1>
+          <p className="text-sm mb-8" style={{ color: theme.colors.textSecondary }}>
+            {t('auth.registerSubtitle')}
+          </p>
 
-        <p className="text-center text-sm text-muted-foreground">
-          Вже маєте акаунт? <Link href="/login" className="text-primary hover:underline font-medium">Увійти</Link>
-        </p>
-      </div>
+          <button
+            onClick={handleTelegramRegister}
+            className="w-full py-3.5 font-semibold flex items-center justify-center gap-2 transition-all active:scale-95"
+            style={{
+              backgroundColor: '#0088cc',
+              color: '#FFF',
+              borderRadius: theme.radius.xl,
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+            </svg>
+            {t('auth.registerWithTelegram')}
+          </button>
+
+          <div className="mt-6 pt-6" style={{ borderTop: `1px solid ${theme.colors.border}` }}>
+            <p className="text-sm" style={{ color: theme.colors.textMuted }}>
+              {t('auth.haveAccount')}{' '}
+              <button
+                onClick={() => router.push('/login')}
+                className="font-semibold"
+                style={{ color: theme.colors.primary }}
+              >
+                {t('auth.signIn')}
+              </button>
+            </p>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }

@@ -2,83 +2,196 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft, Mail, Loader } from 'lucide-react';
-import api from '@/lib/api';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Mail, Send, CheckCircle2, Loader } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { useTheme } from '@/lib/theme';
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { theme } = useTheme();
   const router = useRouter();
+  const { t } = useTranslation();
+  const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!email.trim()) {
+      toast.error(t('auth.enterEmail'));
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      // Відправляємо запит на бекенд
-      await api.post('/auth/forgot-password', { email });
-
-      // Показуємо успіх незалежно від того, чи існує email (для безпеки)
-      toast.success('Якщо пошта зареєстрована, ми надіслали інструкції', {
-        duration: 5000,
-        icon: '📩'
-      });
-
-      // Даємо час прочитати повідомлення перед переходом
-      setTimeout(() => router.push('/login'), 3000);
-    } catch (error: any) {
-      const msg = error.response?.data?.detail || 'Помилка з\'єднання';
-      toast.error(msg);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setIsSuccess(true);
+      toast.success(t('auth.resetLinkSent'));
+    } catch (error) {
+      toast.error(t('auth.resetError'));
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground">Відновлення доступу 🔐</h1>
-          <p className="text-sm text-muted-foreground mt-2">
-            Введіть вашу пошту, щоб отримати новий пароль
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <div className="relative">
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3.5 bg-muted/50 border border-transparent rounded-xl text-foreground focus:bg-background focus:border-primary/30 focus:ring-0 outline-none transition-all"
-                required
-              />
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+  if (isSuccess) {
+    return (
+      <div
+        className="min-h-screen flex flex-col items-center justify-center px-6"
+        style={{ background: theme.colors.bgGradient }}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-sm"
+        >
+          <div
+            className="p-8 text-center"
+            style={{
+              backgroundColor: theme.colors.card,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.radius['2xl'],
+              boxShadow: theme.shadows.lg,
+            }}
+          >
+            <div
+              className="w-20 h-20 mx-auto mb-6 flex items-center justify-center"
+              style={{
+                backgroundColor: theme.colors.successLight,
+                borderRadius: theme.radius.full,
+              }}
+            >
+              <CheckCircle2 size={40} style={{ color: theme.colors.success }} />
             </div>
+
+            <h1 className="text-2xl font-bold mb-2" style={{ color: theme.colors.text }}>
+              {t('auth.checkEmail')}
+            </h1>
+            <p className="text-sm mb-6" style={{ color: theme.colors.textSecondary }}>
+              {t('auth.resetLinkSentTo', { email })}
+            </p>
+
+            <button
+              onClick={() => router.push('/login')}
+              className="w-full py-3.5 font-semibold transition-all active:scale-95"
+              style={{
+                backgroundColor: theme.colors.primary,
+                color: '#FFF',
+                borderRadius: theme.radius.xl,
+              }}
+            >
+              {t('auth.backToLogin')}
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="min-h-screen flex flex-col px-6 pt-12"
+      style={{ background: theme.colors.bgGradient }}
+    >
+      <button
+        onClick={() => router.back()}
+        className="p-2.5 self-start mb-8 transition-colors"
+        style={{
+          backgroundColor: theme.colors.surface,
+          color: theme.colors.textMuted,
+          borderRadius: theme.radius.lg,
+        }}
+      >
+        <ArrowLeft size={20} />
+      </button>
+
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-sm mx-auto"
+      >
+        <div
+          className="p-8"
+          style={{
+            backgroundColor: theme.colors.card,
+            border: `1px solid ${theme.colors.border}`,
+            borderRadius: theme.radius['2xl'],
+            boxShadow: theme.shadows.lg,
+          }}
+        >
+          <div
+            className="w-16 h-16 mx-auto mb-6 flex items-center justify-center"
+            style={{
+              backgroundColor: theme.colors.primaryLight,
+              borderRadius: theme.radius.full,
+            }}
+          >
+            <Mail size={28} style={{ color: theme.colors.primary }} />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-70 transition-all"
-          >
-            {loading ? <Loader className="animate-spin w-5 h-5" /> : 'Відновити пароль'}
-          </button>
-        </form>
+          <h1 className="text-2xl font-bold text-center mb-2" style={{ color: theme.colors.text }}>
+            {t('auth.forgotPassword')}
+          </h1>
+          <p className="text-sm text-center mb-8" style={{ color: theme.colors.textSecondary }}>
+            {t('auth.forgotPasswordSubtitle')}
+          </p>
 
-        <div className="text-center">
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors font-medium"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Повернутися на вхід
-          </Link>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block" style={{ color: theme.colors.textSecondary }}>
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="w-full px-4 py-3 text-sm outline-none transition-all"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.text,
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: theme.radius.lg,
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-3.5 font-semibold flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+              style={{
+                backgroundColor: theme.colors.primary,
+                color: '#FFF',
+                borderRadius: theme.radius.xl,
+              }}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader size={18} className="animate-spin" />
+                  <span>{t('common.sending')}</span>
+                </>
+              ) : (
+                <>
+                  <Send size={18} />
+                  <span>{t('auth.sendResetLink')}</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 pt-6 text-center" style={{ borderTop: `1px solid ${theme.colors.border}` }}>
+            <button
+              onClick={() => router.push('/login')}
+              className="text-sm font-medium"
+              style={{ color: theme.colors.primary }}
+            >
+              {t('auth.backToLogin')}
+            </button>
+          </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
