@@ -5,6 +5,8 @@ import { collectionsTranslations } from './translations-collections';
 import { profileSubpagesTranslations } from './translations-profile-subpages';
 import { subscriptionTranslations } from './translations-subscription';
 import { profileTranslations } from './translations-profile';
+import { adminTranslations } from './translations-admin';
+import { mainTranslations } from './translations-main';
 import HttpApi from 'i18next-http-backend';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { settings } from '@/lib/settings';
@@ -79,10 +81,10 @@ i18n
     ...profileSubpagesTranslations[lang as 'uk'|'en']?.settings,
     ...profileSubpagesTranslations[lang as 'uk'|'en']?.support,
     ...profileSubpagesTranslations[lang as 'uk'|'en']?.faq,
-    // Виправлено: прибрано .subscription в кінці, щоб зберегти namespace 'subscription'
     ...subscriptionTranslations[lang as 'uk'|'en'],
-    // Виправлено: прибрано .profilePages в кінці, щоб зберегти namespace 'profilePages'
     ...profileTranslations[lang as 'uk'|'en'],
+    ...adminTranslations[lang as 'uk'|'en'],
+    ...mainTranslations[lang as 'uk'|'en'],
   };
 
   i18n.addResourceBundle(lang, 'translation', tsResources, true, true);
