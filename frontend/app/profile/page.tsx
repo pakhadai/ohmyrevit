@@ -50,14 +50,14 @@ const ProfileSkeleton = ({ isDark }: { isDark: boolean }) => {
   const theme = getTheme(isDark);
 
   return (
-    <div className="min-h-screen pb-12" style={{ background: theme.bg }}>
+    <div className="min-h-screen pb-12" style={{ background: theme.colors.bgGradient }}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-12 pt-8 sm:pt-12 pb-36">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
           {/* Ліва колонка */}
           <div className="lg:col-span-4 space-y-6">
             <div
               className="rounded-[32px] p-6"
-              style={{ backgroundColor: theme.card, borderColor: theme.cardBorder, borderWidth: 1 }}
+              style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderWidth: 1 }}
             >
               <div className="flex items-center gap-5">
                 <SkeletonBox className="w-24 h-24 !rounded-[24px]" isDark={isDark} />
@@ -80,7 +80,7 @@ const ProfileSkeleton = ({ isDark }: { isDark: boolean }) => {
                 <SkeletonBox className="h-4 w-20 mb-3 ml-4" isDark={isDark} />
                 <div
                   className="rounded-[28px] p-2"
-                  style={{ backgroundColor: theme.card, borderColor: theme.cardBorder, borderWidth: 1 }}
+                  style={{ backgroundColor: theme.colors.card, borderColor: theme.colors.border, borderWidth: 1 }}
                 >
                   {Array.from({ length: count }).map((_, i) => (
                     <div key={i} className="flex items-center gap-4 p-4">
@@ -133,17 +133,17 @@ const ConfirmModal = ({
       {/* Modal */}
       <div
         className="relative w-full max-w-sm rounded-[28px] p-6 shadow-2xl"
-        style={{ backgroundColor: theme.card }}
+        style={{ backgroundColor: theme.colors.card }}
       >
         <h3
           className="text-xl font-bold mb-2"
-          style={{ color: theme.textMain }}
+          style={{ color: theme.colors.text }}
         >
           {title}
         </h3>
         <p
           className="text-sm mb-6"
-          style={{ color: theme.textSecondary }}
+          style={{ color: theme.colors.textSecondary }}
         >
           {message}
         </p>
@@ -153,8 +153,8 @@ const ConfirmModal = ({
             onClick={onClose}
             className="flex-1 py-3 px-4 rounded-2xl font-semibold text-sm transition-all active:scale-95"
             style={{
-              backgroundColor: theme.surface,
-              color: theme.textMain,
+              backgroundColor: theme.colors.surface,
+              color: theme.colors.text,
             }}
           >
             {cancelText}
@@ -383,7 +383,7 @@ export default function ProfilePage() {
     <>
       <div
         className="min-h-screen pb-12 overflow-x-hidden"
-        style={{ background: theme.bg }}
+        style={{ background: theme.colors.bgGradient }}
       >
         <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-12 pt-8 sm:pt-12 pb-36">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
@@ -395,8 +395,8 @@ export default function ProfilePage() {
               <div
                 className="rounded-[32px] overflow-hidden shadow-sm"
                 style={{
-                  backgroundColor: theme.card,
-                  border: `1px solid ${theme.cardBorder}`,
+                  backgroundColor: theme.colors.card,
+                  border: `1px solid ${theme.colors.border}`,
                 }}
               >
                 <div className="p-6 pb-2">
@@ -406,8 +406,8 @@ export default function ProfilePage() {
                       <div
                         className="w-24 h-24 rounded-[24px] overflow-hidden flex items-center justify-center shadow-inner"
                         style={{
-                          backgroundColor: theme.surface,
-                          border: `1px solid ${theme.cardBorder}`,
+                          backgroundColor: theme.colors.surface,
+                          border: `1px solid ${theme.colors.border}`,
                         }}
                       >
                         {user?.photoUrl ? (
@@ -417,13 +417,13 @@ export default function ProfilePage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <UserIcon size={36} style={{ color: theme.textMuted }} />
+                          <UserIcon size={36} style={{ color: theme.colors.textMuted }} />
                         )}
                       </div>
                       {user?.isAdmin && (
                         <div
                           className="absolute -bottom-2 -right-2 bg-black text-white p-1.5 rounded-xl shadow-lg"
-                          style={{ borderWidth: 4, borderColor: theme.card }}
+                          style={{ borderWidth: 4, borderColor: theme.colors.card }}
                           title={t('profilePages.main.admin.badge') || 'Адміністратор'}
                         >
                           <Shield size={14} fill="currentColor" />
@@ -436,14 +436,14 @@ export default function ProfilePage() {
                       <div>
                         <h1
                           className="text-xl font-bold leading-tight tracking-tight truncate"
-                          style={{ color: theme.textMain }}
+                          style={{ color: theme.colors.text }}
                         >
                           {user?.firstName} {user?.lastName}
                         </h1>
                         {user?.username && (
                           <p
                             className="text-sm font-medium"
-                            style={{ color: theme.textSecondary }}
+                            style={{ color: theme.colors.textSecondary }}
                           >
                             @{user.username}
                           </p>
@@ -454,23 +454,23 @@ export default function ProfilePage() {
                         onClick={copyId}
                         className="group flex items-center gap-2 w-fit px-3 py-1.5 rounded-full transition-all active:scale-95"
                         style={{
-                          backgroundColor: theme.surface,
-                          border: `1px solid ${theme.cardBorder}`,
+                          backgroundColor: theme.colors.surface,
+                          border: `1px solid ${theme.colors.border}`,
                         }}
                       >
                         <span
                           className="text-[10px] font-bold uppercase tracking-wider"
-                          style={{ color: theme.textMuted }}
+                          style={{ color: theme.colors.textMuted }}
                         >
                           ID
                         </span>
                         <span
                           className="text-xs font-mono font-medium"
-                          style={{ color: theme.textSecondary }}
+                          style={{ color: theme.colors.textSecondary }}
                         >
                           {user?.telegramId || user?.id}
                         </span>
-                        <Copy size={12} style={{ color: theme.textMuted }} />
+                        <Copy size={12} style={{ color: theme.colors.textMuted }} />
                       </button>
                     </div>
                   </div>
@@ -481,34 +481,34 @@ export default function ProfilePage() {
                   <Link href="/profile/wallet">
                     <div
                       className="p-4 rounded-[24px] transition-all cursor-pointer flex items-center justify-between group active:scale-[0.99]"
-                      style={{ backgroundColor: theme.surface }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.surfaceHover)}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = theme.surface)}
+                      style={{ backgroundColor: theme.colors.surface }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.colors.surfaceHover)}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = theme.colors.surface)}
                     >
                       <div className="flex items-center gap-4">
                         <div
                           className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform"
-                          style={{ backgroundColor: theme.card }}
+                          style={{ backgroundColor: theme.colors.card }}
                         >
                           <Image src="/omr_coin.png" alt="OMR" width={28} height={28} />
                         </div>
                         <div className="flex flex-col">
                           <span
                             className="text-xs font-bold uppercase tracking-wider mb-0.5"
-                            style={{ color: theme.textMuted }}
+                            style={{ color: theme.colors.textMuted }}
                           >
                             {t('profilePages.main.balance') || 'Баланс'}
                           </span>
                           <div className="flex items-baseline gap-1.5">
                             <span
                               className="text-2xl font-bold"
-                              style={{ color: theme.textMain }}
+                              style={{ color: theme.colors.text }}
                             >
                               {user?.balance?.toLocaleString() || '0'}
                             </span>
                             <span
                               className="text-sm font-semibold"
-                              style={{ color: theme.textSecondary }}
+                              style={{ color: theme.colors.textSecondary }}
                             >
                               OMR
                             </span>
@@ -517,7 +517,7 @@ export default function ProfilePage() {
                       </div>
                       <div
                         className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-                        style={{ backgroundColor: theme.card, color: theme.textMuted }}
+                        style={{ backgroundColor: theme.colors.card, color: theme.colors.textMuted }}
                       >
                         <ChevronRight size={18} />
                       </div>
@@ -567,15 +567,15 @@ export default function ProfilePage() {
               <div>
                 <h3
                   className="text-xs font-bold uppercase tracking-wider mb-3 ml-4"
-                  style={{ color: theme.textMuted }}
+                  style={{ color: theme.colors.textMuted }}
                 >
                   {t('profilePages.main.sections.main') || 'Головне'}
                 </h3>
                 <div
                   className="rounded-[28px] p-2 shadow-sm overflow-hidden"
                   style={{
-                    backgroundColor: theme.card,
-                    border: `1px solid ${theme.cardBorder}`,
+                    backgroundColor: theme.colors.card,
+                    border: `1px solid ${theme.colors.border}`,
                   }}
                 >
                   {groupMain.map((item, index) => (
@@ -592,15 +592,15 @@ export default function ProfilePage() {
               <div>
                 <h3
                   className="text-xs font-bold uppercase tracking-wider mb-3 ml-4"
-                  style={{ color: theme.textMuted }}
+                  style={{ color: theme.colors.textMuted }}
                 >
                   {t('profilePages.main.sections.content') || 'Мій контент'}
                 </h3>
                 <div
                   className="rounded-[28px] p-2 shadow-sm overflow-hidden"
                   style={{
-                    backgroundColor: theme.card,
-                    border: `1px solid ${theme.cardBorder}`,
+                    backgroundColor: theme.colors.card,
+                    border: `1px solid ${theme.colors.border}`,
                   }}
                 >
                   {groupContent.map((item, index) => (
@@ -617,15 +617,15 @@ export default function ProfilePage() {
               <div>
                 <h3
                   className="text-xs font-bold uppercase tracking-wider mb-3 ml-4"
-                  style={{ color: theme.textMuted }}
+                  style={{ color: theme.colors.textMuted }}
                 >
                   {t('profilePages.main.sections.other') || 'Інше'}
                 </h3>
                 <div
                   className="rounded-[28px] p-2 shadow-sm overflow-hidden"
                   style={{
-                    backgroundColor: theme.card,
-                    border: `1px solid ${theme.cardBorder}`,
+                    backgroundColor: theme.colors.card,
+                    border: `1px solid ${theme.colors.border}`,
                   }}
                 >
                   {groupGeneral.map((item, index) => (
