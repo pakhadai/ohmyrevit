@@ -34,7 +34,7 @@ const SkeletonBox = ({ className, isDark }: { className: string; isDark: boolean
 const ProfileSkeleton = ({ theme, isDark }: { theme: any; isDark: boolean }) => {
   return (
     <div className="min-h-screen pb-12" style={{ background: theme.colors.bgGradient }}>
-      <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-12 pt-8 sm:pt-12 pb-36">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-12 pt-8 sm:pt-12 pb-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
           {/* Ліва колонка */}
           <div className="lg:col-span-4 space-y-6">
