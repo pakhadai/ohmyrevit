@@ -6,6 +6,7 @@ import { themes, ThemeName, Theme } from '@/lib/theme';
 interface ThemeContextType {
   theme: Theme;
   themeName: ThemeName;
+  isDark: boolean;
   setThemeName: (name: ThemeName) => void;
 }
 
@@ -121,7 +122,7 @@ export default function ThemeProvider({ children }: ThemeProviderProps) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, themeName, setThemeName }}>
+    <ThemeContext.Provider value={{ theme, themeName, isDark: themeName === 'dark', setThemeName }}>
       {children}
     </ThemeContext.Provider>
   );

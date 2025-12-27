@@ -14,7 +14,7 @@ from app.users.models import User
 from app.products.models import Product, ProductType
 from app.subscriptions.models import UserProductAccess
 from app.profile.schemas import DownloadableProduct
-from app.users.schemas import UserResponse, UserUpdate, BonusClaimResponse, TelegramAuthData
+from app.users.schemas import UserResponse, UserUpdate, BonusClaimResponse, BonusInfoResponse, TelegramAuthData
 from app.users.auth_service import AuthService
 from app.core.config import settings
 from app.bonuses.service import BonusService
@@ -36,7 +36,7 @@ async def claim_daily_bonus(
     return result
 
 
-@router.get("/bonus/info")
+@router.get("/bonus/info", response_model=BonusInfoResponse)
 async def get_bonus_info(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)

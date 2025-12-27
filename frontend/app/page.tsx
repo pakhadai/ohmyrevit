@@ -108,7 +108,7 @@ export default function HomePage() {
                   <div
                     className="absolute -bottom-1 -right-1 w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center"
                     style={{
-                      backgroundColor: theme.colors.accentDark,
+                      backgroundColor: theme.colors.accent,
                       boxShadow: theme.shadows.md,
                       borderRadius: theme.radius.md,
                     }}
@@ -180,7 +180,7 @@ export default function HomePage() {
                   <div
                     className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 mb-4"
                     style={{
-                      backgroundColor: theme.colors.accentDark,
+                      backgroundColor: theme.colors.accent,
                       borderRadius: theme.radius.full,
                     }}
                   >
@@ -204,14 +204,14 @@ export default function HomePage() {
                   <Crown
                     size={64}
                     className="sm:hidden"
-                    style={{ color: theme.colors.accentDark, opacity: 0.9 }}
+                    style={{ color: theme.colors.accent, opacity: 0.9 }}
                     strokeWidth={1.2}
                     fill={theme.colors.surface}
                   />
                   <Crown
                     size={96}
                     className="hidden sm:block"
-                    style={{ color: theme.colors.accentDark, opacity: 0.9 }}
+                    style={{ color: theme.colors.accent, opacity: 0.9 }}
                     strokeWidth={1.2}
                     fill={theme.colors.surface}
                   />
@@ -234,10 +234,10 @@ export default function HomePage() {
                           borderRadius: theme.radius.full,
                         }}
                       >
-                        <Check size={12} style={{ color: theme.colors.accentDark }} strokeWidth={3} />
+                        <Check size={12} style={{ color: theme.colors.accent }} strokeWidth={3} />
                         <span
                           className="text-[10px] sm:text-xs font-semibold hidden sm:inline"
-                          style={{ color: theme.colors.accentDark }}
+                          style={{ color: theme.colors.accent }}
                         >
                           {text}
                         </span>
@@ -247,7 +247,7 @@ export default function HomePage() {
                   <div
                     className="w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center transition-all hover:scale-105"
                     style={{
-                      backgroundColor: theme.colors.accentDark,
+                      backgroundColor: theme.colors.accent,
                       borderRadius: theme.radius.lg,
                     }}
                   >
@@ -296,17 +296,16 @@ export default function HomePage() {
                 onClick={handleClaimBonus}
                 className="p-4 sm:p-5 text-left transition-all duration-300 hover:scale-[1.02] active:scale-95"
                 style={{
-                  backgroundColor: bonusInfo?.can_claim_today ? theme.colors.accentDark : theme.colors.card,
-                  border: `1px solid ${bonusInfo?.can_claim_today ? theme.colors.accentDark : theme.colors.border}`,
+                  backgroundColor: bonusInfo?.can_claim_today ? theme.colors.accent : theme.colors.card,
+                  border: `1px solid ${bonusInfo?.can_claim_today ? theme.colors.accent : theme.colors.border}`,
                   boxShadow: theme.shadows.md,
                   borderRadius: theme.radius.xl,
-                  color: bonusInfo?.can_claim_today ? '#FFF' : theme.colors.text,
                 }}
               >
                 <div
                   className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center mb-3"
                   style={{
-                    backgroundColor: bonusInfo?.can_claim_today ? 'rgba(255,255,255,0.15)' : theme.colors.surface,
+                    backgroundColor: bonusInfo?.can_claim_today ? 'rgba(255,255,255,0.2)' : theme.colors.surface,
                     borderRadius: theme.radius.lg,
                   }}
                 >
@@ -314,11 +313,11 @@ export default function HomePage() {
                 </div>
                 <p
                   className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider"
-                  style={{ color: bonusInfo?.can_claim_today ? 'rgba(255,255,255,0.7)' : theme.colors.textMuted }}
+                  style={{ color: bonusInfo?.can_claim_today ? '#FFF' : theme.colors.textMuted }}
                 >
                   {t('bonus.dailyBonus', 'Бонус')}
                 </p>
-                <p className="text-sm sm:text-base font-bold">
+                <p className="text-sm sm:text-base font-bold" style={{ color: bonusInfo?.can_claim_today ? '#FFF' : theme.colors.text }}>
                   {bonusInfo?.can_claim_today ? t('bonus.claimButton', 'Забрати') : t('bonus.claimed', 'Готово ✓')}
                 </p>
               </button>
@@ -452,7 +451,7 @@ export default function HomePage() {
                           <span
                             className="text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-1 flex items-center gap-0.5"
                             style={{
-                              backgroundColor: theme.colors.accentDark,
+                              backgroundColor: theme.colors.accent,
                               color: '#FFF',
                               borderRadius: theme.radius.full,
                             }}

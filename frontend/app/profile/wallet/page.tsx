@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -13,67 +13,50 @@ import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { useTheme } from '@/lib/theme';
-
-interface Transaction {
-  id: number;
-  type: 'deposit' | 'purchase' | 'bonus' | 'refund';
-  amount: number;
-  description: string;
-  created_at: string;
-}
-
-interface Package {
-  id: number;
-  coins: number;
-  price: number;
-  bonus?: number;
-  popular?: boolean;
-}
-
-const PACKAGES: Package[] = [
-  { id: 1, coins: 500, price: 4.99 },
-  { id: 2, coins: 1000, price: 8.99, bonus: 50 },
-  { id: 3, coins: 2500, price: 19.99, bonus: 250, popular: true },
-  { id: 4, coins: 5000, price: 34.99, bonus: 750 },
-  { id: 5, coins: 10000, price: 59.99, bonus: 2000 },
-];
+import { Transaction, CoinPack } from '@/types';
 
 export default function WalletPage() {
   const { theme } = useTheme();
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, updateBalance } = useAuthStore();
   const { t } = useTranslation();
 
+  const [coinPacks, setCoinPacks] = useState<CoinPack[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [balance, setBalance] = useState(user?.balance || 0);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<CoinPack | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
 
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
-
-  const fetchTransactions = async () => {
+  const fetchWalletInfo = useCallback(async () => {
     try {
-      const data = await walletAPI.getTransactions();
-      setTransactions(data);
+      const info = await walletAPI.getInfo();
+      setBalance(info.balance);
+      setCoinPacks(info.coin_packs);
+      setTransactions(info.recent_transactions);
+      updateBalance(info.balance);
     } catch (error) {
-      console.error('Failed to fetch transactions:', error);
+      console.error('Failed to fetch wallet info:', error);
+      setCoinPacks([]);
+      setTransactions([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [updateBalance]);
 
-  const handlePurchase = async (pkg: Package) => {
+  useEffect(() => {
+    fetchWalletInfo();
+  }, [fetchWalletInfo]);
+
+  const handlePurchase = (pkg: CoinPack) => {
     setSelectedPackage(pkg);
     setIsPurchasing(true);
     try {
-      const response = await walletAPI.createPayment({
-        package_id: pkg.id,
-        amount: pkg.price,
-      });
-      if (response.payment_url) {
-        window.location.href = response.payment_url;
+      // Open Gumroad URL in new window
+      if (pkg.gumroad_url) {
+        window.open(pkg.gumroad_url, '_blank');
+      } else {
+        toast.error(t('wallet.purchaseError'));
       }
     } catch (error) {
       toast.error(t('wallet.purchaseError'));
@@ -112,8 +95,8 @@ export default function WalletPage() {
   };
 
   return (
-    <div className="min-h-screen pb-28" style={{ background: theme.colors.bgGradient }}>
-      <div className="max-w-2xl mx-auto px-5 pt-6">
+    <div className="min-h-screen" style={{ background: theme.colors.bgGradient }}>
+      <div className="max-w-2xl mx-auto px-5 py-6">
         <div className="flex items-center gap-4 mb-6">
           <button
             onClick={() => router.back()}
@@ -155,7 +138,7 @@ export default function WalletPage() {
               <div className="flex items-center gap-2">
                 <Image src="/omr_coin.png" alt="OMR" width={24} height={24} />
                 <span className="text-3xl font-bold text-white">
-                  {(user?.balance || 0).toLocaleString()}
+                  {balance.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -166,55 +149,75 @@ export default function WalletPage() {
           <h2 className="text-lg font-bold mb-4" style={{ color: theme.colors.text }}>
             {t('wallet.topUp')}
           </h2>
-          <div className="grid grid-cols-2 gap-3">
-            {PACKAGES.map((pkg) => (
-              <motion.button
-                key={pkg.id}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handlePurchase(pkg)}
-                disabled={isPurchasing}
-                className="relative p-4 text-left transition-all disabled:opacity-50"
-                style={{
-                  backgroundColor: theme.colors.card,
-                  border: pkg.popular ? `2px solid ${theme.colors.primary}` : `1px solid ${theme.colors.border}`,
-                  borderRadius: theme.radius.xl,
-                  boxShadow: theme.shadows.sm,
-                }}
-              >
-                {pkg.popular && (
-                  <div
-                    className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[10px] font-bold"
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader className="animate-spin" size={24} style={{ color: theme.colors.primary }} />
+            </div>
+          ) : coinPacks.length === 0 ? (
+            <div
+              className="text-center py-12"
+              style={{
+                backgroundColor: theme.colors.card,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.xl,
+              }}
+            >
+              <p style={{ color: theme.colors.textMuted }}>{t('wallet.noPacks')}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {coinPacks.map((pkg) => {
+                const bonusCoins = pkg.total_coins - pkg.coins_amount;
+                return (
+                  <motion.button
+                    key={pkg.id}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handlePurchase(pkg)}
+                    disabled={isPurchasing || !pkg.is_active}
+                    className="relative p-4 text-left transition-all disabled:opacity-50"
                     style={{
-                      backgroundColor: theme.colors.primary,
-                      color: '#FFF',
-                      borderRadius: theme.radius.full,
+                      backgroundColor: theme.colors.card,
+                      border: pkg.is_featured ? `2px solid ${theme.colors.primary}` : `1px solid ${theme.colors.border}`,
+                      borderRadius: theme.radius.xl,
+                      boxShadow: theme.shadows.sm,
                     }}
                   >
-                    {t('wallet.popular')}
-                  </div>
-                )}
-                <div className="flex items-center gap-2 mb-2">
-                  <Image src="/omr_coin.png" alt="OMR" width={20} height={20} />
-                  <span className="text-lg font-bold" style={{ color: theme.colors.text }}>
-                    {pkg.coins.toLocaleString()}
-                  </span>
-                </div>
-                {pkg.bonus && (
-                  <p className="text-xs mb-2" style={{ color: theme.colors.success }}>
-                    +{pkg.bonus} {t('wallet.bonus')}
-                  </p>
-                )}
-                <p className="text-sm font-semibold" style={{ color: theme.colors.primary }}>
-                  ${pkg.price}
-                </p>
-                {selectedPackage?.id === pkg.id && isPurchasing && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20" style={{ borderRadius: theme.radius.xl }}>
-                    <Loader className="animate-spin" size={24} color="#FFF" />
-                  </div>
-                )}
-              </motion.button>
-            ))}
-          </div>
+                    {pkg.is_featured && (
+                      <div
+                        className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[10px] font-bold"
+                        style={{
+                          backgroundColor: theme.colors.primary,
+                          color: '#FFF',
+                          borderRadius: theme.radius.full,
+                        }}
+                      >
+                        {t('wallet.popular')}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mb-2">
+                      <Image src="/omr_coin.png" alt="OMR" width={20} height={20} />
+                      <span className="text-lg font-bold" style={{ color: theme.colors.text }}>
+                        {pkg.total_coins.toLocaleString()}
+                      </span>
+                    </div>
+                    {bonusCoins > 0 && (
+                      <p className="text-xs mb-2" style={{ color: theme.colors.success }}>
+                        +{bonusCoins} {t('wallet.bonus')}
+                      </p>
+                    )}
+                    <p className="text-sm font-semibold" style={{ color: theme.colors.primary }}>
+                      ${pkg.price_usd.toFixed(2)}
+                    </p>
+                    {selectedPackage?.id === pkg.id && isPurchasing && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20" style={{ borderRadius: theme.radius.xl }}>
+                        <Loader className="animate-spin" size={24} color="#FFF" />
+                      </div>
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div>
@@ -222,9 +225,10 @@ export default function WalletPage() {
             <h2 className="text-lg font-bold" style={{ color: theme.colors.text }}>
               {t('wallet.history')}
             </h2>
-            {transactions.length > 5 && (
+            {transactions.length > 0 && (
               <button
-                className="text-sm font-medium flex items-center gap-1"
+                onClick={() => router.push('/profile/wallet/transactions')}
+                className="text-sm font-medium flex items-center gap-1 transition-opacity hover:opacity-80"
                 style={{ color: theme.colors.primary }}
               >
                 {t('common.viewAll')}

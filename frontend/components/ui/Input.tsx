@@ -75,7 +75,15 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             disabled={disabled}
             style={inputStyles}
-            className={`placeholder:text-gray-400 focus:border-primary ${className}`}
+            className={`placeholder:text-gray-400 ${className}`}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = theme.colors.primary;
+              if (props.onFocus) props.onFocus(e);
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = error ? theme.colors.error : theme.colors.border;
+              if (props.onBlur) props.onBlur(e);
+            }}
             {...props}
           />
         </div>

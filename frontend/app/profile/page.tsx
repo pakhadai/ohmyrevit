@@ -276,15 +276,15 @@ export default function ProfilePage() {
       href: '/profile/wallet',
       label: t('profilePages.main.menu.wallet') || 'Гаманець',
       icon: Wallet,
-      iconColor: 'text-blue-500',
-      iconBg: isDarkMode ? 'bg-blue-500/20' : 'bg-blue-50',
+      iconColor: theme.colors.blue,
+      iconBg: theme.colors.blueLight,
     },
     {
       href: '/profile/settings',
       label: t('profilePages.main.menu.settings') || 'Налаштування',
       icon: Settings,
-      iconColor: 'text-slate-500',
-      iconBg: isDarkMode ? 'bg-slate-500/20' : 'bg-slate-50',
+      iconColor: theme.colors.textSecondary,
+      iconBg: theme.colors.surface,
     },
   ];
 
@@ -293,15 +293,15 @@ export default function ProfilePage() {
       href: '/profile/downloads',
       label: t('profilePages.main.menu.downloads') || 'Завантаження',
       icon: Download,
-      iconColor: 'text-green-500',
-      iconBg: isDarkMode ? 'bg-green-500/20' : 'bg-green-50',
+      iconColor: theme.colors.green,
+      iconBg: theme.colors.greenLight,
     },
     {
       href: '/profile/collections',
       label: t('profilePages.main.menu.collections') || 'Колекції',
       icon: Heart,
-      iconColor: 'text-pink-500',
-      iconBg: isDarkMode ? 'bg-pink-500/20' : 'bg-pink-50',
+      iconColor: theme.colors.pink,
+      iconBg: theme.colors.pinkLight,
     },
   ];
 
@@ -310,29 +310,29 @@ export default function ProfilePage() {
       href: '/profile/bonuses',
       label: t('profilePages.main.menu.bonuses') || 'Бонуси',
       icon: Gift,
-      iconColor: 'text-purple-500',
-      iconBg: isDarkMode ? 'bg-purple-500/20' : 'bg-purple-50',
+      iconColor: theme.colors.purple,
+      iconBg: theme.colors.purpleLight,
     },
     {
       href: '/profile/referrals',
       label: t('profilePages.main.menu.referrals') || 'Реферали',
       icon: Users,
-      iconColor: 'text-orange-500',
-      iconBg: isDarkMode ? 'bg-orange-500/20' : 'bg-orange-50',
+      iconColor: theme.colors.orange,
+      iconBg: theme.colors.orangeLight,
     },
     {
       href: '/profile/support',
       label: t('profilePages.main.menu.support') || 'Підтримка',
       icon: HelpCircle,
-      iconColor: 'text-cyan-500',
-      iconBg: isDarkMode ? 'bg-cyan-500/20' : 'bg-cyan-50',
+      iconColor: theme.colors.info,
+      iconBg: theme.colors.infoLight,
     },
     {
       href: '/profile/faq',
       label: t('profilePages.main.menu.faq') || 'FAQ',
       icon: FileText,
-      iconColor: 'text-amber-500',
-      iconBg: isDarkMode ? 'bg-amber-500/20' : 'bg-amber-50',
+      iconColor: theme.colors.warning,
+      iconBg: theme.colors.warningLight,
     },
   ];
 
@@ -342,18 +342,21 @@ export default function ProfilePage() {
       <div
         className={`group flex items-center justify-between p-4 transition-colors cursor-pointer rounded-2xl`}
         style={{
-          borderBottom: !isLast ? `1px solid ${theme.cardBorder}` : 'none',
+          borderBottom: !isLast ? `1px solid ${theme.colors.border}` : 'none',
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.menuHover)}
+        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.colors.surfaceHover)}
         onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
       >
         <div className="flex items-center gap-4">
-          <div className={`w-11 h-11 rounded-[16px] flex items-center justify-center transition-colors ${item.iconBg}`}>
-            <item.icon size={22} className={item.iconColor} strokeWidth={1.8} />
+          <div
+            className="w-11 h-11 rounded-[16px] flex items-center justify-center transition-colors"
+            style={{ backgroundColor: item.iconBg }}
+          >
+            <item.icon size={22} strokeWidth={1.8} style={{ color: item.iconColor }} />
           </div>
           <span
             className="text-[15px] font-medium"
-            style={{ color: theme.textMain }}
+            style={{ color: theme.colors.text }}
           >
             {item.label}
           </span>
@@ -361,7 +364,7 @@ export default function ProfilePage() {
         <ChevronRight
           size={18}
           className="transition-colors"
-          style={{ color: theme.textMuted }}
+          style={{ color: theme.colors.textMuted }}
         />
       </div>
     </Link>

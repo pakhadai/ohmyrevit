@@ -6,6 +6,7 @@ export interface Theme {
     bgGradient: string;
     card: string;
     surface: string;
+    surfaceHover: string;
     border: string;
     text: string;
     textSecondary: string;
@@ -14,6 +15,7 @@ export interface Theme {
     primaryLight: string;
     accent: string;
     accentLight: string;
+    accentDark: string;
     success: string;
     successLight: string;
     error: string;
@@ -45,6 +47,7 @@ export interface Theme {
     lg: string;
     xl: string;
     '2xl': string;
+    '3xl': string;
     full: string;
   };
 }
@@ -56,6 +59,7 @@ export const themes: Record<ThemeName, Theme> = {
       bgGradient: 'linear-gradient(180deg, #FDFCFA 0%, #F5F3F0 100%)',
       card: '#FFFFFF',
       surface: '#F5F3F0',
+      surfaceHover: '#EBE7E0',
       border: '#E8E4DF',
       text: '#1A1A1A',
       textSecondary: '#6B6B6B',
@@ -64,6 +68,7 @@ export const themes: Record<ThemeName, Theme> = {
       primaryLight: 'rgba(139, 115, 85, 0.12)',
       accent: '#D4AF37',
       accentLight: 'rgba(212, 175, 55, 0.12)',
+      accentDark: '#B8941F',
       success: '#2D8A4E',
       successLight: 'rgba(45, 138, 78, 0.12)',
       error: '#C94B4B',
@@ -95,6 +100,7 @@ export const themes: Record<ThemeName, Theme> = {
       lg: '16px',
       xl: '24px',
       '2xl': '32px',
+      '3xl': '40px',
       full: '9999px',
     },
   },
@@ -104,6 +110,7 @@ export const themes: Record<ThemeName, Theme> = {
       bgGradient: 'linear-gradient(180deg, #0D0D0D 0%, #1A1A1A 100%)',
       card: '#1A1A1A',
       surface: '#2A2A2A',
+      surfaceHover: '#353535',
       border: '#3A3A3A',
       text: '#F5F5F5',
       textSecondary: '#A0A0A0',
@@ -112,6 +119,7 @@ export const themes: Record<ThemeName, Theme> = {
       primaryLight: 'rgba(166, 139, 91, 0.15)',
       accent: '#D4AF37',
       accentLight: 'rgba(212, 175, 55, 0.15)',
+      accentDark: '#A68911',
       success: '#34A853',
       successLight: 'rgba(52, 168, 83, 0.15)',
       error: '#EA4335',
@@ -143,6 +151,7 @@ export const themes: Record<ThemeName, Theme> = {
       lg: '16px',
       xl: '24px',
       '2xl': '32px',
+      '3xl': '40px',
       full: '9999px',
     },
   },

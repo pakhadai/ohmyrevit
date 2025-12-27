@@ -100,3 +100,13 @@ class BonusClaimResponse(BaseModel):
     new_streak: Optional[int] = None
     message: str
     next_claim_time: Optional[str] = None
+
+
+class BonusInfoResponse(BaseModel):
+    balance: int
+    streak: int
+    can_claim_today: bool
+    next_claim_time: str
+    last_claim_date: Optional[str] = None
+    next_bonus_amount: Optional[int] = None
+    next_streak: int
