@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { useTheme } from '@/lib/theme';
 
 // --- ТИПИ ---
 interface MenuItem {
@@ -236,7 +237,7 @@ export default function ProfilePage() {
     };
   }, []);
 
-  const theme = getTheme(isDarkMode);
+  const { theme, isDark } = useTheme();
 
   const handleLogout = useCallback(() => {
     setShowLogoutModal(true);
