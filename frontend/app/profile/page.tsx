@@ -23,21 +23,6 @@ interface MenuItem {
 }
 
 // --- ТЕМА (з підтримкою Telegram) ---
-const getTheme = (isDark: boolean) => ({
-  bg: isDark
-    ? 'linear-gradient(to bottom, #1A1A1A, #0D0D0D)'
-    : 'linear-gradient(to bottom, #FDFCFA, #F5F3F0)',
-  card: isDark ? '#2A2A2A' : '#FFFFFF',
-  cardBorder: isDark ? '#3A3A3A' : '#F0F0F0',
-  textMain: isDark ? '#FFFFFF' : '#1A1A1A',
-  textSecondary: isDark ? '#A0A0A0' : '#666666',
-  textMuted: isDark ? '#707070' : '#9CA3AF',
-  surface: isDark ? '#333333' : '#F5F5F7',
-  surfaceHover: isDark ? '#404040' : '#EEEEF0',
-  menuHover: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
-  menuActive: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-});
-
 // --- SKELETON КОМПОНЕНТИ ---
 const SkeletonBox = ({ className, isDark }: { className: string; isDark: boolean }) => (
   <div
@@ -46,9 +31,7 @@ const SkeletonBox = ({ className, isDark }: { className: string; isDark: boolean
   />
 );
 
-const ProfileSkeleton = ({ isDark }: { isDark: boolean }) => {
-  const theme = getTheme(isDark);
-
+const ProfileSkeleton = ({ theme, isDark }: { theme: any; isDark: boolean }) => {
   return (
     <div className="min-h-screen pb-12" style={{ background: theme.colors.bgGradient }}>
       <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-12 pt-8 sm:pt-12 pb-36">
@@ -107,7 +90,7 @@ const ConfirmModal = ({
   message,
   confirmText,
   cancelText,
-  isDark,
+  theme,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -116,10 +99,8 @@ const ConfirmModal = ({
   message: string;
   confirmText: string;
   cancelText: string;
-  isDark: boolean;
+  theme: any;
 }) => {
-  const theme = getTheme(isDark);
-
   if (!isOpen) return null;
 
   return (
@@ -376,7 +357,7 @@ export default function ProfilePage() {
   if (!isHydrated) return null;
 
   if (isLoading) {
-    return <ProfileSkeleton isDark={isDarkMode} />;
+    return <ProfileSkeleton theme={theme} isDark={isDark} />;
   }
 
   return (
@@ -652,7 +633,7 @@ export default function ProfilePage() {
         message={t('profilePages.main.logoutModal.message') || 'Ви впевнені, що хочете вийти? Вам потрібно буде увійти знову.'}
         confirmText={t('profilePages.main.logoutModal.confirm') || 'Вийти'}
         cancelText={t('profilePages.main.logoutModal.cancel') || 'Скасувати'}
-        isDark={isDarkMode}
+        theme={theme}
       />
     </>
   );
