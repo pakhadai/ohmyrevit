@@ -14,7 +14,7 @@ try {
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  output: 'standalone',
+  // output: 'standalone', // DISABLED for development - only enable for production builds
 
   images: {
     formats: ['image/avif', 'image/webp'],
