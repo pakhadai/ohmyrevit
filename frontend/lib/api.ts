@@ -202,6 +202,31 @@ export const authAPI = {
     // ВАЖЛИВО: повертаємо response.data, а не response!
     return response.data;
   },
+
+  loginEmail: async (email: string, password: string): Promise<any> => {
+    const response = await api.post('/auth/login', { email, password });
+    return response.data;
+  },
+
+  register: async (email: string): Promise<any> => {
+    const response = await api.post('/auth/register', { email });
+    return response.data;
+  },
+
+  forgotPassword: async (email: string): Promise<any> => {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  verifyEmail: async (token: string): Promise<any> => {
+    const response = await api.post('/auth/verify', { token });
+    return response.data;
+  },
+
+  linkEmail: async (email: string): Promise<any> => {
+    const response = await api.post('/auth/link-email', { email });
+    return response.data;
+  },
 };
 
 // ============ Products API ============
@@ -316,6 +341,19 @@ export const profileAPI = {
   },
   getReferralInfo: async () => {
     return getData(await api.get('/profile/referrals'));
+  },
+};
+
+// ============ Bonus API ============
+export const bonusAPI = {
+  getBonusInfo: async () => {
+    return getData(await api.get('/profile/bonus/info'));
+  },
+  claimDaily: async () => {
+    return getData(await api.post('/profile/bonus/claim'));
+  },
+  getDailyStatus: async () => {
+    return getData(await api.get('/profile/bonus/info'));
   },
 };
 

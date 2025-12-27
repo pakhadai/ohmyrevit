@@ -122,3 +122,6 @@ debug.sh
 # Makefile
 
 # .env.example залишаємо для документації
+
+# Prevent nested folder creation
+ohmyrevit/

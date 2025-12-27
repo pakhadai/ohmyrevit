@@ -7,6 +7,7 @@ import { ArrowLeft, Mail, Send, CheckCircle2, Loader } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { useTheme } from '@/lib/theme';
+import { authAPI } from '@/lib/api';
 
 export default function ForgotPasswordPage() {
   const { theme } = useTheme();
@@ -25,11 +26,11 @@ export default function ForgotPasswordPage() {
 
     setIsSubmitting(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await authAPI.forgotPassword(email);
       setIsSuccess(true);
       toast.success(t('auth.resetLinkSent'));
-    } catch (error) {
-      toast.error(t('auth.resetError'));
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || t('auth.resetError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -69,7 +70,7 @@ export default function ForgotPasswordPage() {
               {t('auth.checkEmail')}
             </h1>
             <p className="text-sm mb-6" style={{ color: theme.colors.textSecondary }}>
-              {t('auth.resetLinkSentTo', { email })}
+              Ми надіслали новий пароль на {email}
             </p>
 
             <button

@@ -366,7 +366,7 @@ export default function ProfilePage() {
         className="min-h-screen pb-12 overflow-x-hidden"
         style={{ background: theme.colors.bgGradient }}
       >
-        <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-12 pt-8 sm:pt-12 pb-36">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-12 pt-8 sm:pt-12 pb-20">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
 
             {/* --- ЛІВА КОЛОНКА (Профіль) --- */}
@@ -506,17 +506,6 @@ export default function ProfilePage() {
                   </Link>
                 </div>
               </div>
-
-              {/* ВИХІД */}
-              <div className="flex justify-center">
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-full transition-all active:scale-95"
-                >
-                  <LogOut size={18} />
-                  <span>{t('profilePages.main.logout') || 'Вийти'}</span>
-                </button>
-              </div>
             </div>
 
             {/* --- ПРАВА КОЛОНКА (Меню) --- */}
@@ -616,6 +605,39 @@ export default function ProfilePage() {
                       isLast={index === groupGeneral.length - 1}
                     />
                   ))}
+                </div>
+              </div>
+
+              {/* ВИХІД - переміщено вниз */}
+              <div>
+                <div
+                  className="rounded-[28px] p-2 shadow-sm overflow-hidden"
+                  style={{
+                    backgroundColor: theme.colors.card,
+                    border: `1px solid ${theme.colors.border}`,
+                  }}
+                >
+                  <button
+                    onClick={handleLogout}
+                    className="group flex items-center justify-between p-4 transition-colors cursor-pointer rounded-2xl w-full"
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.colors.surfaceHover)}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="w-11 h-11 rounded-[16px] flex items-center justify-center transition-colors"
+                        style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)' }}
+                      >
+                        <LogOut size={22} strokeWidth={1.8} style={{ color: '#EF4444' }} />
+                      </div>
+                      <span
+                        className="text-[15px] font-medium"
+                        style={{ color: '#EF4444' }}
+                      >
+                        {t('profilePages.main.logout') || 'Вийти'}
+                      </span>
+                    </div>
+                  </button>
                 </div>
               </div>
 

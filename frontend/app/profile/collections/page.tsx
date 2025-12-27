@@ -87,7 +87,7 @@ export default function CollectionsPage() {
   };
 
   return (
-    <div className="min-h-screen pb-28" style={{ background: theme.colors.bgGradient }}>
+    <div className="min-h-screen pb-20" style={{ background: theme.colors.bgGradient }}>
       <div className="max-w-2xl mx-auto px-5 pt-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">

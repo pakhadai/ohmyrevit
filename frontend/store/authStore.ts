@@ -14,6 +14,7 @@ interface AuthState {
   isNewUser: boolean | null;
 
   login: (initData: object) => Promise<any>;
+  loginWithTelegram: (initData: string) => Promise<any>;
   logout: () => void;
   setUser: (user: User) => void;
   setToken: (token: string) => void;
@@ -137,6 +138,10 @@ export const useAuthStore = create<AuthState>()(
 
           throw error;
         }
+      },
+
+      loginWithTelegram: async (initData: string) => {
+        return get().login({ initData });
       },
 
       logout: () => {
