@@ -7,7 +7,7 @@ import {
   ArrowLeft, Gift, Calendar, Flame, Trophy, Star, Loader, CheckCircle2
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { bonusAPI } from '@/lib/api';
+import { profileAPI } from '@/lib/api';
 import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
@@ -38,7 +38,7 @@ export default function BonusesPage() {
 
   const fetchBonusData = async () => {
     try {
-      const data = await bonusAPI.getDailyStatus();
+      const data = await profileAPI.getBonusInfo();
       setStreak(data.streak || 0);
       setCanClaimDaily(data.can_claim || false);
       setDailyBonuses(data.weekly_bonuses || generateDefaultBonuses(data.streak || 0, data.can_claim || false));
@@ -64,7 +64,7 @@ export default function BonusesPage() {
     if (!canClaimDaily || isClaiming) return;
     setIsClaiming(true);
     try {
-      const response = await bonusAPI.claimDaily();
+      const response = await profileAPI.claimDailyBonus();
       if (response.success) {
         toast.success(t('bonuses.claimed', { amount: response.coins }));
         updateBalance(response.new_balance);
@@ -92,7 +92,7 @@ export default function BonusesPage() {
   }
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: theme.colors.bgGradient }}>
+    <div className="min-h-screen pb-4" style={{ background: theme.colors.bgGradient }}>
       <div className="max-w-2xl mx-auto px-5 pt-6">
         <div className="flex items-center gap-4 mb-6">
           <button

@@ -1,12 +1,5 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import { authTranslations } from './translations-auth';
-import { collectionsTranslations } from './translations-collections';
-import { profileSubpagesTranslations } from './translations-profile-subpages';
-import { subscriptionTranslations } from './translations-subscription';
-import { profileTranslations } from './translations-profile';
-import { adminTranslations } from './translations-admin';
-import { mainTranslations } from './translations-main';
 import HttpApi from 'i18next-http-backend';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { settings } from '@/lib/settings';
@@ -69,25 +62,5 @@ i18n
       useSuspense: false,
     },
   });
-
-['uk', 'en'].forEach((lang) => {
-  const tsResources = {
-    ...authTranslations[lang as 'uk'|'en']?.auth,
-    ...collectionsTranslations[lang as 'uk'|'en']?.collections,
-    ...profileSubpagesTranslations[lang as 'uk'|'en']?.wallet,
-    ...profileSubpagesTranslations[lang as 'uk'|'en']?.bonuses,
-    ...profileSubpagesTranslations[lang as 'uk'|'en']?.referrals,
-    ...profileSubpagesTranslations[lang as 'uk'|'en']?.downloads,
-    ...profileSubpagesTranslations[lang as 'uk'|'en']?.settings,
-    ...profileSubpagesTranslations[lang as 'uk'|'en']?.support,
-    ...profileSubpagesTranslations[lang as 'uk'|'en']?.faq,
-    ...subscriptionTranslations[lang as 'uk'|'en'],
-    ...profileTranslations[lang as 'uk'|'en'],
-    ...adminTranslations[lang as 'uk'|'en'],
-    ...mainTranslations[lang as 'uk'|'en'],
-  };
-
-  i18n.addResourceBundle(lang, 'translation', tsResources, true, true);
-});
 
 export default i18n;

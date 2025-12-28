@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Sun, Moon, Globe, Bell, Shield, Trash2, ChevronRight,
-  Loader, Mail, Lock, Check, X, Eye, EyeOff
+  Loader, Mail, Lock, Check, X, Eye, EyeOff, User, Calendar
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -31,6 +31,18 @@ export default function SettingsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  const [firstName, setFirstName] = useState(user?.firstName || '');
+  const [lastName, setLastName] = useState(user?.lastName || '');
+  const [birthDate, setBirthDate] = useState(user?.birthDate || '');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  useEffect(() => {
+    setFirstName(user?.firstName || '');
+    setLastName(user?.lastName || '');
+    setBirthDate(user?.birthDate || '');
+  }, [user]);
 
   const handleThemeChange = (newTheme: ThemeName) => {
     setThemeName(newTheme);
@@ -48,8 +60,26 @@ export default function SettingsPage() {
     setShowDeleteConfirm(false);
   };
 
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
+    try {
+      await profileAPI.updateProfile({
+        first_name: firstName,
+        last_name: lastName,
+        birth_date: birthDate || undefined,
+      });
+      await refreshUser();
+      toast.success(t('settings.profileUpdated') || 'Профіль оновлено');
+      setShowProfileModal(false);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || t('settings.profileUpdateError') || 'Помилка оновлення профілю');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen pb-20" style={{ background: theme.colors.bgGradient }}>
+    <div className="min-h-screen pb-4" style={{ background: theme.colors.bgGradient }}>
       <div className="max-w-2xl mx-auto px-5 pt-6">
         <div className="flex items-center gap-4 mb-6">
           <button
@@ -100,6 +130,50 @@ export default function SettingsPage() {
               >
                 {user?.email ? t('settings.changeEmail') : t('settings.linkEmail')}
               </button>
+            </div>
+          </div>
+
+          <div
+            className="p-5"
+            style={{
+              backgroundColor: theme.colors.card,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.radius.xl,
+            }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <User size={20} style={{ color: theme.colors.green }} />
+              <h2 className="font-semibold" style={{ color: theme.colors.text }}>
+                {t('settings.profileInfo') || 'Профільна інформація'}
+              </h2>
+            </div>
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="w-full py-3 text-sm font-medium transition-all"
+              style={{
+                backgroundColor: theme.colors.surface,
+                color: theme.colors.text,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.lg,
+              }}
+            >
+              {t('settings.editProfile') || 'Редагувати профіль'}
+            </button>
+            <div className="mt-3 space-y-2 text-sm" style={{ color: theme.colors.textSecondary }}>
+              <div className="flex justify-between">
+                <span>{t('settings.firstName') || "Ім'я"}:</span>
+                <span style={{ color: theme.colors.text }}>{firstName || '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>{t('settings.lastName') || 'Прізвище'}:</span>
+                <span style={{ color: theme.colors.text }}>{lastName || '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>{t('settings.birthDate') || 'Дата народження'}:</span>
+                <span style={{ color: theme.colors.text }}>
+                  {birthDate ? new Date(birthDate).toLocaleDateString('uk-UA') : '—'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -337,6 +411,27 @@ export default function SettingsPage() {
       </div>
 
       <AnimatePresence>
+        {showProfileModal && (
+          <ProfileModal
+            onClose={() => {
+              setShowProfileModal(false);
+              setFirstName(user?.firstName || '');
+              setLastName(user?.lastName || '');
+              setBirthDate(user?.birthDate || '');
+            }}
+            firstName={firstName}
+            lastName={lastName}
+            birthDate={birthDate}
+            setFirstName={setFirstName}
+            setLastName={setLastName}
+            setBirthDate={setBirthDate}
+            onSave={handleSaveProfile}
+            isSaving={isSavingProfile}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {showEmailModal && (
           <EmailModal
             onClose={() => setShowEmailModal(false)}
@@ -358,6 +453,173 @@ export default function SettingsPage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function ProfileModal({
+  onClose,
+  firstName,
+  lastName,
+  birthDate,
+  setFirstName,
+  setLastName,
+  setBirthDate,
+  onSave,
+  isSaving,
+}: {
+  onClose: () => void;
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  setFirstName: (val: string) => void;
+  setLastName: (val: string) => void;
+  setBirthDate: (val: string) => void;
+  onSave: () => void;
+  isSaving: boolean;
+}) {
+  const { theme } = useTheme();
+  const { t } = useTranslation();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave();
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md p-6"
+        style={{
+          backgroundColor: theme.colors.card,
+          borderRadius: theme.radius['2xl'],
+          border: `1px solid ${theme.colors.border}`,
+        }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold" style={{ color: theme.colors.text }}>
+            {t('settings.editProfile') || 'Редагувати профіль'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 transition-colors"
+            style={{
+              backgroundColor: theme.colors.surface,
+              color: theme.colors.textMuted,
+              borderRadius: theme.radius.lg,
+            }}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: theme.colors.text }}>
+              {t('settings.firstName') || "Ім'я"}
+            </label>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full px-4 py-3 text-base outline-none transition-colors"
+              style={{
+                backgroundColor: theme.colors.surface,
+                border: `1px solid ${theme.colors.border}`,
+                color: theme.colors.text,
+                borderRadius: theme.radius.lg,
+              }}
+              placeholder={t('settings.firstNamePlaceholder') || "Введіть ім'я"}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: theme.colors.text }}>
+              {t('settings.lastName') || 'Прізвище'}
+            </label>
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="w-full px-4 py-3 text-base outline-none transition-colors"
+              style={{
+                backgroundColor: theme.colors.surface,
+                border: `1px solid ${theme.colors.border}`,
+                color: theme.colors.text,
+                borderRadius: theme.radius.lg,
+              }}
+              placeholder={t('settings.lastNamePlaceholder') || 'Введіть прізвище'}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: theme.colors.text }}>
+              {t('settings.birthDate') || 'Дата народження'}
+            </label>
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              className="w-full px-4 py-3 text-base outline-none transition-colors"
+              style={{
+                backgroundColor: theme.colors.surface,
+                border: `1px solid ${theme.colors.border}`,
+                color: theme.colors.text,
+                borderRadius: theme.radius.lg,
+              }}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 px-4 font-medium transition-all"
+              style={{
+                backgroundColor: theme.colors.surface,
+                color: theme.colors.text,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.lg,
+              }}
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="flex-1 py-3 px-4 font-medium transition-all flex items-center justify-center gap-2"
+              style={{
+                backgroundColor: isSaving ? theme.colors.surface : theme.colors.primary,
+                color: isSaving ? theme.colors.textMuted : '#fff',
+                borderRadius: theme.radius.lg,
+                opacity: isSaving ? 0.6 : 1,
+              }}
+            >
+              {isSaving ? (
+                <>
+                  <Loader size={16} className="animate-spin" />
+                  {t('common.saving')}
+                </>
+              ) : (
+                <>
+                  <Check size={18} />
+                  {t('common.save')}
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
   );
 }
 

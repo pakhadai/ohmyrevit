@@ -219,7 +219,7 @@ export const authAPI = {
   },
 
   verifyEmail: async (token: string): Promise<any> => {
-    const response = await api.post('/auth/verify', { token });
+    const response = await api.post('/auth/verify-email', { token });
     return response.data;
   },
 
@@ -301,7 +301,13 @@ export const profileAPI = {
     return getData(await api.get('/profile/me'));
   },
   updateProfile: async (data: { email?: string; phone?: string }) => {
-    return getData(await api.patch('/profile/me', data));
+    return getData(await api.patch('/auth/profile', data));
+  },
+  changePassword: async (data: { currentPassword: string; newPassword: string }) => {
+    return getData(await api.post('/auth/change-password', {
+      old_password: data.currentPassword,
+      new_password: data.newPassword
+    }));
   },
   getDownloads: async () => {
     return getData(await api.get('/profile/downloads'));
@@ -342,18 +348,12 @@ export const profileAPI = {
   getReferralInfo: async () => {
     return getData(await api.get('/profile/referrals'));
   },
-};
-
-// ============ Bonus API ============
-export const bonusAPI = {
+  // Bonus methods
   getBonusInfo: async () => {
     return getData(await api.get('/profile/bonus/info'));
   },
-  claimDaily: async () => {
+  claimDailyBonus: async () => {
     return getData(await api.post('/profile/bonus/claim'));
-  },
-  getDailyStatus: async () => {
-    return getData(await api.get('/profile/bonus/info'));
   },
 };
 

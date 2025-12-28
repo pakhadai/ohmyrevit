@@ -19,6 +19,104 @@ conf = ConnectionConfig(
     VALIDATE_CERTS=settings.VALIDATE_CERTS
 )
 
+
+def get_email_template(content: str, language_code: str = "uk") -> str:
+    """
+    Базовий шаблон для всіх email листів
+    Сучасний, мінімалістичний дизайн з градієнтами
+    """
+    t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="{language_code}">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>OhMyRevit</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f7; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;">
+        <div style="width: 100%; background-color: #f5f5f7; padding: 40px 20px;">
+            <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);">
+                <!-- Header -->
+                <tr>
+                    <td style="background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 50%, #3B82F6 100%); padding: 48px 40px; text-align: center;">
+                        <div style="background-color: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); border-radius: 16px; padding: 12px 24px; display: inline-block; margin-bottom: 20px;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
+                                OhMyRevit
+                            </h1>
+                        </div>
+                        <p style="margin: 0; font-size: 16px; color: rgba(255, 255, 255, 0.9); font-weight: 400;">
+                            Revit Content Marketplace
+                        </p>
+                    </td>
+                </tr>
+
+                <!-- Content -->
+                <tr>
+                    <td style="padding: 48px 40px;">
+                        {content}
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="background-color: #fafafa; padding: 32px 40px; border-top: 1px solid #e5e5e7;">
+                        <table role="presentation" style="width: 100%;">
+                            <tr>
+                                <td style="text-align: center; padding-bottom: 16px;">
+                                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #86868b; line-height: 1.6;">
+                                        {t("email_footer_thanks")}
+                                    </p>
+                                    <p style="margin: 0; font-size: 14px; font-weight: 600; color: #1d1d1f;">
+                                        Команда OhMyRevit
+                                    </p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: center; padding-top: 16px; border-top: 1px solid #e5e5e7;">
+                                    <a href="https://t.me/{settings.TELEGRAM_BOT_USERNAME}" style="display: inline-block; margin: 0 8px; text-decoration: none; color: #8B5CF6; font-size: 13px; font-weight: 500;">
+                                        Telegram Bot
+                                    </a>
+                                    <span style="color: #d2d2d7;">•</span>
+                                    <a href="{settings.FRONTEND_URL}" style="display: inline-block; margin: 0 8px; text-decoration: none; color: #8B5CF6; font-size: 13px; font-weight: 500;">
+                                        {t("email_footer_website")}
+                                    </a>
+                                    <span style="color: #d2d2d7;">•</span>
+                                    <a href="{settings.FRONTEND_URL}/profile/support" style="display: inline-block; margin: 0 8px; text-decoration: none; color: #8B5CF6; font-size: 13px; font-weight: 500;">
+                                        {t("email_footer_support")}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: center; padding-top: 16px;">
+                                    <p style="margin: 0; font-size: 12px; color: #86868b; line-height: 1.5;">
+                                        © 2025 OhMyRevit. {t("email_footer_rights")}
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </body>
+    </html>
+    """
+
+
+def get_button_html(text: str, url: str, color: str = "#8B5CF6") -> str:
+    """Красива кнопка з градієнтом"""
+    return f"""
+    <div style="text-align: center; margin: 32px 0;">
+        <a href="{url}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, {color} 0%, {color}dd 100%); color: #ffffff; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3); transition: all 0.3s ease;">
+            {text}
+        </a>
+    </div>
+    """
+
+
 class EmailService:
     def __init__(self):
         self.fastmail = FastMail(conf)
@@ -30,9 +128,7 @@ class EmailService:
             html_content: str,
             text_content: Optional[str] = None
     ) -> bool:
-        """
-        Універсальний метод відправки через SMTP
-        """
+        """Універсальний метод відправки через SMTP"""
         try:
             message = MessageSchema(
                 subject=subject,
@@ -48,6 +144,259 @@ class EmailService:
             logger.error(f"Failed to send email via SMTP: {str(e)}")
             return False
 
+    async def send_verification_email(
+            self,
+            user_email: str,
+            verification_token: str,
+            language_code: str = "uk"
+    ) -> bool:
+        """Підтвердження email адреси"""
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = f"OhMyRevit – {t('email_verify_subject')}"
+
+        verification_url = f"{settings.FRONTEND_URL}/verify-email?token={verification_token}"
+
+        content = f"""
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+            </div>
+        </div>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            {t("email_verify_title")}
+        </h2>
+
+        <p style="margin: 0 0 24px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            {t("email_verify_body")}
+        </p>
+
+        {get_button_html(t("email_verify_button"), verification_url)}
+
+        <div style="margin-top: 32px; padding: 20px; background-color: #f5f5f7; border-radius: 12px;">
+            <p style="margin: 0 0 8px 0; font-size: 13px; color: #86868b; text-align: center;">
+                {t("email_verify_link_text")}
+            </p>
+            <p style="margin: 0; font-size: 12px; color: #6366F1; word-break: break-all; text-align: center;">
+                {verification_url}
+            </p>
+        </div>
+
+        <p style="margin: 24px 0 0 0; font-size: 13px; color: #86868b; text-align: center; line-height: 1.5;">
+            {t("email_verify_expire")}
+        </p>
+        """
+
+        html_content = get_email_template(content, language_code)
+        return await self.send_email(to=user_email, subject=subject, html_content=html_content)
+
+    async def send_password_reset_email(
+            self,
+            user_email: str,
+            reset_token: str,
+            language_code: str = "uk"
+    ) -> bool:
+        """Відновлення пароля"""
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = f"OhMyRevit – {t('email_reset_subject')}"
+
+        reset_url = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+
+        content = f"""
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #F59E0B 0%, #EF4444 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </div>
+        </div>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            {t("email_reset_title")}
+        </h2>
+
+        <p style="margin: 0 0 24px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            {t("email_reset_body")}
+        </p>
+
+        {get_button_html(t("email_reset_button"), reset_url, "#EF4444")}
+
+        <div style="margin-top: 32px; padding: 20px; background-color: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 8px;">
+            <p style="margin: 0; font-size: 14px; color: #92400E; line-height: 1.6;">
+                <strong>{t("email_reset_warning_title")}</strong><br>
+                {t("email_reset_warning_body")}
+            </p>
+        </div>
+
+        <p style="margin: 24px 0 0 0; font-size: 13px; color: #86868b; text-align: center; line-height: 1.5;">
+            {t("email_reset_expire")}
+        </p>
+        """
+
+        html_content = get_email_template(content, language_code)
+        return await self.send_email(to=user_email, subject=subject, html_content=html_content)
+
+    async def send_new_password_email(
+            self,
+            user_email: str,
+            new_password: str,
+            language_code: str = "uk"
+    ) -> bool:
+        """Новий пароль (автогенерований)"""
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = f"OhMyRevit – {t('email_new_password_subject')}"
+
+        content = f"""
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                    <path d="M2 17l10 5 10-5"></path>
+                    <path d="M2 12l10 5 10-5"></path>
+                </svg>
+            </div>
+        </div>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            {t("email_new_password_title")}
+        </h2>
+
+        <p style="margin: 0 0 24px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            {t("email_new_password_body")}
+        </p>
+
+        <div style="margin: 32px 0; padding: 24px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 16px; border: 2px dashed #10B981;">
+            <p style="margin: 0 0 12px 0; font-size: 13px; color: #065f46; font-weight: 600; text-align: center; text-transform: uppercase; letter-spacing: 0.5px;">
+                {t("email_new_password_label")}
+            </p>
+            <p style="margin: 0; font-size: 24px; color: #047857; font-weight: 700; text-align: center; font-family: 'Courier New', monospace; letter-spacing: 2px;">
+                {new_password}
+            </p>
+        </div>
+
+        {get_button_html(t("email_new_password_button"), f"{settings.FRONTEND_URL}/login", "#10B981")}
+
+        <div style="margin-top: 32px; padding: 20px; background-color: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 8px;">
+            <p style="margin: 0; font-size: 14px; color: #92400E; line-height: 1.6;">
+                <strong>{t("email_new_password_security_title")}</strong><br>
+                {t("email_new_password_security_body")}
+            </p>
+        </div>
+        """
+
+        html_content = get_email_template(content, language_code)
+        return await self.send_email(to=user_email, subject=subject, html_content=html_content)
+
+    async def send_registration_email(
+            self,
+            user_email: str,
+            temp_password: str,
+            language_code: str = "uk"
+    ) -> bool:
+        """Реєстрація нового користувача"""
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = f"OhMyRevit – {t('email_registration_subject')}"
+
+        content = f"""
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </div>
+        </div>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            {t("email_registration_title")}
+        </h2>
+
+        <p style="margin: 0 0 24px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            {t("email_registration_body")}
+        </p>
+
+        <div style="margin: 32px 0; padding: 24px; background-color: #f5f5f7; border-radius: 16px;">
+            <table role="presentation" style="width: 100%;">
+                <tr>
+                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e7;">
+                        <p style="margin: 0; font-size: 13px; color: #86868b; font-weight: 500;">Email</p>
+                        <p style="margin: 4px 0 0 0; font-size: 15px; color: #1d1d1f; font-weight: 600;">{user_email}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px 0;">
+                        <p style="margin: 0; font-size: 13px; color: #86868b; font-weight: 500;">{t("email_registration_temp_password")}</p>
+                        <p style="margin: 4px 0 0 0; font-size: 18px; color: #8B5CF6; font-weight: 700; font-family: 'Courier New', monospace;">{temp_password}</p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        {get_button_html(t("email_registration_button"), f"{settings.FRONTEND_URL}/login")}
+
+        <div style="margin-top: 32px; padding: 20px; background-color: #DBEAFE; border-left: 4px solid #3B82F6; border-radius: 8px;">
+            <p style="margin: 0; font-size: 14px; color: #1E40AF; line-height: 1.6;">
+                <strong>{t("email_registration_tip_title")}</strong><br>
+                {t("email_registration_tip_body")}
+            </p>
+        </div>
+        """
+
+        html_content = get_email_template(content, language_code)
+        return await self.send_email(to=user_email, subject=subject, html_content=html_content)
+
+    async def send_link_account_email(
+            self,
+            user_email: str,
+            verification_token: str,
+            language_code: str = "uk"
+    ) -> bool:
+        """Підтвердження прив'язки email до Telegram акаунту"""
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = f"OhMyRevit – {t('email_link_subject')}"
+
+        verification_url = f"{settings.FRONTEND_URL}/verify-link?token={verification_token}"
+
+        content = f"""
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #0088cc 0%, #0066aa 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                    <rect x="2" y="9" width="4" height="12"></rect>
+                    <circle cx="4" cy="4" r="2"></circle>
+                </svg>
+            </div>
+        </div>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            {t("email_link_title")}
+        </h2>
+
+        <p style="margin: 0 0 24px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            {t("email_link_body")}
+        </p>
+
+        {get_button_html(t("email_link_button"), verification_url, "#0088cc")}
+
+        <div style="margin-top: 32px; padding: 20px; background-color: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 8px;">
+            <p style="margin: 0; font-size: 14px; color: #92400E; line-height: 1.6;">
+                <strong>{t("email_link_warning_title")}</strong><br>
+                {t("email_link_warning_body")}
+            </p>
+        </div>
+
+        <p style="margin: 24px 0 0 0; font-size: 13px; color: #86868b; text-align: center; line-height: 1.5;">
+            {t("email_link_expire")}
+        </p>
+        """
+
+        html_content = get_email_template(content, language_code)
+        return await self.send_email(to=user_email, subject=subject, html_content=html_content)
+
     async def send_order_confirmation(
             self,
             user_email: str,
@@ -56,91 +405,70 @@ class EmailService:
             total_amount: float,
             language_code: str = "uk"
     ) -> bool:
-        subject = get_text("email_order_subject", language_code, order_id=order_id)
+        """Підтвердження замовлення"""
         t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = f"OhMyRevit – {t('email_order_subject', order_id=order_id)}"
 
         products_html = ""
         for product in products:
             products_html += f"""
             <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #e5e5e5;">
-                    {product['title']}
+                <td style="padding: 16px 0; border-bottom: 1px solid #e5e5e7;">
+                    <p style="margin: 0; font-size: 15px; color: #1d1d1f; font-weight: 600;">{product['title']}</p>
+                    {f"<p style='margin: 4px 0 0 0; font-size: 13px; color: #86868b;'>{product.get('version', '')}</p>" if product.get('version') else ''}
                 </td>
-                <td style="padding: 10px; border-bottom: 1px solid #e5e5e5; text-align: right;">
-                    ${product['price']}
+                <td style="padding: 16px 0; border-bottom: 1px solid #e5e5e7; text-align: right;">
+                    <p style="margin: 0; font-size: 17px; color: #8B5CF6; font-weight: 700;">${product['price']}</p>
                 </td>
             </tr>
             """
 
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>{t("email_order_body_title", order_id=order_id)}</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                            color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                    <h1 style="margin: 0;">{t("email_order_header_title")}</h1>
-                    <p style="margin: 10px 0 0 0;">{t("email_order_header_subtitle")}</p>
-                </div>
-
-                <div style="background: #fff; padding: 30px; border: 1px solid #e5e5e5; 
-                            border-top: none; border-radius: 0 0 10px 10px;">
-                    <h2 style="color: #667eea;">{t("email_order_body_title", order_id=order_id)}</h2>
-
-                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                        <thead>
-                            <tr style="background: #f8f9fa;">
-                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #e5e5e5;">
-                                    {t("email_order_table_product")}
-                                </th>
-                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #e5e5e5;">
-                                    {t("email_order_table_price")}
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {products_html}
-                        </tbody>
-                        <tfoot>
-                            <tr>
-                                <td style="padding: 10px; font-weight: bold;">
-                                    {t("email_order_table_total")}
-                                </td>
-                                <td style="padding: 10px; text-align: right; font-weight: bold; color: #667eea;">
-                                    ${total_amount}
-                                </td>
-                            </tr>
-                        </tfoot>
-                    </table>
-
-                    <p style="margin: 20px 0;">
-                        {t("email_order_access_text")}
-                    </p>
-
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="https://t.me/{settings.TELEGRAM_BOT_USERNAME}" 
-                           style="display: inline-block; padding: 12px 30px; background: #667eea; 
-                                  color: white; text-decoration: none; border-radius: 5px;">
-                            {t("email_order_button")}
-                        </a>
-                    </div>
-
-                    <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 30px 0;">
-
-                    <p style="color: #999; font-size: 14px; text-align: center;">
-                        {t("email_order_footer_regards")}<br>
-                        {t("email_order_footer_team")}
-                    </p>
-                </div>
+        content = f"""
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
             </div>
-        </body>
-        </html>
+        </div>
+
+        <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            {t("email_order_title")}
+        </h2>
+
+        <p style="margin: 0 0 32px 0; font-size: 14px; color: #86868b; text-align: center;">
+            {t("email_order_number", order_id=order_id)}
+        </p>
+
+        <div style="margin: 32px 0; padding: 24px; background-color: #f5f5f7; border-radius: 16px;">
+            <table role="presentation" style="width: 100%;">
+                {products_html}
+                <tr>
+                    <td style="padding: 20px 0 0 0;">
+                        <p style="margin: 0; font-size: 15px; color: #6e6e73; font-weight: 600;">{t("email_order_total")}</p>
+                    </td>
+                    <td style="padding: 20px 0 0 0; text-align: right;">
+                        <p style="margin: 0; font-size: 24px; color: #8B5CF6; font-weight: 700;">${total_amount}</p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <p style="margin: 24px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            {t("email_order_access_info")}
+        </p>
+
+        {get_button_html(t("email_order_button"), f"https://t.me/{settings.TELEGRAM_BOT_USERNAME}", "#10B981")}
+
+        <div style="margin-top: 32px; padding: 20px; background-color: #DBEAFE; border-left: 4px solid #3B82F6; border-radius: 8px;">
+            <p style="margin: 0; font-size: 14px; color: #1E40AF; line-height: 1.6;">
+                💡 <strong>{t("email_order_tip_title")}</strong><br>
+                {t("email_order_tip_body")}
+            </p>
+        </div>
         """
 
+        html_content = get_email_template(content, language_code)
         return await self.send_email(to=user_email, subject=subject, html_content=html_content)
 
     async def send_subscription_confirmation(
@@ -149,66 +477,63 @@ class EmailService:
             end_date: str,
             language_code: str = "uk"
     ) -> bool:
-        subject = get_text("email_sub_subject", language_code)
+        """Підтвердження підписки"""
         t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = f"OhMyRevit – {t('email_subscription_subject')}"
 
-        features_html = ""
-        features_list = [
-            t("email_sub_feature_1"),
-            t("email_sub_feature_2"),
-            t("email_sub_feature_3"),
-            t("email_sub_feature_4"),
-            t("email_sub_feature_5")
+        features = [
+            ("🎨", t("email_subscription_feature_1")),
+            ("⚡", t("email_subscription_feature_2")),
+            ("🎁", t("email_subscription_feature_3")),
+            ("🔄", t("email_subscription_feature_4")),
+            ("💎", t("email_subscription_feature_5")),
         ]
 
-        for feature in features_list:
-            features_html += f"<li>{feature}</li>"
-
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>{t("email_sub_header_title")}</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
-                            color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                    <h1 style="margin: 0;">{t("email_sub_header_title")}</h1>
-                </div>
-
-                <div style="background: #fff; padding: 30px; border: 1px solid #e5e5e5; 
-                            border-top: none; border-radius: 0 0 10px 10px;">
-                    <h2 style="color: #f5576c;">{t("email_sub_body_title")}</h2>
-
-                    <p>{t("email_sub_body_text", end_date=end_date)}</p>
-
-                    <h3>{t("email_sub_features_title")}</h3>
-                    <ul style="line-height: 2;">
-                        {features_html}
-                    </ul>
-
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="https://t.me/{settings.TELEGRAM_BOT_USERNAME}" 
-                           style="display: inline-block; padding: 12px 30px; background: #f5576c; 
-                                  color: white; text-decoration: none; border-radius: 5px;">
-                            {t("email_sub_button")}
-                        </a>
-                    </div>
-
-                    <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 30px 0;">
-
-                    <p style="color: #999; font-size: 14px; text-align: center;">
-                        {t("email_sub_footer_thanks")}<br>
-                        {t("email_sub_footer_team")}
-                    </p>
-                </div>
+        features_html = ""
+        for icon, text in features:
+            features_html += f"""
+            <div style="display: flex; align-items: start; margin-bottom: 12px;">
+                <span style="font-size: 20px; margin-right: 12px;">{icon}</span>
+                <p style="margin: 0; font-size: 15px; color: #6e6e73; line-height: 1.6;">{text}</p>
             </div>
-        </body>
-        </html>
+            """
+
+        content = f"""
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                    <path d="M2 17l10 5 10-5"></path>
+                    <path d="M2 12l10 5 10-5"></path>
+                </svg>
+            </div>
+        </div>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            {t("email_subscription_title")}
+        </h2>
+
+        <p style="margin: 0 0 32px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            {t("email_subscription_body", end_date=end_date)}
+        </p>
+
+        <div style="margin: 32px 0; padding: 24px; background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border-radius: 16px;">
+            <p style="margin: 0 0 16px 0; font-size: 15px; color: #92400E; font-weight: 700; text-align: center;">
+                {t("email_subscription_benefits_title")}
+            </p>
+            {features_html}
+        </div>
+
+        {get_button_html(t("email_subscription_button"), f"https://t.me/{settings.TELEGRAM_BOT_USERNAME}", "#F59E0B")}
+
+        <div style="margin-top: 32px; text-align: center;">
+            <p style="margin: 0; font-size: 14px; color: #86868b; line-height: 1.6;">
+                {t("email_subscription_expiry", end_date=end_date)}
+            </p>
+        </div>
         """
 
+        html_content = get_email_template(content, language_code)
         return await self.send_email(to=user_email, subject=subject, html_content=html_content)
 
     async def send_download_links(
@@ -217,63 +542,62 @@ class EmailService:
             products: List[Dict],
             language_code: str = "uk"
     ) -> bool:
-        subject = get_text("email_download_subject", language_code)
+        """Посилання для завантаження продуктів"""
         t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = f"OhMyRevit – {t('email_download_subject')}"
 
         products_html = ""
         for product in products:
-            size_text = t("email_download_item_size", file_size=product['file_size_mb'])
-            btn_text = t("email_download_item_button")
+            size_mb = product.get('file_size_mb', 0)
             products_html += f"""
-            <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px;">
-                <h3 style="margin: 0 0 10px 0; color: #333;">{product['title']}</h3>
-                <p style="margin: 5px 0; color: #666;">{size_text}</p>
-                <a href="{product['download_url']}" 
-                   style="display: inline-block; margin-top: 10px; padding: 8px 20px; 
-                          background: #667eea; color: white; text-decoration: none; 
-                          border-radius: 3px;">
-                    {btn_text}
+            <div style="margin: 16px 0; padding: 20px; background-color: #ffffff; border: 2px solid #e5e5e7; border-radius: 12px; transition: all 0.3s ease;">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                    <div>
+                        <h3 style="margin: 0 0 8px 0; font-size: 17px; color: #1d1d1f; font-weight: 600;">{product['title']}</h3>
+                        <p style="margin: 0; font-size: 13px; color: #86868b;">
+                            {f"📦 {size_mb} MB" if size_mb else ""}
+                        </p>
+                    </div>
+                </div>
+                <a href="{product['download_url']}" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%); color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 14px; margin-top: 12px;">
+                    ⬇️ {t("email_download_button")}
                 </a>
             </div>
             """
 
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>{t("email_download_header_title")}</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                            color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                    <h1 style="margin: 0;">{t("email_download_header_title")}</h1>
-                </div>
-
-                <div style="background: #fff; padding: 30px; border: 1px solid #e5e5e5; 
-                            border-top: none; border-radius: 0 0 10px 10px;">
-                    <p>{t("email_download_body_text")}</p>
-
-                    {products_html}
-
-                    <p style="margin-top: 30px; padding: 15px; background: #fff3cd; 
-                              border-left: 4px solid #ffc107; color: #856404;">
-                        {t("email_download_warning")}
-                    </p>
-
-                    <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 30px 0;">
-
-                    <p style="color: #999; font-size: 14px; text-align: center;">
-                        {t("email_download_footer_text")}<br>
-                        {t("email_download_footer_team")}
-                    </p>
-                </div>
+        content = f"""
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
             </div>
-        </body>
-        </html>
+        </div>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            {t("email_download_title")}
+        </h2>
+
+        <p style="margin: 0 0 32px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            {t("email_download_body")}
+        </p>
+
+        <div style="margin: 32px 0; padding: 24px; background-color: #f5f5f7; border-radius: 16px;">
+            {products_html}
+        </div>
+
+        <div style="margin-top: 32px; padding: 20px; background-color: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 8px;">
+            <p style="margin: 0; font-size: 14px; color: #92400E; line-height: 1.6;">
+                ⚠️ <strong>{t("email_download_warning_title")}</strong><br>
+                {t("email_download_warning_body")}
+            </p>
+        </div>
         """
 
+        html_content = get_email_template(content, language_code)
         return await self.send_email(to=user_email, subject=subject, html_content=html_content)
+
 
 email_service = EmailService()

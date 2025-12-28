@@ -148,8 +148,143 @@ async def update_profile(
         db: AsyncSession = Depends(get_db)
 ):
     update_data = data.model_dump(exclude_unset=True)
+
+    # Перевірка та об'єднання акаунтів при додаванні email
+    if 'email' in update_data and update_data['email']:
+        from sqlalchemy import select
+        import re
+
+        # Валідація email формату
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, update_data['email']):
+            raise HTTPException(status_code=400, detail="Невірний формат email")
+
+        existing_user_result = await db.execute(
+            select(User).where(User.email == update_data['email'], User.id != user.id)
+        )
+        existing_user = existing_user_result.scalar_one_or_none()
+
+        if existing_user:
+            # Якщо існуючий користувач НЕ має telegram_id - об'єднати акаунти
+            if not existing_user.telegram_id and user.telegram_id:
+                # Зберігаємо дані для перенесення
+                email_to_merge = existing_user.email
+                is_verified = existing_user.is_email_verified
+                password_hash = existing_user.hashed_password
+                balance_to_add = existing_user.balance
+                streak_to_merge = existing_user.bonus_streak
+
+                # Переносимо замовлення, підписки, колекції
+                from app.orders.models import Order
+                from app.subscriptions.models import Subscription, UserProductAccess
+                from app.collections.models import Collection
+                from app.wallet.models import Transaction
+                from app.referrals.models import ReferralLog
+
+                # Оновлюємо user_id у всіх пов'язаних записах
+                await db.execute(
+                    Order.__table__.update().where(Order.user_id == existing_user.id).values(user_id=user.id)
+                )
+                await db.execute(
+                    Subscription.__table__.update().where(Subscription.user_id == existing_user.id).values(user_id=user.id)
+                )
+                await db.execute(
+                    Collection.__table__.update().where(Collection.user_id == existing_user.id).values(user_id=user.id)
+                )
+                await db.execute(
+                    Transaction.__table__.update().where(Transaction.user_id == existing_user.id).values(user_id=user.id)
+                )
+                # Update referrer_id where old user was the referrer
+                await db.execute(
+                    ReferralLog.__table__.update().where(ReferralLog.referrer_id == existing_user.id).values(referrer_id=user.id)
+                )
+                # Update referred_user_id where old user was referred
+                await db.execute(
+                    ReferralLog.__table__.update().where(ReferralLog.referred_user_id == existing_user.id).values(referred_user_id=user.id)
+                )
+                await db.execute(
+                    UserProductAccess.__table__.update().where(UserProductAccess.user_id == existing_user.id).values(user_id=user.id)
+                )
+
+                # Тимчасово очищаємо email у старого користувача (звільняємо constraint)
+                import uuid
+                existing_user.email = f"deleted_{uuid.uuid4()}@deleted.local"
+                await db.flush()
+
+                # Тепер оновлюємо дані поточного користувача
+                user.email = email_to_merge
+                user.is_email_verified = is_verified
+                user.hashed_password = password_hash
+                user.balance += balance_to_add
+                user.bonus_streak = max(user.bonus_streak, streak_to_merge)
+                await db.flush()
+
+                # Видаляємо старий акаунт
+                await db.delete(existing_user)
+
+                await db.commit()
+                await db.refresh(user)
+                return UserResponse.model_validate(user)
+            else:
+                # Обидва користувачі мають telegram_id - не можна об'єднати
+                raise HTTPException(status_code=400, detail="Цей email вже використовується іншим користувачем")
+        else:
+            # Email вільний - додаємо новий email і відправляємо лист для підтвердження
+            from app.core.email import email_service
+            import secrets
+
+            # Створюємо токен для підтвердження
+            verification_token = secrets.token_urlsafe(32)
+            user.verification_token = verification_token
+            user.is_email_verified = False
+
+            # Відправляємо лист
+            try:
+                await email_service.send_verification_email(
+                    user_email=update_data['email'],
+                    verification_token=verification_token,
+                    language_code=user.language_code or "uk"
+                )
+            except Exception as e:
+                # Логуємо помилку, але не блокуємо оновлення
+                print(f"Помилка відправки email: {e}")
+
     for key, value in update_data.items():
         setattr(user, key, value)
 
     await db.commit()
+    await db.refresh(user)
     return UserResponse.model_validate(user)
+
+
+@auth_router.post("/verify-email")
+async def verify_email(
+        token: str = Body(..., embed=True),
+        db: AsyncSession = Depends(get_db)
+):
+    """Підтвердження email адреси через токен"""
+    from sqlalchemy import select
+
+    # Шукаємо користувача з таким токеном
+    result = await db.execute(
+        select(User).where(User.verification_token == token)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Токен недійсний або застарів"
+        )
+
+    # Підтверджуємо email
+    user.is_email_verified = True
+    user.verification_token = None  # Очищаємо токен після використання
+
+    await db.commit()
+    await db.refresh(user)
+
+    return {
+        "message": "Email успішно підтверджено",
+        "user": UserResponse.model_validate(user)
+    }

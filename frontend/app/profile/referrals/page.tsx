@@ -7,7 +7,7 @@ import {
   ArrowLeft, Users, Copy, Share2, Gift, CheckCircle2, Loader, UserPlus
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { referralAPI } from '@/lib/api';
+import { profileAPI, referralAPI } from '@/lib/api';
 import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
@@ -30,9 +30,12 @@ export default function ReferralsPage() {
   const [totalEarned, setTotalEarned] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
 
-  const referralLink = `https://t.me/YourBot?start=ref_${user?.telegram_id || ''}`;
-  const referralCode = user?.referral_code || `REF${user?.telegram_id?.toString().slice(-6) || '000000'}`;
+  const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'OhMyRevitBot';
+  const referralLink = referralCode
+    ? `https://t.me/${botUsername}?start=${referralCode}`
+    : '';
 
   useEffect(() => {
     fetchReferrals();
@@ -40,11 +43,17 @@ export default function ReferralsPage() {
 
   const fetchReferrals = async () => {
     try {
+      // Отримуємо реферальну інформацію з бекенду
+      const referralInfo = await profileAPI.getReferralInfo();
+      setReferralCode(referralInfo.referral_code || '');
+
+      // Отримуємо список рефералів
       const data = await referralAPI.getReferrals();
       setReferrals(data.referrals || []);
       setTotalEarned(data.total_earned || 0);
     } catch (error) {
       console.error('Failed to fetch referrals:', error);
+      toast.error(t('profilePages.referrals.toasts.loadError'));
     } finally {
       setIsLoading(false);
     }
@@ -80,7 +89,7 @@ export default function ReferralsPage() {
   };
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: theme.colors.bgGradient }}>
+    <div className="min-h-screen pb-4" style={{ background: theme.colors.bgGradient }}>
       <div className="max-w-2xl mx-auto px-5 pt-6">
         <div className="flex items-center gap-4 mb-6">
           <button
