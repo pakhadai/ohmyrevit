@@ -6,8 +6,8 @@ from app.core.translations import get_text
 
 logger = logging.getLogger(__name__)
 
-# Налаштування конфігурації SMTP
-conf = ConnectionConfig(
+# Налаштування конфігурації SMTP (Gmail fallback)
+gmail_conf = ConnectionConfig(
     MAIL_USERNAME=settings.MAIL_USERNAME,
     MAIL_PASSWORD=settings.MAIL_PASSWORD,
     MAIL_FROM=settings.MAIL_FROM,
@@ -119,7 +119,23 @@ def get_button_html(text: str, url: str, color: str = "#8B5CF6") -> str:
 
 class EmailService:
     def __init__(self):
-        self.fastmail = FastMail(conf)
+        self.gmail_client = FastMail(gmail_conf)
+        # Resend імпортується динамічно при використанні
+        self._resend_client = None
+
+    def _get_resend_client(self):
+        """Lazy loading для Resend клієнта"""
+        if self._resend_client is None and settings.RESEND_API_KEY:
+            try:
+                import resend
+                resend.api_key = settings.RESEND_API_KEY
+                self._resend_client = resend
+                logger.info("Resend client initialized successfully")
+            except ImportError:
+                logger.warning("Resend library not installed, will use Gmail fallback only")
+            except Exception as e:
+                logger.error(f"Failed to initialize Resend client: {str(e)}")
+        return self._resend_client
 
     async def send_email(
             self,
@@ -128,7 +144,29 @@ class EmailService:
             html_content: str,
             text_content: Optional[str] = None
     ) -> bool:
-        """Універсальний метод відправки через SMTP"""
+        """
+        Універсальний метод відправки email з fallback механізмом.
+        Спочатку пробує Resend, якщо не вдається - використовує Gmail SMTP.
+        """
+        # Спроба 1: Resend (primary)
+        if settings.RESEND_API_KEY:
+            try:
+                resend = self._get_resend_client()
+                if resend:
+                    params = {
+                        "from": settings.FROM_EMAIL,
+                        "to": [to],
+                        "subject": subject,
+                        "html": html_content,
+                    }
+
+                    response = resend.Emails.send(params)
+                    logger.info(f"✅ Email sent successfully via Resend to {to} (ID: {response.get('id', 'unknown')})")
+                    return True
+            except Exception as e:
+                logger.warning(f"⚠️ Resend failed: {str(e)}, falling back to Gmail SMTP")
+
+        # Спроба 2: Gmail SMTP (fallback)
         try:
             message = MessageSchema(
                 subject=subject,
@@ -137,11 +175,11 @@ class EmailService:
                 subtype=MessageType.html
             )
 
-            await self.fastmail.send_message(message)
-            logger.info(f"Email sent successfully to {to}")
+            await self.gmail_client.send_message(message)
+            logger.info(f"✅ Email sent successfully via Gmail SMTP to {to}")
             return True
         except Exception as e:
-            logger.error(f"Failed to send email via SMTP: {str(e)}")
+            logger.error(f"❌ Failed to send email via both Resend and Gmail: {str(e)}")
             return False
 
     async def send_verification_email(
