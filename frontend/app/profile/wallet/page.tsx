@@ -113,7 +113,8 @@ export default function WalletPage() {
 
     const separator = pack.gumroad_url.includes('?') ? '&' : '?';
     const url = `${pack.gumroad_url}${separator}custom_fields%5Buser_id%5D=${user?.id}`;
-    window.open(url, '_blank');
+    // Відкриваємо в тому ж вікні для зручності в Telegram WebApp
+    window.location.href = url;
   };
 
   if (loading) {

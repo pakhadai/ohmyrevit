@@ -54,9 +54,18 @@ async def cleanup_unverified_accounts():
             if unverified_users:
                 deleted_count = 0
                 for user in unverified_users:
+                    # Подвійна перевірка - НЕ видаляти підтверджені акаунти
+                    if user.is_email_verified:
+                        logger.warning(
+                            f"⚠️ Skipping verified account: {user.email} "
+                            f"(should not be in cleanup list!)"
+                        )
+                        continue
+
                     logger.info(
                         f"Deleting unverified account: {user.email} "
-                        f"(created at {user.created_at})"
+                        f"(created at {user.created_at}, "
+                        f"verified: {user.is_email_verified})"
                     )
                     await db.delete(user)
                     deleted_count += 1

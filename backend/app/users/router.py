@@ -213,10 +213,17 @@ async def update_profile(
 
                 # Тепер оновлюємо дані поточного користувача
                 user.email = email_to_merge
-                user.is_email_verified = is_verified
+                # ВАЖЛИВО: НЕ копіюємо is_email_verified - потрібне нове підтвердження
+                user.is_email_verified = False
                 user.hashed_password = password_hash
                 user.balance += balance_to_add
                 user.bonus_streak = max(user.bonus_streak, streak_to_merge)
+
+                # Створюємо новий токен для підтвердження email
+                import secrets
+                verification_token = secrets.token_urlsafe(32)
+                user.verification_token = verification_token
+
                 await db.flush()
 
                 # Видаляємо старий акаунт
@@ -224,6 +231,18 @@ async def update_profile(
 
                 await db.commit()
                 await db.refresh(user)
+
+                # Відправляємо лист підтвердження для нового злитого email
+                from app.core.email import email_service
+                try:
+                    await email_service.send_verification_email(
+                        user_email=email_to_merge,
+                        verification_token=verification_token,
+                        language_code=user.language_code or "uk"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send verification email after merge: {e}")
+
                 return UserResponse.model_validate(user)
             else:
                 # Обидва користувачі мають telegram_id - не можна об'єднати
