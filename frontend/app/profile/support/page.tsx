@@ -12,7 +12,7 @@ export default function SupportPage() {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
-  const supportEmail = "support@ohmyrevit.com";
+  const supportEmail = "support@ohmyrevit.pp.ua";
   const telegramSupportUsername = "OhMyRevitSupport";
 
   const handleCopyEmail = () => {

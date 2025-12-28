@@ -97,7 +97,7 @@ export default function LandingPage() {
           <div className="flex gap-6 text-sm font-medium text-zinc-600 dark:text-zinc-400">
             <Link href="/terms" className="hover:text-blue-600 transition-colors">{t('landing.footer.terms')}</Link>
             <Link href="/privacy" className="hover:text-blue-600 transition-colors">{t('landing.footer.privacy')}</Link>
-            <a href="mailto:support@ohmyrevit.com" className="hover:text-blue-600 transition-colors">{t('landing.footer.contact')}</a>
+            <a href="mailto:support@ohmyrevit.pp.ua" className="hover:text-blue-600 transition-colors">{t('landing.footer.contact')}</a>
           </div>
         </div>
       </footer>
