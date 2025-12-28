@@ -40,7 +40,7 @@ export default function RootLayout({
             <AppProvider>
               <div className="min-h-screen flex flex-col">
                 <Header />
-                <main className="flex-1 pb-28">
+                <main className="flex-1 pb-2">
                   {children}
                 </main>
                 <BottomNav />

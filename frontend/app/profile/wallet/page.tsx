@@ -1,32 +1,34 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ArrowLeft, Wallet, Plus, History, ArrowUpRight, ArrowDownLeft,
-  CreditCard, Loader, ChevronRight, Sparkles
-} from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { walletAPI } from '@/lib/api';
-import { useTranslation } from 'react-i18next';
-import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Wallet, Coins, ArrowUpRight, ArrowDownLeft, Gift, CreditCard,
+  ShoppingCart, Crown, RefreshCw, History, Sparkles, ChevronRight,
+  ExternalLink, TrendingUp, Clock, CheckCircle2
+} from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { CoinPack, Transaction, TransactionType } from '@/types';
 import { useTheme } from '@/lib/theme';
-import { Transaction, CoinPack } from '@/types';
 
 export default function WalletPage() {
   const { theme } = useTheme();
-  const router = useRouter();
   const { user, updateBalance } = useAuthStore();
-  const { t } = useTranslation();
 
+  const [balance, setBalance] = useState(0);
   const [coinPacks, setCoinPacks] = useState<CoinPack[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [balance, setBalance] = useState(user?.balance || 0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedPackage, setSelectedPackage] = useState<CoinPack | null>(null);
-  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const { t } = useTranslation();
+  const router = useRouter();
 
   const fetchWalletInfo = useCallback(async () => {
     try {
@@ -35,268 +37,345 @@ export default function WalletPage() {
       setCoinPacks(info.coin_packs);
       setTransactions(info.recent_transactions);
       updateBalance(info.balance);
+
     } catch (error) {
-      console.error('Failed to fetch wallet info:', error);
-      setCoinPacks([]);
-      setTransactions([]);
+      toast.error(t('wallet.loadError') || 'Помилка завантаження');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [updateBalance]);
+  }, [updateBalance, t]);
+
+  const loadMoreTransactions = async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const response = await walletAPI.getTransactions({ page: page + 1, size: 10 });
+      if (response.items.length > 0) {
+        setTransactions(prev => [...prev, ...response.items]);
+        setPage(page + 1);
+        setHasMore(response.items.length === 10);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     fetchWalletInfo();
   }, [fetchWalletInfo]);
 
-  const handlePurchase = (pkg: CoinPack) => {
-    setSelectedPackage(pkg);
-    setIsPurchasing(true);
-    try {
-      // Open Gumroad URL in new window
-      if (pkg.gumroad_url) {
-        window.open(pkg.gumroad_url, '_blank');
-      } else {
-        toast.error(t('wallet.purchaseError'));
-      }
-    } catch (error) {
-      toast.error(t('wallet.purchaseError'));
-    } finally {
-      setIsPurchasing(false);
-      setSelectedPackage(null);
+  const getTransactionIcon = (type: TransactionType) => {
+    switch (type) {
+      case 'deposit':
+        return <ArrowDownLeft className="text-green-500" size={20} />;
+      case 'purchase':
+        return <ShoppingCart className="text-orange-500" size={20} />;
+      case 'subscription':
+        return <Crown className="text-purple-500" size={20} />;
+      case 'bonus':
+        return <Gift className="text-blue-500" size={20} />;
+      case 'refund':
+        return <RefreshCw className="text-yellow-500" size={20} />;
+      case 'referral':
+        return <TrendingUp className="text-cyan-500" size={20} />;
+      default:
+        return <Coins size={20} style={{ color: theme.colors.textMuted }} />;
     }
   };
 
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case 'deposit':
-        return <ArrowDownLeft size={16} style={{ color: theme.colors.success }} />;
-      case 'purchase':
-        return <ArrowUpRight size={16} style={{ color: theme.colors.error }} />;
-      case 'bonus':
-        return <Sparkles size={16} style={{ color: theme.colors.accent }} />;
-      case 'refund':
-        return <ArrowDownLeft size={16} style={{ color: theme.colors.blue }} />;
-      default:
-        return <History size={16} style={{ color: theme.colors.textMuted }} />;
-    }
+  const getTransactionColor = (amount: number) => {
+    return amount >= 0 ? theme.colors.success : theme.colors.error;
   };
 
-  const getTransactionColor = (type: string) => {
-    switch (type) {
-      case 'deposit':
-      case 'bonus':
-      case 'refund':
-        return theme.colors.success;
-      case 'purchase':
-        return theme.colors.error;
-      default:
-        return theme.colors.text;
-    }
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('uk-UA', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
+
+  const handleBuyPack = (pack: CoinPack) => {
+    const separator = pack.gumroad_url.includes('?') ? '&' : '?';
+    const url = `${pack.gumroad_url}${separator}custom_fields%5Buser_id%5D=${user?.id}`;
+    window.open(url, '_blank');
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-t-transparent" style={{ borderColor: theme.colors.primary }} />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen" style={{ background: theme.colors.bgGradient }}>
-      <div className="max-w-2xl mx-auto px-5 py-6">
-        <div className="flex items-center gap-4 mb-6">
-          <button
-            onClick={() => router.back()}
-            className="p-2.5 transition-colors"
-            style={{
-              backgroundColor: theme.colors.surface,
-              color: theme.colors.textMuted,
-              borderRadius: theme.radius.lg,
-            }}
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className="text-xl font-bold" style={{ color: theme.colors.text }}>
-            {t('wallet.title')}
-          </h1>
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-6 mb-6"
-          style={{
-            background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.accent})`,
-            borderRadius: theme.radius['2xl'],
-            boxShadow: theme.shadows.lg,
-          }}
+    <div className="container mx-auto px-4 pt-14 pb-2 space-y-6 max-w-2xl">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: theme.colors.text }}>
+          <Wallet size={28} style={{ color: theme.colors.primary }} />
+          {t('wallet.title') || 'Гаманець'}
+        </h1>
+        <button
+          onClick={fetchWalletInfo}
+          className="p-2 rounded-xl transition-colors"
+          style={{ backgroundColor: theme.colors.surface }}
         >
-          <div className="flex items-center gap-3 mb-4">
-            <div
-              className="w-12 h-12 flex items-center justify-center"
-              style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: theme.radius.lg }}
-            >
-              <Wallet size={24} color="#FFF" />
-            </div>
+          <RefreshCw size={20} style={{ color: theme.colors.textMuted }} />
+        </button>
+      </div>
+
+      {/* Balance Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-3xl p-6 text-white shadow-xl"
+        style={{ background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryDark})` }}
+      >
+        {/* Background decoration */}
+        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+
+        <div className="relative z-10">
+          <p className="text-white/80 text-sm mb-1">{t('wallet.yourBalance') || 'Ваш баланс'}</p>
+
+          <div className="flex items-center gap-3 mb-2">
+            <Image
+              src="/omr_coin.png"
+              alt="OMR Coin"
+              width={48}
+              height={48}
+              className="drop-shadow-lg"
+            />
             <div>
-              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                {t('wallet.balance')}
-              </p>
-              <div className="flex items-center gap-2">
-                <Image src="/omr_coin.png" alt="OMR" width={24} height={24} />
-                <span className="text-3xl font-bold text-white">
-                  {balance.toLocaleString()}
-                </span>
-              </div>
+              <span className="text-4xl font-bold tracking-tight">
+                {balance.toLocaleString()}
+              </span>
+              <span className="text-xl ml-2 opacity-80">OMR</span>
             </div>
           </div>
-        </motion.div>
 
-        <div className="mb-8">
-          <h2 className="text-lg font-bold mb-4" style={{ color: theme.colors.text }}>
-            {t('wallet.topUp')}
-          </h2>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader className="animate-spin" size={24} style={{ color: theme.colors.primary }} />
-            </div>
-          ) : coinPacks.length === 0 ? (
-            <div
-              className="text-center py-12"
-              style={{
-                backgroundColor: theme.colors.card,
-                border: `1px solid ${theme.colors.border}`,
-                borderRadius: theme.radius.xl,
-              }}
-            >
-              <p style={{ color: theme.colors.textMuted }}>{t('wallet.noPacks')}</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {coinPacks.map((pkg) => {
-                const bonusCoins = pkg.total_coins - pkg.coins_amount;
-                return (
-                  <motion.button
-                    key={pkg.id}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handlePurchase(pkg)}
-                    disabled={isPurchasing || !pkg.is_active}
-                    className="relative p-4 text-left transition-all disabled:opacity-50"
-                    style={{
-                      backgroundColor: theme.colors.card,
-                      border: pkg.is_featured ? `2px solid ${theme.colors.primary}` : `1px solid ${theme.colors.border}`,
-                      borderRadius: theme.radius.xl,
-                      boxShadow: theme.shadows.sm,
-                    }}
-                  >
-                    {pkg.is_featured && (
-                      <div
-                        className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[10px] font-bold"
-                        style={{
-                          backgroundColor: theme.colors.primary,
-                          color: '#FFF',
-                          borderRadius: theme.radius.full,
-                        }}
-                      >
-                        {t('wallet.popular')}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 mb-2">
-                      <Image src="/omr_coin.png" alt="OMR" width={20} height={20} />
-                      <span className="text-lg font-bold" style={{ color: theme.colors.text }}>
-                        {pkg.total_coins.toLocaleString()}
-                      </span>
-                    </div>
-                    {bonusCoins > 0 && (
-                      <p className="text-xs mb-2" style={{ color: theme.colors.success }}>
-                        +{bonusCoins} {t('wallet.bonus')}
-                      </p>
-                    )}
-                    <p className="text-sm font-semibold" style={{ color: theme.colors.primary }}>
-                      ${pkg.price_usd.toFixed(2)}
-                    </p>
-                    {selectedPackage?.id === pkg.id && isPurchasing && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20" style={{ borderRadius: theme.radius.xl }}>
-                        <Loader className="animate-spin" size={24} color="#FFF" />
-                      </div>
-                    )}
-                  </motion.button>
-                );
-              })}
-            </div>
-          )}
+          <p className="text-white/70 text-sm">
+            ≈ ${(balance / 100).toFixed(2)} USD
+          </p>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold" style={{ color: theme.colors.text }}>
-              {t('wallet.history')}
-            </h2>
-            {transactions.length > 0 && (
+        {/* Quick stats */}
+        <div className="relative z-10 mt-4 pt-4 border-t border-white/20 flex justify-between text-sm">
+          <div>
+            <p className="text-white/60">{t('wallet.rate') || 'Курс'}</p>
+            <p className="font-medium">100 OMR = $1</p>
+          </div>
+          <div className="text-right">
+            <p className="text-white/60">{t('wallet.streak') || 'Streak'}</p>
+            <p className="font-medium flex items-center gap-1 justify-end">
+              <Sparkles size={14} />
+              {user?.bonusStreak || 0} {t('wallet.days') || 'днів'}
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Coin Packs */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: theme.colors.text }}>
+            <CreditCard size={20} style={{ color: theme.colors.primary }} />
+            {t('wallet.buyCoins') || 'Поповнити баланс'}
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {coinPacks.map((pack, index) => (
+            <motion.button
+              key={pack.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              onClick={() => handleBuyPack(pack)}
+              className={`relative p-4 rounded-2xl border transition-all text-left group hover:scale-[1.02] active:scale-[0.98]`}
+              style={{
+                backgroundColor: pack.is_featured ? theme.colors.primaryLight : theme.colors.card,
+                borderColor: pack.is_featured ? theme.colors.primary : theme.colors.border,
+              }}
+            >
+              {pack.is_featured && (
+                <div className="absolute -top-2 -right-2 text-white text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: theme.colors.primary }}>
+                  {t('wallet.popular') || 'Популярний'}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 mb-2">
+                <Image
+                  src="/omr_coin.png"
+                  alt="OMR"
+                  width={24}
+                  height={24}
+                />
+                <span className="font-bold text-lg" style={{ color: theme.colors.text }}>
+                  {pack.total_coins.toLocaleString()}
+                </span>
+              </div>
+
+              {pack.bonus_percent > 0 && (
+                <div className="text-xs font-medium mb-1 flex items-center gap-1" style={{ color: theme.colors.success }}>
+                  <Gift size={12} />
+                  +{pack.bonus_percent}% бонус
+                </div>
+              )}
+
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xl font-bold" style={{ color: theme.colors.primary }}>
+                  ${pack.price_usd}
+                </span>
+                <ExternalLink
+                  size={16}
+                  className="transition-colors"
+                  style={{ color: theme.colors.textMuted }}
+                />
+              </div>
+
+              {pack.description && (
+                <p className="text-xs mt-1" style={{ color: theme.colors.textMuted }}>
+                  {pack.description}
+                </p>
+              )}
+            </motion.button>
+          ))}
+        </div>
+
+        <p className="text-xs text-center" style={{ color: theme.colors.textMuted }}>
+          {t('wallet.gumroadInfo') || 'Оплата через Gumroad. Монети зараховуються автоматично.'}
+        </p>
+      </div>
+
+      {/* Transaction History */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: theme.colors.text }}>
+          <History size={20} style={{ color: theme.colors.primary }} />
+          {t('wallet.history') || 'Історія транзакцій'}
+        </h2>
+
+        {transactions.length === 0 ? (
+          <div className="text-center py-12" style={{ color: theme.colors.textMuted }}>
+            <Coins size={48} className="mx-auto mb-3 opacity-30" />
+            <p>{t('wallet.noTransactions') || 'Транзакцій поки немає'}</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <AnimatePresence>
+              {transactions.map((tx, index) => (
+                <motion.div
+                  key={tx.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="flex items-center gap-3 p-3 rounded-xl"
+                  style={{
+                    backgroundColor: theme.colors.card,
+                    border: `1px solid ${theme.colors.border}`,
+                  }}
+                >
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: theme.colors.surface }}>
+                    {getTransactionIcon(tx.type)}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate" style={{ color: theme.colors.text }}>
+                      {tx.description || tx.type}
+                    </p>
+                    <p className="text-xs flex items-center gap-1" style={{ color: theme.colors.textMuted }}>
+                      <Clock size={12} />
+                      {formatDate(tx.created_at)}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="font-bold" style={{ color: getTransactionColor(tx.amount) }}>
+                      {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString()}
+                    </p>
+                    <p className="text-xs" style={{ color: theme.colors.textMuted }}>
+                      {tx.balance_after.toLocaleString()} OMR
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {hasMore && (
               <button
-                onClick={() => router.push('/profile/wallet/transactions')}
-                className="text-sm font-medium flex items-center gap-1 transition-opacity hover:opacity-80"
-                style={{ color: theme.colors.primary }}
+                onClick={loadMoreTransactions}
+                disabled={loadingMore}
+                className="w-full py-3 text-sm rounded-xl transition-colors disabled:opacity-50"
+                style={{
+                  color: theme.colors.primary,
+                  backgroundColor: loadingMore ? 'transparent' : theme.colors.surface,
+                }}
               >
-                {t('common.viewAll')}
-                <ChevronRight size={16} />
+                {loadingMore ? (
+                  <RefreshCw className="animate-spin mx-auto" size={20} />
+                ) : (
+                  t('wallet.loadMore') || 'Завантажити ще'
+                )}
               </button>
             )}
           </div>
+        )}
+      </div>
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader className="animate-spin" size={24} style={{ color: theme.colors.primary }} />
-            </div>
-          ) : transactions.length === 0 ? (
-            <div
-              className="text-center py-12"
-              style={{
-                backgroundColor: theme.colors.card,
-                border: `1px solid ${theme.colors.border}`,
-                borderRadius: theme.radius.xl,
-              }}
-            >
-              <History size={40} className="mx-auto mb-3" style={{ color: theme.colors.textMuted, opacity: 0.5 }} />
-              <p style={{ color: theme.colors.textMuted }}>{t('wallet.noTransactions')}</p>
-            </div>
-          ) : (
-            <div
-              className="divide-y"
-              style={{
-                backgroundColor: theme.colors.card,
-                border: `1px solid ${theme.colors.border}`,
-                borderRadius: theme.radius.xl,
-                overflow: 'hidden',
-              }}
-            >
-              {transactions.slice(0, 10).map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center justify-between p-4"
-                  style={{ borderColor: theme.colors.border }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 flex items-center justify-center"
-                      style={{ backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg }}
-                    >
-                      {getTransactionIcon(tx.type)}
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm" style={{ color: theme.colors.text }}>
-                        {tx.description}
-                      </p>
-                      <p className="text-xs" style={{ color: theme.colors.textMuted }}>
-                        {new Date(tx.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1" style={{ color: getTransactionColor(tx.type) }}>
-                    <span className="font-bold">
-                      {tx.type === 'purchase' ? '-' : '+'}
-                      {Math.abs(tx.amount).toLocaleString()}
-                    </span>
-                    <Image src="/omr_coin.png" alt="OMR" width={16} height={16} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* Info Cards */}
+      <div className="grid grid-cols-2 gap-3 pt-4">
+        <button
+          onClick={() => router.push('/profile/bonuses')}
+          className="relative p-4 rounded-2xl border transition-all text-left group"
+          style={{
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          }}
+        >
+          <Gift className="text-blue-500 mb-2" size={24} />
+          <p className="font-medium text-sm" style={{ color: theme.colors.text }}>
+            {t('wallet.dailyBonus') || 'Щоденний бонус'}
+          </p>
+          <p className="text-xs" style={{ color: theme.colors.textMuted }}>
+            {t('wallet.dailyBonusDesc') || 'Отримуй монети щодня'}
+          </p>
+          <ChevronRight
+            size={16}
+            className="absolute bottom-4 right-4 transition-colors"
+            style={{ color: theme.colors.textMuted }}
+          />
+        </button>
+
+        <button
+          onClick={() => router.push('/profile/referrals')}
+          className="relative p-4 rounded-2xl border transition-all text-left group"
+          style={{
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          }}
+        >
+          <TrendingUp className="text-cyan-500 mb-2" size={24} />
+          <p className="font-medium text-sm" style={{ color: theme.colors.text }}>
+            {t('wallet.referrals') || 'Реферали'}
+          </p>
+          <p className="text-xs" style={{ color: theme.colors.textMuted }}>
+            {t('wallet.referralsDesc') || '5% від покупок друзів'}
+          </p>
+          <ChevronRight
+            size={16}
+            className="absolute bottom-4 right-4 transition-colors"
+            style={{ color: theme.colors.textMuted }}
+          />
+        </button>
       </div>
     </div>
   );

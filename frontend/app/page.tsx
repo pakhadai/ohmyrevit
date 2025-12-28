@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Crown, Sparkles, ArrowRight, Gift, Send, Folder, User, Star, Check } from 'lucide-react';
+import { Crown, Sparkles, ArrowRight, Gift, Send, Folder, User, Star, Check, Download, Zap, Headphones } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
@@ -222,27 +222,30 @@ export default function HomePage() {
                 <div className="flex items-center justify-between mt-6 sm:mt-8">
                   <div className="flex items-center gap-2 sm:gap-3">
                     {[
-                      t('subscription.feature1Short', '100+ файлів'),
-                      t('subscription.feature2Short', 'Оновлення'),
-                      t('subscription.feature3Short', 'Підтримка')
-                    ].map((text, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5"
-                        style={{
-                          backgroundColor: theme.colors.surface,
-                          borderRadius: theme.radius.full,
-                        }}
-                      >
-                        <Check size={12} style={{ color: theme.colors.accent }} strokeWidth={3} />
-                        <span
-                          className="text-[10px] sm:text-xs font-semibold hidden sm:inline"
-                          style={{ color: theme.colors.accent }}
+                      { icon: Download, text: t('subscription.feature1Short', '100+ файлів') },
+                      { icon: Zap, text: t('subscription.feature2Short', 'Оновлення') },
+                      { icon: Headphones, text: t('subscription.feature3Short', 'Підтримка') }
+                    ].map((item, i) => {
+                      const Icon = item.icon;
+                      return (
+                        <div
+                          key={i}
+                          className="flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5"
+                          style={{
+                            backgroundColor: theme.colors.surface,
+                            borderRadius: theme.radius.full,
+                          }}
                         >
-                          {text}
-                        </span>
-                      </div>
-                    ))}
+                          <Icon size={12} style={{ color: theme.colors.accent }} strokeWidth={2.5} />
+                          <span
+                            className="text-[10px] sm:text-xs font-semibold hidden sm:inline"
+                            style={{ color: theme.colors.accent }}
+                          >
+                            {item.text}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                   <div
                     className="w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center transition-all hover:scale-105"
@@ -388,7 +391,7 @@ export default function HomePage() {
             </h3>
             <Link href="/marketplace">
               <span
-                className="text-xs sm:text-sm font-semibold px-4 py-2 transition-all hover:scale-105"
+                className="inline-block text-xs sm:text-sm font-semibold px-4 py-2 transition-all hover:scale-105 whitespace-nowrap"
                 style={{
                   backgroundColor: theme.colors.card,
                   color: theme.colors.text,
