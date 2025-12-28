@@ -332,7 +332,7 @@ export default function SettingsPage() {
           </div>
 
           <button
-            onClick={() => router.push('/profile/support')}
+            onClick={() => router.push('/profile/privacy')}
             className="w-full p-5 flex items-center justify-between"
             style={{
               backgroundColor: theme.colors.card,
