@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { CoinPack, Transaction, TransactionType } from '@/types';
 import { useTheme } from '@/lib/theme';
+import EmailRequiredModal from '@/components/EmailRequiredModal';
 
 export default function WalletPage() {
   const { theme } = useTheme();
@@ -27,6 +28,7 @@ export default function WalletPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [showEmailRequiredModal, setShowEmailRequiredModal] = useState(false);
   const { t } = useTranslation();
   const router = useRouter();
 
@@ -103,6 +105,12 @@ export default function WalletPage() {
   };
 
   const handleBuyPack = (pack: CoinPack) => {
+    // Перевірка email та його підтвердження перед покупкою
+    if (!user?.email || !user?.isEmailVerified) {
+      setShowEmailRequiredModal(true);
+      return;
+    }
+
     const separator = pack.gumroad_url.includes('?') ? '&' : '?';
     const url = `${pack.gumroad_url}${separator}custom_fields%5Buser_id%5D=${user?.id}`;
     window.open(url, '_blank');
@@ -118,6 +126,14 @@ export default function WalletPage() {
 
   return (
     <div className="container mx-auto px-4 pt-14 pb-2 space-y-6 max-w-2xl">
+      <AnimatePresence>
+        {showEmailRequiredModal && (
+          <EmailRequiredModal
+            onClose={() => setShowEmailRequiredModal(false)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: theme.colors.text }}>

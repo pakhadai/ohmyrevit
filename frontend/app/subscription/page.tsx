@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
 import { useTheme } from '@/lib/theme';
+import EmailRequiredModal from '@/components/EmailRequiredModal';
 
 const COINS_PER_USD = 100;
 
@@ -45,6 +46,7 @@ export default function SubscriptionPage() {
   const [processing, setProcessing] = useState(false);
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
+  const [showEmailRequiredModal, setShowEmailRequiredModal] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -66,6 +68,12 @@ export default function SubscriptionPage() {
   }, [fetchData]);
 
   const handlePurchase = async () => {
+    // Перевірка email та його підтвердження
+    if (!user?.email || !user?.isEmailVerified) {
+      setShowEmailRequiredModal(true);
+      return;
+    }
+
     if (!priceInfo?.has_enough_balance) {
       router.push('/profile/wallet');
       return;
@@ -118,6 +126,14 @@ export default function SubscriptionPage() {
   if (status?.has_active_subscription && status.subscription) {
     return (
       <div className="min-h-screen pb-20" style={{ background: theme.colors.bgGradient }}>
+        <AnimatePresence>
+          {showEmailRequiredModal && (
+            <EmailRequiredModal
+              onClose={() => setShowEmailRequiredModal(false)}
+            />
+          )}
+        </AnimatePresence>
+
         <div className="sticky top-0 z-10 backdrop-blur-xl" style={{ backgroundColor: `${theme.colors.background}CC`, borderBottom: `1px solid ${theme.colors.border}` }}>
           <div className="flex items-center justify-between px-4 py-3">
             <button
@@ -214,6 +230,14 @@ export default function SubscriptionPage() {
 
   return (
     <div className="min-h-screen pb-20" style={{ background: theme.colors.bgGradient }}>
+      <AnimatePresence>
+        {showEmailRequiredModal && (
+          <EmailRequiredModal
+            onClose={() => setShowEmailRequiredModal(false)}
+          />
+        )}
+      </AnimatePresence>
+
       <div className="sticky top-0 z-10 backdrop-blur-xl" style={{ backgroundColor: `${theme.colors.background}CC`, borderBottom: `1px solid ${theme.colors.border}` }}>
         <div className="flex items-center justify-between px-4 py-3">
           <button

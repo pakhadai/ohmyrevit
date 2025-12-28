@@ -14,6 +14,7 @@ import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 import Image from 'next/image'
 import EmailLinkModal from '@/components/auth/EmailLinkModal'
+import EmailRequiredModal from '@/components/EmailRequiredModal'
 import { useTheme } from '@/lib/theme'
 
 // Константа: 100 монет = $1
@@ -42,6 +43,7 @@ export default function CartPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [isCalculating, setIsCalculating] = useState(false)
   const [showEmailModal, setShowEmailModal] = useState(false)
+  const [showEmailRequiredModal, setShowEmailRequiredModal] = useState(false)
 
   const { t } = useTranslation()
 
@@ -112,9 +114,9 @@ export default function CartPage() {
         return
     }
 
-    // 2. Перевірка наявності Email
-    if (!user?.email) {
-        setShowEmailModal(true)
+    // 2. Перевірка наявності Email та його підтвердження
+    if (!user?.email || !user?.isEmailVerified) {
+        setShowEmailRequiredModal(true)
         return
     }
 
@@ -198,6 +200,11 @@ export default function CartPage() {
               <EmailLinkModal
                   onClose={() => setShowEmailModal(false)}
                   onSuccess={() => setShowEmailModal(false)}
+              />
+          )}
+          {showEmailRequiredModal && (
+              <EmailRequiredModal
+                  onClose={() => setShowEmailRequiredModal(false)}
               />
           )}
         </AnimatePresence>
