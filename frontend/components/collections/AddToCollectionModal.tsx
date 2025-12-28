@@ -100,14 +100,11 @@ export default function AddToCollectionModal({ product, onClose }: AddToCollecti
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 100 }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full sm:max-w-md max-h-[80vh] flex flex-col"
+          className="w-full sm:max-w-md max-h-[80vh] flex flex-col sm:rounded-3xl rounded-t-3xl"
           style={{
             backgroundColor: theme.colors.card,
-            borderTopLeftRadius: theme.radius['2xl'],
-            borderTopRightRadius: theme.radius['2xl'],
-            borderBottomLeftRadius: 0,
-            borderBottomRightRadius: 0,
             boxShadow: theme.shadows.xl,
+            border: `1px solid ${theme.colors.border}`,
           }}
         >
           <div

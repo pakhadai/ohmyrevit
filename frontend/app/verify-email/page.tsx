@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/api';
+import { useTheme } from '@/lib/theme';
 
 export default function VerifyEmailPage() {
+  const { theme } = useTheme();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -40,15 +42,19 @@ export default function VerifyEmailPage() {
   }, [searchParams, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 p-4">
-      <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: theme.colors.bgGradient }}>
+      <div className="max-w-md w-full rounded-3xl p-8 text-center" style={{
+        backgroundColor: theme.colors.card,
+        border: `1px solid ${theme.colors.border}`,
+        boxShadow: theme.shadows.xl
+      }}>
         {status === 'loading' && (
           <>
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 mx-auto mb-4" style={{ borderColor: theme.colors.primary }}></div>
+            <h1 className="text-2xl font-bold mb-2" style={{ color: theme.colors.text }}>
               Підтвердження email...
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p style={{ color: theme.colors.textSecondary }}>
               Зачекайте, будь ласка
             </p>
           </>
@@ -56,18 +62,18 @@ export default function VerifyEmailPage() {
 
         {status === 'success' && (
           <>
-            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: theme.colors.successLight }}>
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.success }}>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            <h1 className="text-2xl font-bold mb-2" style={{ color: theme.colors.text }}>
               Успішно!
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <p className="mb-4" style={{ color: theme.colors.textSecondary }}>
               {message}
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-500">
+            <p className="text-sm" style={{ color: theme.colors.textMuted }}>
               Перенаправляємо вас до профілю...
             </p>
           </>
@@ -75,20 +81,27 @@ export default function VerifyEmailPage() {
 
         {status === 'error' && (
           <>
-            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: theme.colors.errorLight }}>
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.error }}>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            <h1 className="text-2xl font-bold mb-2" style={{ color: theme.colors.text }}>
               Помилка
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className="mb-6" style={{ color: theme.colors.textSecondary }}>
               {message}
             </p>
             <button
               onClick={() => router.push('/profile/settings')}
-              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+              className="px-6 py-3 rounded-2xl font-medium transition-all active:scale-95"
+              style={{
+                background: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.accent} 100%)`,
+                color: '#FFFFFF',
+                boxShadow: theme.shadows.md
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
             >
               Повернутись до налаштувань
             </button>

@@ -8,8 +8,10 @@ import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
+import { useTheme } from '@/lib/theme';
 
 export default function DailyBonus() {
+  const { theme } = useTheme();
   const { user, isAuthenticated, setUser } = useAuthStore();
   const [bonusInfo, setBonusInfo] = useState<any>(null);
   const { t } = useTranslation();
@@ -55,49 +57,79 @@ export default function DailyBonus() {
     <Link href="/profile/bonuses">
       <motion.div
         whileTap={{ scale: 0.98 }}
-        className="card-minimal p-4 relative overflow-hidden group"
+        className="p-4 relative overflow-hidden group rounded-3xl"
+        style={{
+          backgroundColor: theme.colors.card,
+          border: `1px solid ${theme.colors.border}`,
+          boxShadow: theme.shadows.sm
+        }}
       >
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center text-orange-500">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center"
+              style={{
+                backgroundColor: theme.colors.surfaceHover,
+                color: theme.colors.primary
+              }}
+            >
               <Gift size={16} />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-foreground">{t('bonus.dailyBonus')}</h3>
-              <p className="text-[10px] text-muted-foreground">
+              <h3 className="font-bold text-sm" style={{ color: theme.colors.text }}>
+                {t('bonus.dailyBonus')}
+              </h3>
+              <p className="text-[10px]" style={{ color: theme.colors.textMuted }}>
                 {bonusInfo.streak} {t('bonus.daysInARow')}
               </p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-lg font-bold text-primary">{bonusInfo.balance} <span className="text-sm">💎</span></p>
+            <p className="text-lg font-bold" style={{ color: theme.colors.primary }}>
+              {bonusInfo.balance} <span className="text-sm">💎</span>
+            </p>
           </div>
         </div>
 
         {bonusInfo.can_claim_today ? (
           <button
             onClick={claimBonus}
-            className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wide shadow-lg shadow-primary/20 animate-pulse"
+            className="w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide animate-pulse transition-all active:scale-95"
+            style={{
+              background: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.accent} 100%)`,
+              color: '#FFFFFF',
+              boxShadow: theme.shadows.md
+            }}
           >
             {t('bonus.claimButton')}
           </button>
         ) : (
           <div className="space-y-1.5">
-            <div className="flex justify-between text-[10px] font-medium text-muted-foreground">
+            <div className="flex justify-between text-[10px] font-medium" style={{ color: theme.colors.textMuted }}>
               <span>{t('bonus.weeklyProgress')}</span>
               <span>{progress}/7</span>
             </div>
-            <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className="h-1.5 w-full rounded-full overflow-hidden"
+              style={{ backgroundColor: theme.colors.surface }}
+            >
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercent}%` }}
-                className="h-full bg-gradient-to-r from-orange-400 to-primary rounded-full"
+                className="h-full rounded-full"
+                style={{
+                  background: `linear-gradient(to right, ${theme.colors.primary}, ${theme.colors.accent})`
+                }}
               />
             </div>
           </div>
         )}
 
-        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" size={20} />
+        <ChevronRight
+          className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+          size={20}
+          style={{ color: theme.colors.textMuted }}
+        />
       </motion.div>
     </Link>
   );
