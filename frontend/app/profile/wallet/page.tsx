@@ -111,8 +111,12 @@ export default function WalletPage() {
       return;
     }
 
+    // URL для повернення після успішної оплати
+    const returnUrl = typeof window !== 'undefined' ? window.location.origin + '/profile/wallet' : '';
+
     const separator = pack.gumroad_url.includes('?') ? '&' : '?';
-    const url = `${pack.gumroad_url}${separator}custom_fields%5Buser_id%5D=${user?.id}`;
+    const url = `${pack.gumroad_url}${separator}custom_fields%5Buser_id%5D=${user?.id}&wanted=true&redirect_url=${encodeURIComponent(returnUrl)}`;
+
     // Відкриваємо в тому ж вікні для зручності в Telegram WebApp
     window.location.href = url;
   };
