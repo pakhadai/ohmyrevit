@@ -1,299 +1,282 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import {
-  ArrowLeft, Users, Copy, Share2, Gift, CheckCircle2, Loader, UserPlus
-} from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { profileAPI, referralAPI } from '@/lib/api';
-import { useTranslation } from 'react-i18next';
-import Image from 'next/image';
+import { profileAPI } from '@/lib/api';
+import { Users, Gift, ShoppingCart, Copy, Share2, UserPlus, UserCheck, Sparkles } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/lib/theme';
 
-interface Referral {
-  id: number;
-  username: string;
-  joined_at: string;
-  bonus_earned: number;
+interface ReferralLog {
+  referred_user_name: string;
+  bonus_type: 'registration' | 'purchase';
+  bonus_amount: number;
+  purchase_amount?: number;
+  created_at: string;
+}
+
+interface ReferrerInfo {
+    first_name: string;
+    last_name?: string;
+    username?: string;
+}
+
+interface ReferralInfo {
+  referral_code: string;
+  total_referrals: number;
+  total_bonuses_earned: number;
+  logs: ReferralLog[];
+  referrer?: ReferrerInfo;
 }
 
 export default function ReferralsPage() {
   const { theme } = useTheme();
   const router = useRouter();
   const { user } = useAuthStore();
+  const [info, setInfo] = useState<ReferralInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [botUsername, setBotUsername] = useState('');
   const { t } = useTranslation();
 
-  const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [totalEarned, setTotalEarned] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
-  const [referralCode, setReferralCode] = useState('');
-
-  const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'OhMyRevitBot';
-  const referralLink = referralCode
-    ? `https://t.me/${botUsername}?start=${referralCode}`
-    : '';
-
   useEffect(() => {
-    fetchReferrals();
-  }, []);
-
-  const fetchReferrals = async () => {
-    try {
-      // Отримуємо реферальну інформацію з бекенду
-      const referralInfo = await profileAPI.getReferralInfo();
-      setReferralCode(referralInfo.referral_code || '');
-
-      // Отримуємо список рефералів
-      const data = await referralAPI.getReferrals();
-      setReferrals(data.referrals || []);
-      setTotalEarned(data.total_earned || 0);
-    } catch (error) {
-      console.error('Failed to fetch referrals:', error);
-      toast.error(t('profilePages.referrals.toasts.loadError'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(referralLink);
-      setCopied(true);
-      toast.success(t('referrals.linkCopied'));
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      toast.error(t('referrals.copyError'));
-    }
-  };
-
-  const handleShare = async () => {
-    const WebApp = (window as any).Telegram?.WebApp;
-    if (WebApp?.openTelegramLink) {
-      const text = t('referrals.shareText', { code: referralCode });
-      WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(text)}`);
-    } else if (navigator.share) {
+    setBotUsername(process.env.NEXT_PUBLIC_BOT_USERNAME || 'OhMyRevitBot');
+    const fetchReferralInfo = async () => {
       try {
-        await navigator.share({
-          title: t('referrals.shareTitle'),
-          text: t('referrals.shareText', { code: referralCode }),
-          url: referralLink,
-        });
-      } catch (error) {}
+        const data = await profileAPI.getReferralInfo();
+        setInfo(data);
+      } catch (error) {
+        toast.error(t('profilePages.referrals.toasts.loadError'));
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (user) {
+        fetchReferralInfo();
     } else {
-      handleCopy();
+        setLoading(false);
+    }
+  }, [user, t]);
+
+  const referralLink = useMemo(() => {
+    if (botUsername && info?.referral_code) {
+      return `https://t.me/${botUsername}?startapp=${info.referral_code}`;
+    }
+    return '';
+  }, [botUsername, info]);
+
+
+  const copyToClipboard = () => {
+    if (!referralLink) return;
+    navigator.clipboard.writeText(referralLink).then(() => {
+        toast.success(t('toasts.linkCopied'));
+    }).catch(() => {
+        toast.error(t('toasts.linkCopyError'));
+    });
+  };
+
+  const shareViaTelegram = () => {
+    if (!referralLink) return;
+
+    if (window.Telegram?.WebApp) {
+      const shareText = t('profilePages.referrals.shareText');
+      const url = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
+      window.Telegram.WebApp.openTelegramLink(url);
+    } else {
+      toast.error(t('toasts.telegramOnlyFeature'));
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-60">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-t-transparent" style={{ borderColor: theme.colors.primary }} />
+      </div>
+    );
+  }
+
+  if (!user || !info) {
+     return (
+        <div className="container mx-auto px-5 pt-14 text-center min-h-screen flex flex-col items-center justify-center">
+            <h2 className="text-xl font-semibold" style={{ color: theme.colors.text }}>{t('profilePages.referrals.loadError.title')}</h2>
+            <p className="mt-2 mb-6" style={{ color: theme.colors.textMuted }}>{t('profilePages.referrals.loadError.subtitle')}</p>
+             <button
+               onClick={() => router.push('/profile')}
+               className="px-6 py-3 font-semibold rounded-xl transition-colors"
+               style={{
+                 backgroundColor: theme.colors.primary,
+                 color: '#FFF',
+               }}
+             >
+                {t('profilePages.referrals.loadError.back')}
+            </button>
+        </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen pb-4" style={{ background: theme.colors.bgGradient }}>
-      <div className="max-w-2xl mx-auto px-5 pt-6">
-        <div className="flex items-center gap-4 mb-6">
-          <button
-            onClick={() => router.back()}
-            className="p-2.5 transition-colors"
+    <div className="container mx-auto px-5 pt-14 pb-2 space-y-6">
+
+      <h1 className="text-2xl font-bold" style={{ color: theme.colors.text }}>{t('profilePages.referrals.pageTitle')}</h1>
+
+      {/* БЛОК: Хто запросив */}
+      {info.referrer && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-4 rounded-2xl flex items-center gap-4"
             style={{
               backgroundColor: theme.colors.surface,
-              color: theme.colors.textMuted,
-              borderRadius: theme.radius.lg,
+              border: `1px solid ${theme.colors.border}`,
             }}
           >
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className="text-xl font-bold" style={{ color: theme.colors.text }}>
-            {t('referrals.title')}
-          </h1>
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-6 mb-6"
-          style={{
-            background: `linear-gradient(135deg, ${theme.colors.blue}, ${theme.colors.purple})`,
-            borderRadius: theme.radius['2xl'],
-            boxShadow: theme.shadows.lg,
-          }}
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-12 h-12 flex items-center justify-center"
-                style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: theme.radius.lg }}
-              >
-                <Users size={24} color="#FFF" />
+              <div className="p-2.5 rounded-full shadow-sm" style={{ backgroundColor: theme.colors.card, color: theme.colors.primary }}>
+                  <UserCheck size={20} />
               </div>
               <div>
-                <p className="text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                  {t('referrals.totalEarned')}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Image src="/omr_coin.png" alt="OMR" width={20} height={20} />
-                  <span className="text-2xl font-bold text-white">
-                    {totalEarned.toLocaleString()}
-                  </span>
-                </div>
+                  <p className="text-xs uppercase tracking-wider font-bold" style={{ color: theme.colors.textMuted }}>Вас запросив</p>
+                  <p className="font-bold text-sm" style={{ color: theme.colors.text }}>
+                      {info.referrer.first_name} {info.referrer.last_name || ''}
+                      {info.referrer.username && <span className="font-normal ml-1" style={{ color: theme.colors.textMuted }}>(@{info.referrer.username})</span>}
+                  </p>
               </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                {t('referrals.invited')}
-              </p>
-              <p className="text-2xl font-bold text-white">{referrals.length}</p>
-            </div>
-          </div>
+          </motion.div>
+      )}
 
-          <div
-            className="p-4 mb-4"
-            style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: theme.radius.xl }}
+      {/* Головна картка (Invite) */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-[24px] p-6 text-white shadow-lg"
+        style={{
+          background: `linear-gradient(135deg, ${theme.colors.blue}, ${theme.colors.purple})`,
+        }}
+      >
+         {/* Декор */}
+         <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[50px] -mr-10 -mt-10 pointer-events-none"></div>
+
+         <div className="relative z-10">
+            <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={20} className="text-yellow-300 fill-yellow-300 animate-pulse" />
+                <h2 className="text-lg font-bold">{t('profilePages.referrals.yourLink')}</h2>
+            </div>
+
+            <p className="text-white/80 text-sm mb-6 leading-relaxed max-w-sm" dangerouslySetInnerHTML={{ __html: t('profilePages.referrals.description') }} />
+
+            <div className="bg-black/20 backdrop-blur-md p-1.5 rounded-xl flex items-center gap-2 border border-white/10">
+               <div className="flex-1 px-3 overflow-hidden">
+                  <p className="text-sm font-mono text-white/90 truncate">{referralLink}</p>
+               </div>
+               <button
+                 onClick={copyToClipboard}
+                 className="p-2.5 bg-white rounded-lg hover:bg-blue-50 transition-colors shadow-sm"
+                 style={{ color: theme.colors.blue }}
+               >
+                 <Copy size={18} />
+               </button>
+            </div>
+
+            <button
+              onClick={shareViaTelegram}
+              className="w-full mt-4 py-3 bg-white rounded-xl font-bold text-sm hover:bg-blue-50 transition-colors flex items-center justify-center gap-2 shadow-lg active:scale-[0.98]"
+              style={{ color: theme.colors.blue }}
+            >
+               <Share2 size={18} />
+               {t('common.share')}
+            </button>
+         </div>
+      </motion.div>
+
+      {/* Статистика */}
+      <div className="grid grid-cols-2 gap-4">
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="p-5 flex flex-col items-center text-center rounded-xl"
+            style={{
+              backgroundColor: theme.colors.card,
+              border: `1px solid ${theme.colors.border}`,
+            }}
           >
-            <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>
-              {t('referrals.yourCode')}
-            </p>
-            <p className="text-lg font-mono font-bold text-white tracking-wider">
-              {referralCode}
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleCopy}
-              className="flex-1 py-3 font-semibold flex items-center justify-center gap-2 transition-all active:scale-95"
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                color: '#FFF',
-                borderRadius: theme.radius.xl,
-              }}
-            >
-              {copied ? <CheckCircle2 size={18} /> : <Copy size={18} />}
-              {copied ? t('common.copied') : t('common.copy')}
-            </button>
-            <button
-              onClick={handleShare}
-              className="flex-1 py-3 font-semibold flex items-center justify-center gap-2 transition-all active:scale-95"
-              style={{
-                backgroundColor: '#FFF',
-                color: theme.colors.blue,
-                borderRadius: theme.radius.xl,
-              }}
-            >
-              <Share2 size={18} />
-              {t('common.share')}
-            </button>
-          </div>
-        </motion.div>
-
-        <div
-          className="p-5 mb-6"
-          style={{
-            backgroundColor: theme.colors.card,
-            border: `1px solid ${theme.colors.border}`,
-            borderRadius: theme.radius.xl,
-          }}
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <Gift size={20} style={{ color: theme.colors.success }} />
-            <h3 className="font-bold" style={{ color: theme.colors.text }}>
-              {t('referrals.rewards')}
-            </h3>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm" style={{ color: theme.colors.textSecondary }}>
-                {t('referrals.perFriend')}
-              </span>
-              <div className="flex items-center gap-1">
-                <Image src="/omr_coin.png" alt="OMR" width={16} height={16} />
-                <span className="font-bold" style={{ color: theme.colors.success }}>+100</span>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2" style={{ backgroundColor: theme.colors.primaryLight, color: theme.colors.primary }}>
+                  <Users size={20} />
               </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm" style={{ color: theme.colors.textSecondary }}>
-                {t('referrals.friendGets')}
-              </span>
-              <div className="flex items-center gap-1">
-                <Image src="/omr_coin.png" alt="OMR" width={16} height={16} />
-                <span className="font-bold" style={{ color: theme.colors.success }}>+50</span>
+              <p className="text-2xl font-bold" style={{ color: theme.colors.text }}>{info.total_referrals}</p>
+              <p className="text-xs font-medium" style={{ color: theme.colors.textMuted }}>{t('profilePages.referrals.invited')}</p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.15 }}
+            className="p-5 flex flex-col items-center text-center rounded-xl"
+            style={{
+              backgroundColor: theme.colors.card,
+              border: `1px solid ${theme.colors.border}`,
+            }}
+          >
+              <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2" style={{ backgroundColor: theme.colors.accentLight, color: theme.colors.accent }}>
+                  <Gift size={20} />
               </div>
-            </div>
-          </div>
-        </div>
+              <p className="text-2xl font-bold" style={{ color: theme.colors.text }}>{info.total_bonuses_earned}</p>
+              <p className="text-xs font-medium" style={{ color: theme.colors.textMuted }}>{t('profilePages.referrals.bonusesEarned')}</p>
+          </motion.div>
+      </div>
 
-        <div>
-          <h2 className="text-lg font-bold mb-4" style={{ color: theme.colors.text }}>
-            {t('referrals.yourReferrals')}
-          </h2>
+      {/* Історія */}
+      <div className="p-5 rounded-xl" style={{ backgroundColor: theme.colors.card, border: `1px solid ${theme.colors.border}` }}>
+        <h2 className="text-base font-bold mb-4 flex items-center gap-2" style={{ color: theme.colors.text }}>
+            <ShoppingCart size={18} style={{ color: theme.colors.textMuted }} />
+            {t('profilePages.referrals.history')}
+        </h2>
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader className="animate-spin" size={24} style={{ color: theme.colors.primary }} />
-            </div>
-          ) : referrals.length === 0 ? (
-            <div
-              className="text-center py-12"
-              style={{
-                backgroundColor: theme.colors.card,
-                border: `1px solid ${theme.colors.border}`,
-                borderRadius: theme.radius.xl,
-              }}
-            >
-              <UserPlus size={40} className="mx-auto mb-3" style={{ color: theme.colors.textMuted, opacity: 0.5 }} />
-              <p className="font-medium mb-1" style={{ color: theme.colors.text }}>
-                {t('referrals.noReferrals')}
-              </p>
-              <p className="text-sm" style={{ color: theme.colors.textMuted }}>
-                {t('referrals.shareToInvite')}
-              </p>
-            </div>
-          ) : (
-            <div
-              className="divide-y"
-              style={{
-                backgroundColor: theme.colors.card,
-                border: `1px solid ${theme.colors.border}`,
-                borderRadius: theme.radius.xl,
-                overflow: 'hidden',
-              }}
-            >
-              {referrals.map((ref) => (
-                <div
-                  key={ref.id}
-                  className="flex items-center justify-between p-4"
+        {info.logs.length > 0 ? (
+            <ul className="space-y-0">
+            {info.logs.map((log, index) => (
+                <motion.li
+                  key={index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 + index * 0.05 }}
+                  className={`flex items-center justify-between py-3 ${index !== info.logs.length - 1 ? 'border-b' : ''}`}
                   style={{ borderColor: theme.colors.border }}
                 >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 flex items-center justify-center font-bold"
-                      style={{
-                        backgroundColor: theme.colors.primaryLight,
-                        color: theme.colors.primary,
-                        borderRadius: theme.radius.full,
-                      }}
-                    >
-                      {ref.username?.charAt(0).toUpperCase() || '?'}
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className={`p-2 rounded-full flex-shrink-0`} style={{
+                      backgroundColor: log.bonus_type === 'registration' ? theme.colors.successLight : theme.colors.primaryLight,
+                      color: log.bonus_type === 'registration' ? theme.colors.success : theme.colors.primary
+                    }}>
+                    {log.bonus_type === 'registration' ? <UserPlus size={16} /> : <ShoppingCart size={16} />}
                     </div>
-                    <div>
-                      <p className="font-medium" style={{ color: theme.colors.text }}>
-                        {ref.username || t('referrals.anonymous')}
-                      </p>
-                      <p className="text-xs" style={{ color: theme.colors.textMuted }}>
-                        {new Date(ref.joined_at).toLocaleDateString()}
-                      </p>
+                    <div className="min-w-0">
+                    <p className="font-medium text-sm truncate" style={{ color: theme.colors.text }}>
+                        {log.bonus_type === 'registration'
+                          ? t('profilePages.referrals.log.newUser', { name: log.referred_user_name})
+                          : t('profilePages.referrals.log.purchase', { name: log.referred_user_name})}
+                    </p>
+                    <p className="text-[10px]" style={{ color: theme.colors.textMuted }}>{new Date(log.created_at).toLocaleString()}</p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1" style={{ color: theme.colors.success }}>
-                    <span className="font-bold">+{ref.bonus_earned}</span>
-                    <Image src="/omr_coin.png" alt="OMR" width={16} height={16} />
-                  </div>
                 </div>
-              ))}
+                <div className="text-right flex-shrink-0 ml-2">
+                    <p className="font-bold text-sm" style={{ color: theme.colors.success }}>+ {log.bonus_amount} 💎</p>
+                    {log.purchase_amount && <p className="text-[10px]" style={{ color: theme.colors.textMuted }}>з ${log.purchase_amount.toFixed(2)}</p>}
+                </div>
+                </motion.li>
+            ))}
+            </ul>
+        ) : (
+            <div className="text-center py-8" style={{ color: theme.colors.textMuted }}>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 opacity-50" style={{ backgroundColor: theme.colors.surface }}>
+                    <Users size={24} />
+                </div>
+                <p className="text-sm">{t('profilePages.referrals.emptyHistory')}</p>
             </div>
-          )}
-        </div>
+        )}
       </div>
+
     </div>
   );
 }

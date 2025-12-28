@@ -1,246 +1,128 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import {
-  ArrowLeft, MessageCircle, Mail, Send, Loader, CheckCircle2, ExternalLink
-} from 'lucide-react';
+import { MessageCircle, Mail, Copy, Check, Clock, ExternalLink, HelpCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useAuthStore } from '@/store/authStore';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useTheme } from '@/lib/theme';
 
 export default function SupportPage() {
   const { theme } = useTheme();
-  const router = useRouter();
   const { t } = useTranslation();
-  const { user } = useAuthStore();
+  const [copied, setCopied] = useState(false);
 
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
-  const [isSent, setIsSent] = useState(false);
+  const supportEmail = "support@ohmyrevit.com";
+  const telegramSupportUsername = "OhMyRevitSupport";
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!subject.trim() || !message.trim()) {
-      toast.error(t('support.fillAll'));
-      return;
-    }
-
-    setIsSending(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setIsSent(true);
-      toast.success(t('support.sent'));
-    } catch (error) {
-      toast.error(t('support.sendError'));
-    } finally {
-      setIsSending(false);
-    }
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText(supportEmail);
+    setCopied(true);
+    toast.success(t('profilePages.support.toasts.emailCopied'));
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const openTelegram = () => {
-    const WebApp = (window as any).Telegram?.WebApp;
-    if (WebApp?.openTelegramLink) {
-      WebApp.openTelegramLink('https://t.me/your_support_bot');
+  const openTelegramSupport = () => {
+    const url = `https://t.me/${telegramSupportUsername}`;
+    if (window.Telegram?.WebApp) {
+      window.Telegram.WebApp.openTelegramLink(url);
     } else {
-      window.open('https://t.me/your_support_bot', '_blank');
+      window.open(url, '_blank');
     }
   };
-
-  if (isSent) {
-    return (
-      <div className="min-h-screen pb-4" style={{ background: theme.colors.bgGradient }}>
-        <div className="max-w-2xl mx-auto px-5 pt-6">
-          <div className="flex items-center gap-4 mb-6">
-            <button
-              onClick={() => router.back()}
-              className="p-2.5 transition-colors"
-              style={{
-                backgroundColor: theme.colors.surface,
-                color: theme.colors.textMuted,
-                borderRadius: theme.radius.lg,
-              }}
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <h1 className="text-xl font-bold" style={{ color: theme.colors.text }}>
-              {t('support.title')}
-            </h1>
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-16"
-            style={{
-              backgroundColor: theme.colors.card,
-              border: `1px solid ${theme.colors.border}`,
-              borderRadius: theme.radius['2xl'],
-            }}
-          >
-            <div
-              className="w-20 h-20 mx-auto mb-6 flex items-center justify-center"
-              style={{
-                backgroundColor: theme.colors.successLight,
-                borderRadius: theme.radius.full,
-              }}
-            >
-              <CheckCircle2 size={40} style={{ color: theme.colors.success }} />
-            </div>
-            <h2 className="text-xl font-bold mb-2" style={{ color: theme.colors.text }}>
-              {t('support.thankYou')}
-            </h2>
-            <p className="text-sm mb-8 px-6" style={{ color: theme.colors.textSecondary }}>
-              {t('support.willReply')}
-            </p>
-            <button
-              onClick={() => {
-                setIsSent(false);
-                setSubject('');
-                setMessage('');
-              }}
-              className="px-6 py-2.5 font-medium"
-              style={{
-                backgroundColor: theme.colors.primary,
-                color: '#FFF',
-                borderRadius: theme.radius.xl,
-              }}
-            >
-              {t('support.sendAnother')}
-            </button>
-          </motion.div>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen pb-4" style={{ background: theme.colors.bgGradient }}>
-      <div className="max-w-2xl mx-auto px-5 pt-6">
-        <div className="flex items-center gap-4 mb-6">
-          <button
-            onClick={() => router.back()}
-            className="p-2.5 transition-colors"
-            style={{
-              backgroundColor: theme.colors.surface,
-              color: theme.colors.textMuted,
-              borderRadius: theme.radius.lg,
-            }}
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className="text-xl font-bold" style={{ color: theme.colors.text }}>
-            {t('support.title')}
-          </h1>
-        </div>
+    <div className="container mx-auto px-5 pt-14 pb-2 space-y-6">
 
-        <button
-          onClick={openTelegram}
-          className="w-full p-5 mb-6 flex items-center justify-between transition-all active:scale-[0.99]"
-          style={{
-            background: `linear-gradient(135deg, #0088cc, #00a2e8)`,
-            borderRadius: theme.radius.xl,
-            boxShadow: theme.shadows.md,
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-12 h-12 flex items-center justify-center"
-              style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: theme.radius.lg }}
-            >
-              <MessageCircle size={24} color="#FFF" />
-            </div>
-            <div className="text-left">
-              <p className="font-bold text-white">{t('support.telegramSupport')}</p>
-              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                {t('support.fastResponse')}
-              </p>
-            </div>
+      <h1 className="text-2xl font-bold" style={{ color: theme.colors.text }}>{t('profilePages.support.pageTitle')}</h1>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-[24px] p-6 text-white shadow-lg"
+        style={{
+          background: `linear-gradient(135deg, ${theme.colors.blue}, ${theme.colors.purple})`,
+        }}
+      >
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-[40px] -mr-6 -mt-6 pointer-events-none"></div>
+
+        <div className="relative z-10">
+          <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-4 text-white">
+            <HelpCircle size={24} />
           </div>
-          <ExternalLink size={20} color="#FFF" />
-        </button>
 
-        <div
-          className="p-6"
+          <h2 className="text-xl font-bold mb-2">{t('profilePages.support.needHelp')}</h2>
+          <p className="opacity-90 mb-6 text-sm leading-relaxed max-w-sm">
+            {t('profilePages.support.description')}
+          </p>
+
+          <div className="inline-flex items-center gap-2 text-xs font-medium bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/10">
+            <Clock size={14} />
+            <span>{t('profilePages.support.workingHours')}</span>
+          </div>
+        </div>
+      </motion.div>
+
+      <div className="space-y-4">
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={openTelegramSupport}
+          className="w-full p-5 flex items-center gap-4 group rounded-xl transition-all"
           style={{
             backgroundColor: theme.colors.card,
             border: `1px solid ${theme.colors.border}`,
-            borderRadius: theme.radius['2xl'],
           }}
         >
-          <div className="flex items-center gap-3 mb-6">
-            <Mail size={20} style={{ color: theme.colors.primary }} />
-            <h2 className="font-semibold" style={{ color: theme.colors.text }}>
-              {t('support.emailForm')}
-            </h2>
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200" style={{ backgroundColor: theme.colors.primaryLight, color: theme.colors.primary }}>
+            <MessageCircle size={24} />
+          </div>
+          <div className="text-left flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-base" style={{ color: theme.colors.text }}>{t('profilePages.support.telegramChat')}</h3>
+              <ExternalLink size={14} style={{ color: theme.colors.textMuted }} />
+            </div>
+            <p className="text-xs mt-0.5" style={{ color: theme.colors.textMuted }}>{t('profilePages.support.telegramDesc')}</p>
+          </div>
+        </motion.button>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="p-5 rounded-xl"
+          style={{
+            backgroundColor: theme.colors.card,
+            border: `1px solid ${theme.colors.border}`,
+          }}
+        >
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: theme.colors.accentLight, color: theme.colors.accent }}>
+              <Mail size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-base" style={{ color: theme.colors.text }}>{t('profilePages.support.email')}</h3>
+              <p className="text-xs mt-0.5" style={{ color: theme.colors.textMuted }}>{t('profilePages.support.emailDesc')}</p>
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block" style={{ color: theme.colors.textSecondary }}>
-                {t('support.subject')}
-              </label>
-              <input
-                type="text"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder={t('support.subjectPlaceholder')}
-                className="w-full px-4 py-3 text-sm outline-none transition-all"
-                style={{
-                  backgroundColor: theme.colors.surface,
-                  color: theme.colors.text,
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: theme.radius.lg,
-                }}
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block" style={{ color: theme.colors.textSecondary }}>
-                {t('support.message')}
-              </label>
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder={t('support.messagePlaceholder')}
-                rows={5}
-                className="w-full px-4 py-3 text-sm outline-none transition-all resize-none"
-                style={{
-                  backgroundColor: theme.colors.surface,
-                  color: theme.colors.text,
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: theme.radius.lg,
-                }}
-              />
-            </div>
-
+          <div className="flex items-center gap-2 p-3 rounded-xl border group transition-colors" style={{ backgroundColor: theme.colors.surface, borderColor: 'transparent' }}>
+            <span className="flex-1 font-mono text-sm truncate select-all px-1" style={{ color: theme.colors.text }}>{supportEmail}</span>
             <button
-              type="submit"
-              disabled={isSending}
-              className="w-full py-3.5 font-semibold flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+              onClick={handleCopyEmail}
+              className="p-2 rounded-lg transition-colors active:scale-90 shadow-sm"
               style={{
-                backgroundColor: theme.colors.primary,
-                color: '#FFF',
-                borderRadius: theme.radius.xl,
+                backgroundColor: theme.colors.card,
+                color: copied ? theme.colors.success : theme.colors.textMuted,
               }}
+              title={t('common.copy')}
             >
-              {isSending ? (
-                <>
-                  <Loader size={18} className="animate-spin" />
-                  <span>{t('common.sending')}</span>
-                </>
-              ) : (
-                <>
-                  <Send size={18} />
-                  <span>{t('support.send')}</span>
-                </>
-              )}
+              {copied ? <Check size={16} /> : <Copy size={16} />}
             </button>
-          </form>
-        </div>
+          </div>
+        </motion.div>
       </div>
     </div>
   );

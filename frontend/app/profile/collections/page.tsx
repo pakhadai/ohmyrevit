@@ -2,360 +2,251 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Heart, Plus, Loader, Trash2, FolderPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ArrowLeft, FolderHeart, Plus, MoreVertical, Trash2, Edit3, Loader, X
-} from 'lucide-react';
 import { useCollectionStore } from '@/store/collectionStore';
-import { useTranslation } from 'react-i18next';
-import Image from 'next/image';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/lib/theme';
+
+const colorMap: { [key: string]: string } = {
+  default: 'text-gray-500',
+  red: 'text-red-500',
+  green: 'text-green-500',
+  blue: 'text-blue-500',
+  yellow: 'text-yellow-500',
+  purple: 'text-purple-500',
+  pink: 'text-pink-500',
+};
 
 export default function CollectionsPage() {
   const { theme } = useTheme();
   const router = useRouter();
+  const { collections, isInitialized, fetchInitialData, addCollection, deleteCollection } = useCollectionStore();
   const { t } = useTranslation();
-  const {
-    collections,
-    fetchCollections,
-    createCollection,
-    deleteCollection,
-    renameCollection,
-    isLoading,
-  } = useCollectionStore();
 
-  const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState('');
-  const [menuOpen, setMenuOpen] = useState<number | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [newCollectionColor, setNewCollectionColor] = useState('default');
 
   useEffect(() => {
-    fetchCollections();
+    if (!isInitialized) {
+      fetchInitialData();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCreate = async () => {
-    if (!newName.trim()) return;
-    setIsCreating(true);
-    try {
-      await createCollection(newName.trim());
-      toast.success(t('collections.created'));
-      setNewName('');
-      setShowCreate(false);
-    } catch (error) {
-      toast.error(t('collections.createError'));
-    } finally {
-      setIsCreating(false);
+  const handleCreateCollection = async () => {
+    if (!newCollectionName.trim()) {
+      toast.error(t('profilePages.collections.toasts.nameEmpty'));
+      return;
+    }
+    const newCollection = await addCollection(newCollectionName, newCollectionColor);
+    if (newCollection) {
+        setShowCreateModal(false);
+        setNewCollectionName('');
+        setNewCollectionColor('default');
     }
   };
 
-  const handleDelete = async (id: number) => {
-    try {
-      await deleteCollection(id);
-      toast.success(t('collections.deleted'));
-    } catch (error) {
-      toast.error(t('collections.error'));
-    }
-    setMenuOpen(null);
-  };
-
-  const handleRename = async (id: number) => {
-    if (!editName.trim()) return;
-    try {
-      await renameCollection(id, editName.trim());
-      toast.success(t('collections.renamed'));
-      setEditingId(null);
-    } catch (error) {
-      toast.error(t('collections.error'));
+  const handleDelete = (e: React.MouseEvent, id: number, name: string) => {
+    e.stopPropagation();
+    if (window.confirm(t('profilePages.collections.deleteConfirm', { name }))) {
+      deleteCollection(id);
     }
   };
 
-  const startEdit = (id: number, currentName: string) => {
-    setEditingId(id);
-    setEditName(currentName);
-    setMenuOpen(null);
-  };
-
-  const fullImageUrl = (path: string) => {
-    if (!path) return '/placeholder.jpg';
-    if (path.startsWith('http')) return path;
-    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
-    const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    return `${cleanBase}${path.startsWith('/') ? path : `/${path}`}`;
-  };
+  if (!isInitialized) {
+    return (
+      <div className="flex justify-center items-center h-60">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-t-transparent" style={{ borderColor: theme.colors.primary }}></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen pb-4" style={{ background: theme.colors.bgGradient }}>
-      <div className="max-w-2xl mx-auto px-5 pt-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="p-2.5 transition-colors"
-              style={{
-                backgroundColor: theme.colors.surface,
-                color: theme.colors.textMuted,
-                borderRadius: theme.radius.lg,
-              }}
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <h1 className="text-xl font-bold" style={{ color: theme.colors.text }}>
-              {t('collections.title')}
-            </h1>
+    <div className="container mx-auto px-5 pt-14 pb-2 min-h-screen">
+
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold" style={{ color: theme.colors.text }}>{t('profilePages.collections.pageTitle')}</h1>
+      </div>
+
+      {/* Порожній стан */}
+      {isInitialized && collections.length === 0 && (
+        <div className="text-center py-20 px-6 rounded-[24px] border border-dashed" style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}>
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: theme.colors.surface }}>
+            <Heart size={32} className="opacity-50" style={{ color: theme.colors.textMuted }} />
           </div>
+          <h2 className="text-lg font-semibold mb-2" style={{ color: theme.colors.text }}>{t('profilePages.collections.empty.title')}</h2>
+          <p className="mb-6 text-sm max-w-xs mx-auto" style={{ color: theme.colors.textMuted }}>{t('profilePages.collections.empty.subtitle')}</p>
           <button
-            onClick={() => setShowCreate(true)}
-            className="p-2.5 transition-colors"
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-xl transition-colors"
             style={{
               backgroundColor: theme.colors.primary,
               color: '#FFF',
-              borderRadius: theme.radius.lg,
             }}
           >
-            <Plus size={20} />
+            <Plus size={18} />
+            {t('profilePages.collections.empty.cta')}
           </button>
         </div>
+      )}
 
-        <AnimatePresence>
-          {showCreate && (
+      {/* Сітка колекцій */}
+      {collections.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {collections.map(collection => (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-6 overflow-hidden"
+              key={collection.id}
+              onClick={() => router.push(`/profile/collections/${collection.id}`)}
+              className="p-5 cursor-pointer group rounded-xl"
+              style={{
+                backgroundColor: theme.colors.card,
+                border: `1px solid ${theme.colors.border}`,
+              }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              layout
             >
-              <div
-                className="p-4 space-y-3"
-                style={{
-                  backgroundColor: theme.colors.card,
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: theme.radius.xl,
-                }}
-              >
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder={t('collections.newName')}
-                  autoFocus
-                  className="w-full px-4 py-3 text-sm outline-none"
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className={`p-3 rounded-xl transition-colors`} style={{ backgroundColor: theme.colors.surface }}>
+                    <Heart size={22} className={`${colorMap[collection.color] || colorMap.default} fill-current`} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-base truncate" style={{ color: theme.colors.text }}>{collection.name}</h3>
+                    <p className="text-xs mt-0.5" style={{ color: theme.colors.textMuted }}>
+                      {collection.products_count} {t('profilePages.main.menu.products', {count: collection.products_count, defaultValue: 'товарів'})}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={(e) => handleDelete(e, collection.id, collection.name)}
+                  className="p-2 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                   style={{
+                    color: theme.colors.textMuted,
                     backgroundColor: theme.colors.surface,
-                    color: theme.colors.text,
-                    border: `1px solid ${theme.colors.border}`,
-                    borderRadius: theme.radius.lg,
                   }}
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setShowCreate(false);
-                      setNewName('');
-                    }}
-                    className="flex-1 py-2.5 font-medium text-sm"
+                  title={t('profilePages.collections.deleteTitle')}
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            </motion.div>
+          ))}
+
+          {/* Картка "Створити" в сітці */}
+          {collections.length < 9 && (
+            <motion.div
+              onClick={() => setShowCreateModal(true)}
+              className="flex flex-col items-center justify-center p-6 rounded-[20px] border-2 border-dashed cursor-pointer transition-all h-full min-h-[100px]"
+              style={{
+                borderColor: theme.colors.border,
+                color: theme.colors.textMuted,
+              }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              layout
+            >
+              <div className="w-10 h-10 rounded-full flex items-center justify-center mb-2" style={{ backgroundColor: theme.colors.surface }}>
+                <Plus size={20} />
+              </div>
+              <span className="text-sm font-medium">{t('profilePages.collections.createCta')}</span>
+            </motion.div>
+          )}
+        </div>
+      )}
+
+      {/* Модальне вікно */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-5"
+            onClick={() => setShowCreateModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="rounded-[24px] p-6 w-full max-w-xs shadow-2xl"
+              style={{
+                backgroundColor: theme.colors.card,
+                border: `1px solid ${theme.colors.border}`,
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="text-center mb-6">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ backgroundColor: theme.colors.primaryLight, color: theme.colors.primary }}>
+                    <FolderPlus size={24} />
+                </div>
+                <h2 className="text-lg font-bold" style={{ color: theme.colors.text }}>{t('profilePages.collections.modal.title')}</h2>
+              </div>
+
+              <input
+                type="text"
+                placeholder={t('profilePages.collections.modal.placeholder')}
+                value={newCollectionName}
+                onChange={e => setNewCollectionName(e.target.value)}
+                className="w-full px-4 py-3 border border-transparent rounded-xl mb-5 focus:outline-none focus:ring-2 transition-all"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.text,
+                  borderColor: 'transparent',
+                }}
+                autoFocus
+              />
+
+              <div className="mb-6">
+                <p className="text-xs font-semibold uppercase tracking-wider mb-3 text-center" style={{ color: theme.colors.textMuted }}>
+                    {t('profilePages.collections.modal.iconColor')}
+                </p>
+                <div className="flex flex-wrap gap-3 justify-center">
+                  {Object.keys(colorMap).map(color => (
+                    <button
+                      key={color}
+                      onClick={() => setNewCollectionColor(color)}
+                      className={`w-8 h-8 rounded-full transition-all transform ${newCollectionColor === color ? 'scale-110 ring-2 ring-offset-2' : 'hover:scale-105 opacity-70 hover:opacity-100'}`}
+                      style={{
+                        ringColor: newCollectionColor === color ? theme.colors.primary : undefined,
+                      }}
+                    >
+                      <Heart className={`${colorMap[color]} fill-current w-full h-full p-1.5`} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 px-4 py-2.5 rounded-xl font-medium transition-colors"
                     style={{
                       backgroundColor: theme.colors.surface,
-                      color: theme.colors.text,
-                      borderRadius: theme.radius.lg,
+                      color: theme.colors.textMuted,
                     }}
-                  >
+                >
                     {t('common.cancel')}
-                  </button>
-                  <button
-                    onClick={handleCreate}
-                    disabled={!newName.trim() || isCreating}
-                    className="flex-1 py-2.5 font-medium text-sm flex items-center justify-center gap-1 disabled:opacity-50"
+                </button>
+                <button
+                    onClick={handleCreateCollection}
+                    className="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-colors"
                     style={{
                       backgroundColor: theme.colors.primary,
                       color: '#FFF',
-                      borderRadius: theme.radius.lg,
                     }}
-                  >
-                    {isCreating ? (
-                      <Loader size={16} className="animate-spin" />
-                    ) : (
-                      t('common.create')
-                    )}
-                  </button>
-                </div>
+                >
+                    {t('common.create')}
+                </button>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader className="animate-spin" size={32} style={{ color: theme.colors.primary }} />
-          </div>
-        ) : collections.length === 0 ? (
-          <div
-            className="text-center py-16"
-            style={{
-              backgroundColor: theme.colors.card,
-              border: `1px solid ${theme.colors.border}`,
-              borderRadius: theme.radius.xl,
-            }}
-          >
-            <FolderHeart size={48} className="mx-auto mb-4" style={{ color: theme.colors.textMuted, opacity: 0.5 }} />
-            <h3 className="text-lg font-semibold mb-2" style={{ color: theme.colors.text }}>
-              {t('collections.empty')}
-            </h3>
-            <p className="text-sm mb-6" style={{ color: theme.colors.textMuted }}>
-              {t('collections.emptySubtitle')}
-            </p>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="px-6 py-2.5 font-medium flex items-center gap-2 mx-auto transition-all active:scale-95"
-              style={{
-                backgroundColor: theme.colors.primary,
-                color: '#FFF',
-                borderRadius: theme.radius.xl,
-              }}
-            >
-              <Plus size={18} />
-              {t('collections.createNew')}
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {collections.map((collection, index) => (
-              <motion.div
-                key={collection.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="p-4 relative"
-                style={{
-                  backgroundColor: theme.colors.card,
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: theme.radius.xl,
-                  boxShadow: theme.shadows.sm,
-                }}
-              >
-                {editingId === collection.id ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      autoFocus
-                      className="flex-1 px-3 py-2 text-sm outline-none"
-                      style={{
-                        backgroundColor: theme.colors.surface,
-                        color: theme.colors.text,
-                        border: `1px solid ${theme.colors.border}`,
-                        borderRadius: theme.radius.md,
-                      }}
-                    />
-                    <button
-                      onClick={() => handleRename(collection.id)}
-                      className="px-3 py-2 text-sm font-medium"
-                      style={{
-                        backgroundColor: theme.colors.primary,
-                        color: '#FFF',
-                        borderRadius: theme.radius.md,
-                      }}
-                    >
-                      {t('common.save')}
-                    </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="p-2"
-                      style={{ color: theme.colors.textMuted }}
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    className="flex items-center justify-between cursor-pointer"
-                    onClick={() => router.push(`/profile/collections/${collection.id}`)}
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div
-                        className="w-14 h-14 flex-shrink-0 overflow-hidden grid grid-cols-2 gap-0.5"
-                        style={{ borderRadius: theme.radius.lg }}
-                      >
-                        {collection.products?.slice(0, 4).map((p, i) => (
-                          <div key={i} className="relative aspect-square overflow-hidden" style={{ backgroundColor: theme.colors.surface }}>
-                            <Image
-                              src={fullImageUrl(p.main_image_url)}
-                              alt=""
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                        ))}
-                        {Array.from({ length: Math.max(0, 4 - (collection.products?.length || 0)) }).map((_, i) => (
-                          <div key={`empty-${i}`} style={{ backgroundColor: theme.colors.surface }} />
-                        ))}
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="font-semibold truncate" style={{ color: theme.colors.text }}>
-                          {collection.name}
-                        </h3>
-                        <p className="text-sm" style={{ color: theme.colors.textMuted }}>
-                          {collection.products?.length || 0} {t('collections.items')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMenuOpen(menuOpen === collection.id ? null : collection.id);
-                        }}
-                        className="p-2"
-                        style={{ color: theme.colors.textMuted }}
-                      >
-                        <MoreVertical size={18} />
-                      </button>
-                      <AnimatePresence>
-                        {menuOpen === collection.id && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="absolute right-0 top-full mt-1 py-1 z-10 min-w-[140px]"
-                            style={{
-                              backgroundColor: theme.colors.card,
-                              border: `1px solid ${theme.colors.border}`,
-                              borderRadius: theme.radius.lg,
-                              boxShadow: theme.shadows.lg,
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              onClick={() => startEdit(collection.id, collection.name)}
-                              className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors"
-                              style={{ color: theme.colors.text }}
-                            >
-                              <Edit3 size={14} />
-                              {t('common.rename')}
-                            </button>
-                            <button
-                              onClick={() => handleDelete(collection.id)}
-                              className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors"
-                              style={{ color: theme.colors.error }}
-                            >
-                              <Trash2 size={14} />
-                              {t('common.delete')}
-                            </button>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,247 +1,188 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import {
-  ArrowLeft, Gift, Calendar, Flame, Trophy, Star, Loader, CheckCircle2
-} from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
+import { Gift, Clock, Zap, Info, CheckCircle2, TrendingUp } from 'lucide-react';
 import { profileAPI } from '@/lib/api';
-import { useTranslation } from 'react-i18next';
-import Image from 'next/image';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/lib/theme';
-
-interface DailyBonus {
-  day: number;
-  coins: number;
-  claimed: boolean;
-  current: boolean;
-}
 
 export default function BonusesPage() {
   const { theme } = useTheme();
-  const router = useRouter();
-  const { user, updateBalance } = useAuthStore();
+  const [bonusInfo, setBonusInfo] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const { t } = useTranslation();
 
-  const [streak, setStreak] = useState(0);
-  const [dailyBonuses, setDailyBonuses] = useState<DailyBonus[]>([]);
-  const [canClaimDaily, setCanClaimDaily] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isClaiming, setIsClaiming] = useState(false);
-
   useEffect(() => {
-    fetchBonusData();
+    fetchBonusInfo();
   }, []);
 
-  const fetchBonusData = async () => {
+  const fetchBonusInfo = async () => {
+    setLoading(true);
     try {
-      const data = await profileAPI.getBonusInfo();
-      setStreak(data.streak || 0);
-      setCanClaimDaily(data.can_claim || false);
-      setDailyBonuses(data.weekly_bonuses || generateDefaultBonuses(data.streak || 0, data.can_claim || false));
+      const bonusData = await profileAPI.getBonusInfo();
+      setBonusInfo(bonusData);
     } catch (error) {
-      setDailyBonuses(generateDefaultBonuses(0, true));
-      setCanClaimDaily(true);
+      console.error('Error fetching bonus info:', error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const generateDefaultBonuses = (currentStreak: number, canClaim: boolean): DailyBonus[] => {
-    const bonusAmounts = [10, 15, 20, 30, 40, 50, 100];
-    return bonusAmounts.map((coins, index) => ({
-      day: index + 1,
-      coins,
-      claimed: index < currentStreak,
-      current: index === currentStreak && canClaim,
-    }));
-  };
-
-  const handleClaimDaily = async () => {
-    if (!canClaimDaily || isClaiming) return;
-    setIsClaiming(true);
+  const claimBonus = async () => {
     try {
-      const response = await profileAPI.claimDailyBonus();
-      if (response.success) {
-        toast.success(t('bonuses.claimed', { amount: response.coins }));
-        updateBalance(response.new_balance);
-        setCanClaimDaily(false);
-        setStreak(prev => prev + 1);
-        setDailyBonuses(prev =>
-          prev.map((b, i) =>
-            i === streak ? { ...b, claimed: true, current: false } : b
-          )
-        );
+      const result = await profileAPI.claimDailyBonus();
+      if (result.success) {
+        toast.success(result.message);
+        fetchBonusInfo();
+      } else {
+        toast.error(result.message);
       }
     } catch (error) {
-      toast.error(t('bonuses.claimError'));
-    } finally {
-      setIsClaiming(false);
+      toast.error(t('profilePages.bonuses.toasts.claimError'));
     }
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: theme.colors.bgGradient }}>
-        <Loader className="animate-spin" size={32} style={{ color: theme.colors.primary }} />
+      <div className="flex justify-center items-center h-60">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-t-transparent" style={{ borderColor: theme.colors.primary }} />
       </div>
     );
   }
 
+  if (!bonusInfo) {
+    return <div className="text-center py-12" style={{ color: theme.colors.textMuted }}>{t('profilePages.bonuses.loadError')}</div>;
+  }
+
+  const progress = bonusInfo.streak > 0 ? (bonusInfo.streak % 7) || 7 : 0;
+  const progressPercent = (progress / 7) * 100;
+
   return (
-    <div className="min-h-screen pb-4" style={{ background: theme.colors.bgGradient }}>
-      <div className="max-w-2xl mx-auto px-5 pt-6">
-        <div className="flex items-center gap-4 mb-6">
+    <div className="container mx-auto px-5 pt-14 pb-2 space-y-6">
+
+      <h1 className="text-2xl font-bold" style={{ color: theme.colors.text }}>{t('profilePages.bonuses.pageTitle')}</h1>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-[24px] p-6 text-white shadow-lg"
+        style={{
+          background: `linear-gradient(135deg, ${theme.colors.accent}, ${theme.colors.accentDark})`,
+        }}
+      >
+        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+
+        <div className="relative z-10">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full mb-3 border border-white/10">
+                <Zap size={14} className="text-yellow-200 fill-yellow-200" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-white">{t('profilePages.bonuses.dailyStreakLabel')}</span>
+              </div>
+              <h2 className="text-3xl font-bold mb-1">{bonusInfo.streak} {t('profilePages.bonuses.days')}</h2>
+              <p className="text-white/80 text-sm font-medium">{t('profilePages.bonuses.currentStreak')}</p>
+            </div>
+            <Gift size={48} className="text-white/20 rotate-12" />
+          </div>
+
+          <div className="mb-6">
+            <div className="flex justify-between text-xs font-medium text-white/80 mb-2">
+              <span>{t('profilePages.bonuses.weeklyProgress')}</span>
+              <span>{progress}/7</span>
+            </div>
+            <div className="h-2 w-full bg-black/20 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPercent}%` }}
+                className="h-full bg-white rounded-full shadow-sm"
+              />
+            </div>
+          </div>
+
           <button
-            onClick={() => router.back()}
-            className="p-2.5 transition-colors"
-            style={{
-              backgroundColor: theme.colors.surface,
-              color: theme.colors.textMuted,
-              borderRadius: theme.radius.lg,
-            }}
+            onClick={claimBonus}
+            disabled={!bonusInfo.can_claim_today}
+            className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg ${bonusInfo.can_claim_today
+                ? 'bg-white hover:bg-orange-50 active:scale-[0.98]'
+                : 'bg-black/20 text-white/60 cursor-not-allowed'
+              }`}
+            style={{ color: bonusInfo.can_claim_today ? theme.colors.accent : undefined }}
           >
-            <ArrowLeft size={20} />
+            {bonusInfo.can_claim_today ? (
+              <>
+                <Gift size={18} />
+                {t('profilePages.bonuses.claimBonus')}
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={18} />
+                {t('profilePages.bonuses.alreadyClaimed')}
+              </>
+            )}
           </button>
-          <h1 className="text-xl font-bold" style={{ color: theme.colors.text }}>
-            {t('bonuses.title')}
-          </h1>
+
+          {!bonusInfo.can_claim_today && bonusInfo.next_claim_time && (
+            <p className="mt-3 flex items-center justify-center gap-2 text-xs text-white/70 font-medium">
+              <Clock size={14} />
+              {t('profilePages.bonuses.nextBonusTomorrow')}
+            </p>
+          )}
         </div>
+      </motion.div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="p-5 rounded-xl"
+          style={{
+            backgroundColor: theme.colors.card,
+            border: `1px solid ${theme.colors.border}`,
+          }}
+        >
+          <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: theme.colors.textMuted }}>{t('profilePages.bonuses.currentBalance')}</p>
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold" style={{ color: theme.colors.text }}>{bonusInfo.balance}</span>
+            <span className="text-xl">💎</span>
+          </div>
+          <div className="mt-3 pt-3 flex items-center gap-2 text-xs font-medium" style={{ borderTop: `1px solid ${theme.colors.border}`, color: theme.colors.primary }}>
+            <TrendingUp size={14} />
+            {t('profilePages.bonuses.equivalentDiscount', { amount: (bonusInfo.balance / 100).toFixed(2) })}
+          </div>
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-6 mb-6"
-          style={{
-            background: `linear-gradient(135deg, ${theme.colors.accent}, ${theme.colors.accentDark})`,
-            borderRadius: theme.radius['2xl'],
-            boxShadow: theme.shadows.lg,
-          }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-12 h-12 flex items-center justify-center"
-                style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: theme.radius.lg }}
-              >
-                <Flame size={24} color="#FFF" />
-              </div>
-              <div>
-                <p className="text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                  {t('bonuses.currentStreak')}
-                </p>
-                <p className="text-2xl font-bold text-white">
-                  {streak} {t('bonuses.days')}
-                </p>
-              </div>
-            </div>
-            <Trophy size={40} style={{ color: 'rgba(255,255,255,0.3)' }} />
-          </div>
-
-          {canClaimDaily && (
-            <button
-              onClick={handleClaimDaily}
-              disabled={isClaiming}
-              className="w-full py-3 font-bold flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
-              style={{
-                backgroundColor: '#FFF',
-                color: theme.colors.accentDark,
-                borderRadius: theme.radius.xl,
-              }}
-            >
-              {isClaiming ? (
-                <Loader size={20} className="animate-spin" />
-              ) : (
-                <>
-                  <Gift size={20} />
-                  {t('bonuses.claimToday')}
-                </>
-              )}
-            </button>
-          )}
-        </motion.div>
-
-        <div className="mb-8">
-          <h2 className="text-lg font-bold mb-4" style={{ color: theme.colors.text }}>
-            {t('bonuses.weeklyRewards')}
-          </h2>
-          <div className="grid grid-cols-7 gap-2">
-            {dailyBonuses.map((bonus) => (
-              <motion.div
-                key={bonus.day}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: bonus.day * 0.05 }}
-                className="relative p-3 text-center"
-                style={{
-                  backgroundColor: bonus.claimed
-                    ? theme.colors.successLight
-                    : bonus.current
-                    ? theme.colors.primaryLight
-                    : theme.colors.card,
-                  border: bonus.current
-                    ? `2px solid ${theme.colors.primary}`
-                    : `1px solid ${theme.colors.border}`,
-                  borderRadius: theme.radius.lg,
-                }}
-              >
-                {bonus.claimed && (
-                  <div className="absolute -top-1.5 -right-1.5">
-                    <CheckCircle2 size={16} style={{ color: theme.colors.success }} fill={theme.colors.successLight} />
-                  </div>
-                )}
-                <p className="text-xs font-medium mb-1" style={{ color: theme.colors.textMuted }}>
-                  {t('bonuses.day')} {bonus.day}
-                </p>
-                <div className="flex items-center justify-center gap-0.5">
-                  <Image src="/omr_coin.png" alt="OMR" width={12} height={12} />
-                  <span
-                    className="text-sm font-bold"
-                    style={{ color: bonus.claimed ? theme.colors.success : theme.colors.text }}
-                  >
-                    {bonus.coins}
-                  </span>
-                </div>
-                {bonus.day === 7 && (
-                  <Star size={10} className="mx-auto mt-1" style={{ color: theme.colors.accent }} fill={theme.colors.accent} />
-                )}
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        <div
-          className="p-5"
+          transition={{ delay: 0.2 }}
+          className="p-5 rounded-xl"
           style={{
             backgroundColor: theme.colors.card,
             border: `1px solid ${theme.colors.border}`,
-            borderRadius: theme.radius.xl,
           }}
         >
-          <div className="flex items-center gap-3 mb-4">
-            <Calendar size={20} style={{ color: theme.colors.primary }} />
-            <h3 className="font-bold" style={{ color: theme.colors.text }}>
-              {t('bonuses.howItWorks')}
-            </h3>
+          <div className="flex items-center gap-2 mb-3" style={{ color: theme.colors.textMuted }}>
+            <Info size={16} />
+            <h3 className="text-xs font-bold uppercase tracking-wider">{t('profilePages.bonuses.howItWorks')}</h3>
           </div>
-          <ul className="space-y-2 text-sm" style={{ color: theme.colors.textSecondary }}>
-            <li className="flex items-start gap-2">
-              <span style={{ color: theme.colors.primary }}>•</span>
-              {t('bonuses.rule1')}
+          <ul className="space-y-3">
+            <li className="flex gap-3 text-sm" style={{ color: theme.colors.textSecondary }}>
+              <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: theme.colors.primary }}></div>
+              <span>{t('profilePages.bonuses.rule1')}</span>
             </li>
-            <li className="flex items-start gap-2">
-              <span style={{ color: theme.colors.primary }}>•</span>
-              {t('bonuses.rule2')}
+            <li className="flex gap-3 text-sm" style={{ color: theme.colors.textSecondary }}>
+              <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: theme.colors.primary }}></div>
+              <span>{t('profilePages.bonuses.rule2')}</span>
             </li>
-            <li className="flex items-start gap-2">
-              <span style={{ color: theme.colors.primary }}>•</span>
-              {t('bonuses.rule3')}
+            <li className="flex gap-3 text-sm" style={{ color: theme.colors.textSecondary }}>
+              <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: theme.colors.primary }}></div>
+              <span>{t('profilePages.bonuses.rule3')}</span>
             </li>
           </ul>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

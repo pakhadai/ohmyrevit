@@ -79,7 +79,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen pb-4" style={{ background: theme.colors.bgGradient }}>
+    <div className="min-h-screen pb-2" style={{ background: theme.colors.bgGradient }}>
       <div className="max-w-2xl mx-auto px-5 pt-6">
         <div className="flex items-center gap-4 mb-6">
           <button

@@ -90,7 +90,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="min-h-screen" style={{ background: theme.colors.bgGradient }}>
-      <div className="max-w-2xl mx-auto px-5 py-6 pb-4">
+      <div className="max-w-2xl mx-auto px-5 py-6 pb-2">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <button
