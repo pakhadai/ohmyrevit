@@ -137,15 +137,18 @@ export default function WalletPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-3xl p-6 text-white shadow-xl"
-        style={{ background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryDark})` }}
+        className="relative overflow-hidden rounded-3xl p-6 shadow-xl"
+        style={{
+          backgroundColor: theme.colors.card,
+          border: `1px solid ${theme.colors.border}`,
+        }}
       >
         {/* Background decoration */}
-        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+        <div className="absolute top-0 right-0 w-40 h-40 rounded-full -translate-y-1/2 translate-x-1/2" style={{ backgroundColor: theme.colors.primaryLight, opacity: 0.3 }} />
+        <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full translate-y-1/2 -translate-x-1/2" style={{ backgroundColor: theme.colors.accentLight, opacity: 0.2 }} />
 
         <div className="relative z-10">
-          <p className="text-white/80 text-sm mb-1">{t('wallet.yourBalance') || 'Ваш баланс'}</p>
+          <p className="text-sm mb-1" style={{ color: theme.colors.textMuted }}>{t('wallet.yourBalance') || 'Ваш баланс'}</p>
 
           <div className="flex items-center gap-3 mb-2">
             <Image
@@ -156,28 +159,28 @@ export default function WalletPage() {
               className="drop-shadow-lg"
             />
             <div>
-              <span className="text-4xl font-bold tracking-tight">
+              <span className="text-4xl font-bold tracking-tight" style={{ color: theme.colors.text }}>
                 {balance.toLocaleString()}
               </span>
-              <span className="text-xl ml-2 opacity-80">OMR</span>
+              <span className="text-xl ml-2" style={{ color: theme.colors.textSecondary }}>OMR</span>
             </div>
           </div>
 
-          <p className="text-white/70 text-sm">
+          <p className="text-sm" style={{ color: theme.colors.textMuted }}>
             ≈ ${(balance / 100).toFixed(2)} USD
           </p>
         </div>
 
         {/* Quick stats */}
-        <div className="relative z-10 mt-4 pt-4 border-t border-white/20 flex justify-between text-sm">
+        <div className="relative z-10 mt-4 pt-4 flex justify-between text-sm" style={{ borderTop: `1px solid ${theme.colors.border}` }}>
           <div>
-            <p className="text-white/60">{t('wallet.rate') || 'Курс'}</p>
-            <p className="font-medium">100 OMR = $1</p>
+            <p style={{ color: theme.colors.textMuted }}>{t('wallet.rate') || 'Курс'}</p>
+            <p className="font-medium" style={{ color: theme.colors.text }}>100 OMR = $1</p>
           </div>
           <div className="text-right">
-            <p className="text-white/60">{t('wallet.streak') || 'Streak'}</p>
-            <p className="font-medium flex items-center gap-1 justify-end">
-              <Sparkles size={14} />
+            <p style={{ color: theme.colors.textMuted }}>{t('wallet.streak') || 'Streak'}</p>
+            <p className="font-medium flex items-center gap-1 justify-end" style={{ color: theme.colors.text }}>
+              <Sparkles size={14} style={{ color: theme.colors.accent }} />
               {user?.bonusStreak || 0} {t('wallet.days') || 'днів'}
             </p>
           </div>

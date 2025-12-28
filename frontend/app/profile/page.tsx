@@ -610,6 +610,12 @@ export default function ProfilePage() {
 
               {/* ВИХІД - переміщено вниз */}
               <div>
+                <p
+                  className="text-xs font-bold uppercase tracking-wider mb-3 px-4"
+                  style={{ color: theme.colors.textMuted }}
+                >
+                  {t('profilePages.main.sections.account') || 'Акаунт'}
+                </p>
                 <div
                   className="rounded-[28px] p-2 shadow-sm overflow-hidden"
                   style={{

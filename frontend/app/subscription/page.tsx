@@ -12,6 +12,7 @@ import { subscriptionsAPI, walletAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
+import { useTheme } from '@/lib/theme';
 
 const COINS_PER_USD = 100;
 
@@ -35,6 +36,7 @@ interface PriceInfo {
 }
 
 export default function SubscriptionPage() {
+  const { theme } = useTheme();
   const router = useRouter();
   const { user, updateBalance } = useAuthStore();
   const { t } = useTranslation();
@@ -101,8 +103,8 @@ export default function SubscriptionPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: theme.colors.bgGradient }}>
+        <Loader className="w-8 h-8 animate-spin" style={{ color: theme.colors.primary }} />
       </div>
     );
   }
@@ -115,13 +117,19 @@ export default function SubscriptionPage() {
 
   if (status?.has_active_subscription && status.subscription) {
     return (
-      <div className="min-h-screen bg-background pb-24">
-        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border">
+      <div className="min-h-screen pb-20" style={{ background: theme.colors.bgGradient }}>
+        <div className="sticky top-0 z-10 backdrop-blur-xl" style={{ backgroundColor: `${theme.colors.background}CC`, borderBottom: `1px solid ${theme.colors.border}` }}>
           <div className="flex items-center justify-between px-4 py-3">
-            <button onClick={() => router.back()} className="p-2 -ml-2 hover:bg-muted rounded-xl transition-colors">
-              <ArrowLeft size={24} />
+            <button
+              onClick={() => router.back()}
+              className="p-2 -ml-2 rounded-xl transition-colors"
+              style={{ backgroundColor: 'transparent' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.colors.surface}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <ArrowLeft size={24} style={{ color: theme.colors.text }} />
             </button>
-            <h1 className="text-lg font-bold">{t('subscription.pageTitle')}</h1>
+            <h1 className="text-lg font-bold" style={{ color: theme.colors.text }}>{t('subscription.pageTitle')}</h1>
             <div className="w-10" />
           </div>
         </div>
@@ -130,30 +138,34 @@ export default function SubscriptionPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 p-6 text-white"
+            className="relative overflow-hidden rounded-3xl p-6 shadow-xl"
+            style={{
+              backgroundColor: theme.colors.card,
+              border: `1px solid ${theme.colors.border}`,
+            }}
           >
-            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+            <div className="absolute top-0 right-0 w-40 h-40 rounded-full -translate-y-1/2 translate-x-1/2" style={{ backgroundColor: theme.colors.primaryLight, opacity: 0.2 }} />
+            <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full translate-y-1/2 -translate-x-1/2" style={{ backgroundColor: theme.colors.accentLight, opacity: 0.15 }} />
 
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
-                  <Crown size={28} className="text-white" />
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${theme.colors.primary}20` }}>
+                  <Crown size={28} style={{ color: theme.colors.primary }} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold">{t('subscription.activeTitle')}</h2>
-                  <p className="text-white/80 text-sm">{t('subscription.activeSubtitle')}</p>
+                  <h2 className="text-xl font-bold" style={{ color: theme.colors.text }}>{t('subscription.activeTitle')}</h2>
+                  <p className="text-sm" style={{ color: theme.colors.textMuted }}>{t('subscription.activeSubtitle')}</p>
                 </div>
               </div>
 
-              <div className="bg-white/20 rounded-2xl p-4 space-y-3">
+              <div className="rounded-2xl p-4 space-y-3" style={{ backgroundColor: theme.colors.surface }}>
                 <div className="flex items-center justify-between">
-                  <span className="text-white/80">{t('subscription.daysRemaining')}</span>
-                  <span className="text-2xl font-bold">{status.subscription.days_remaining}</span>
+                  <span style={{ color: theme.colors.textMuted }}>{t('subscription.daysRemaining')}</span>
+                  <span className="text-2xl font-bold" style={{ color: theme.colors.primary }}>{status.subscription.days_remaining}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-white/80">{t('subscription.activeUntil')}</span>
-                  <span className="font-medium">{formatDate(status.subscription.end_date)}</span>
+                  <span style={{ color: theme.colors.textMuted }}>{t('subscription.activeUntil')}</span>
+                  <span className="font-medium" style={{ color: theme.colors.text }}>{formatDate(status.subscription.end_date)}</span>
                 </div>
               </div>
             </div>
@@ -163,26 +175,33 @@ export default function SubscriptionPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="card-minimal p-5 space-y-4"
+            className="p-5 space-y-4 rounded-3xl shadow-sm"
+            style={{
+              backgroundColor: theme.colors.card,
+              border: `1px solid ${theme.colors.border}`,
+            }}
           >
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <RefreshCw size={18} className="text-primary" />
+            <h3 className="font-semibold flex items-center gap-2" style={{ color: theme.colors.text }}>
+              <RefreshCw size={18} style={{ color: theme.colors.primary }} />
               {t('subscription.management.title', 'Керування підпискою')}
             </h3>
 
             <button
               onClick={handlePurchase}
               disabled={processing}
-              className="w-full flex items-center justify-between p-4 bg-muted hover:bg-muted/80 rounded-xl transition-colors"
+              className="w-full flex items-center justify-between p-4 rounded-xl transition-colors"
+              style={{ backgroundColor: theme.colors.surface }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.colors.surfaceHover}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.colors.surface}
             >
               <div className="flex items-center gap-3">
-                <Calendar size={20} className="text-primary" />
+                <Calendar size={20} style={{ color: theme.colors.primary }} />
                 <div className="text-left">
-                  <p className="font-medium text-foreground">{t('subscription.management.extend')}</p>
-                  <p className="text-xs text-muted-foreground">{t('subscription.management.extendDesc')}</p>
+                  <p className="font-medium" style={{ color: theme.colors.text }}>{t('subscription.management.extend')}</p>
+                  <p className="text-xs" style={{ color: theme.colors.textMuted }}>{t('subscription.management.extendDesc')}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1 text-primary font-bold">
+              <div className="flex items-center gap-1 font-bold" style={{ color: theme.colors.primary }}>
                 <Image src="/omr_coin.png" alt="OMR" width={18} height={18} />
                 {priceCoins}
               </div>
@@ -194,13 +213,19 @@ export default function SubscriptionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border">
+    <div className="min-h-screen pb-20" style={{ background: theme.colors.bgGradient }}>
+      <div className="sticky top-0 z-10 backdrop-blur-xl" style={{ backgroundColor: `${theme.colors.background}CC`, borderBottom: `1px solid ${theme.colors.border}` }}>
         <div className="flex items-center justify-between px-4 py-3">
-          <button onClick={() => router.back()} className="p-2 -ml-2 hover:bg-muted rounded-xl transition-colors">
-            <ArrowLeft size={24} />
+          <button
+            onClick={() => router.back()}
+            className="p-2 -ml-2 rounded-xl transition-colors"
+            style={{ backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.colors.surface}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <ArrowLeft size={24} style={{ color: theme.colors.text }} />
           </button>
-          <h1 className="text-lg font-bold">{t('subscription.pageTitle')}</h1>
+          <h1 className="text-lg font-bold" style={{ color: theme.colors.text }}>{t('subscription.pageTitle')}</h1>
           <div className="w-10" />
         </div>
       </div>
@@ -209,38 +234,42 @@ export default function SubscriptionPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-700 p-6 text-white"
+          className="relative overflow-hidden rounded-3xl p-6 shadow-xl"
+          style={{
+            backgroundColor: theme.colors.card,
+            border: `1px solid ${theme.colors.border}`,
+          }}
         >
-          <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+          <div className="absolute top-0 right-0 w-48 h-48 rounded-full -translate-y-1/2 translate-x-1/2" style={{ backgroundColor: theme.colors.primaryLight, opacity: 0.15 }} />
+          <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full translate-y-1/2 -translate-x-1/2" style={{ backgroundColor: theme.colors.accentLight, opacity: 0.1 }} />
 
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
-                <Crown size={32} className="text-yellow-300" />
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${theme.colors.primary}20` }}>
+                <Crown size={32} style={{ color: theme.colors.primary }} />
               </div>
               <div>
-                <h2 className="text-2xl font-bold">{t('subscription.premiumTitle')}</h2>
-                <p className="text-white/80">{t('subscription.pageSubtitle')}</p>
+                <h2 className="text-2xl font-bold" style={{ color: theme.colors.text }}>{t('subscription.premiumTitle')}</h2>
+                <p style={{ color: theme.colors.textMuted }}>{t('subscription.pageSubtitle')}</p>
               </div>
             </div>
 
             <div className="space-y-3 mb-6">
               <div className="flex items-start gap-3">
-                <CheckCircle2 size={20} className="text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-sm" dangerouslySetInnerHTML={{ __html: t('subscription.feature1') }} />
+                <CheckCircle2 size={20} className="mt-0.5 flex-shrink-0" style={{ color: theme.colors.success }} />
+                <span className="text-sm" style={{ color: theme.colors.textSecondary }} dangerouslySetInnerHTML={{ __html: t('subscription.feature1') }} />
               </div>
               <div className="flex items-start gap-3">
-                <CheckCircle2 size={20} className="text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-sm" dangerouslySetInnerHTML={{ __html: t('subscription.feature2') }} />
+                <CheckCircle2 size={20} className="mt-0.5 flex-shrink-0" style={{ color: theme.colors.success }} />
+                <span className="text-sm" style={{ color: theme.colors.textSecondary }} dangerouslySetInnerHTML={{ __html: t('subscription.feature2') }} />
               </div>
               <div className="flex items-start gap-3">
-                <CheckCircle2 size={20} className="text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-sm" dangerouslySetInnerHTML={{ __html: t('subscription.feature3') }} />
+                <CheckCircle2 size={20} className="mt-0.5 flex-shrink-0" style={{ color: theme.colors.success }} />
+                <span className="text-sm" style={{ color: theme.colors.textSecondary }} dangerouslySetInnerHTML={{ __html: t('subscription.feature3') }} />
               </div>
               <div className="flex items-start gap-3">
-                <CheckCircle2 size={20} className="text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-sm">{t('subscription.feature4')}</span>
+                <CheckCircle2 size={20} className="mt-0.5 flex-shrink-0" style={{ color: theme.colors.success }} />
+                <span className="text-sm" style={{ color: theme.colors.textSecondary }}>{t('subscription.feature4')}</span>
               </div>
             </div>
           </div>
@@ -250,32 +279,36 @@ export default function SubscriptionPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="card-minimal p-5 space-y-4"
+          className="p-5 space-y-4 rounded-3xl shadow-sm"
+          style={{
+            backgroundColor: theme.colors.card,
+            border: `1px solid ${theme.colors.border}`,
+          }}
         >
-          <h3 className="font-semibold text-foreground">{t('subscription.priceTitle', 'Вартість')}</h3>
+          <h3 className="font-semibold" style={{ color: theme.colors.text }}>{t('subscription.priceTitle', 'Вартість')}</h3>
 
-          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-xl border border-primary/20">
+          <div className="flex items-center justify-between p-4 rounded-xl" style={{ backgroundColor: `${theme.colors.primary}10`, border: `1px solid ${theme.colors.primary}33` }}>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${theme.colors.primary}20` }}>
                 <Image src="/omr_coin.png" alt="OMR" width={28} height={28} />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{priceCoins.toLocaleString()}</p>
-                <p className="text-sm text-muted-foreground">≈ ${priceUsd}{t('subscription.perMonth')}</p>
+                <p className="text-2xl font-bold" style={{ color: theme.colors.text }}>{priceCoins.toLocaleString()}</p>
+                <p className="text-sm" style={{ color: theme.colors.textMuted }}>≈ ${priceUsd}{t('subscription.perMonth')}</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">{t('subscription.perMonth', '/місяць')}</p>
+              <p className="text-xs" style={{ color: theme.colors.textMuted }}>{t('subscription.perMonth', '/місяць')}</p>
             </div>
           </div>
 
-          <div className="p-4 bg-muted/50 rounded-xl">
+          <div className="p-4 rounded-xl" style={{ backgroundColor: theme.colors.surface }}>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground flex items-center gap-2">
+              <span className="text-sm flex items-center gap-2" style={{ color: theme.colors.textMuted }}>
                 <Wallet size={16} />
                 {t('cart.yourBalance', 'Ваш баланс')}
               </span>
-              <span className="font-bold text-foreground flex items-center gap-1">
+              <span className="font-bold flex items-center gap-1" style={{ color: theme.colors.text }}>
                 <Image src="/omr_coin.png" alt="OMR" width={16} height={16} />
                 {userBalance.toLocaleString()}
               </span>
@@ -286,14 +319,15 @@ export default function SubscriptionPage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl"
+              className="p-4 rounded-xl"
+              style={{ backgroundColor: `${theme.colors.warning}10`, border: `1px solid ${theme.colors.warning}33` }}
             >
               <div className="flex items-start gap-3">
-                <AlertCircle size={20} className="text-orange-500 mt-0.5 flex-shrink-0" />
+                <AlertCircle size={20} className="mt-0.5 flex-shrink-0" style={{ color: theme.colors.warning }} />
                 <div>
-                  <p className="text-sm font-medium text-orange-600">{t('subscription.notEnoughCoins', 'Недостатньо монет')}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t('subscription.needMore', 'Потрібно ще')} <span className="font-bold text-orange-500">{shortfall.toLocaleString()}</span> {t('subscription.coins', 'монет')}
+                  <p className="text-sm font-medium" style={{ color: theme.colors.warning }}>{t('subscription.notEnoughCoins', 'Недостатньо монет')}</p>
+                  <p className="text-xs mt-1" style={{ color: theme.colors.textMuted }}>
+                    {t('subscription.needMore', 'Потрібно ще')} <span className="font-bold" style={{ color: theme.colors.warning }}>{shortfall.toLocaleString()}</span> {t('subscription.coins', 'монет')}
                   </p>
                 </div>
               </div>
@@ -311,7 +345,11 @@ export default function SubscriptionPage() {
             <button
               onClick={handlePurchase}
               disabled={processing}
-              className="w-full bg-gradient-to-r from-primary to-purple-600 text-white px-6 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all active:scale-[0.98] disabled:opacity-50"
+              className="w-full text-white px-6 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all active:scale-[0.98] disabled:opacity-50"
+              style={{
+                background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.accent})`,
+                boxShadow: `0 10px 30px -10px ${theme.colors.primary}4D`,
+              }}
             >
               {processing ? (
                 <>
@@ -322,7 +360,7 @@ export default function SubscriptionPage() {
                 <>
                   <Crown size={22} />
                   {t('subscription.checkoutButton')}
-                  <span className="flex items-center gap-1 ml-2 px-3 py-1 bg-white/20 rounded-lg">
+                  <span className="flex items-center gap-1 ml-2 px-3 py-1 rounded-lg" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}>
                     <Image src="/omr_coin.png" alt="OMR" width={16} height={16} />
                     {priceCoins}
                   </span>
@@ -332,14 +370,18 @@ export default function SubscriptionPage() {
           ) : (
             <button
               onClick={() => router.push('/profile/wallet')}
-              className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white px-6 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+              className="w-full text-white px-6 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all active:scale-[0.98]"
+              style={{
+                background: `linear-gradient(135deg, ${theme.colors.warning}, ${theme.colors.accent})`,
+                boxShadow: `0 10px 30px -10px ${theme.colors.warning}4D`,
+              }}
             >
               <Wallet size={22} />
               {t('subscription.topUpWallet', 'Поповнити гаманець')}
             </button>
           )}
 
-          <p className="text-xs text-center text-muted-foreground">
+          <p className="text-xs text-center" style={{ color: theme.colors.textMuted }}>
             {t('subscription.cancelAnytime')}
           </p>
         </motion.div>
@@ -350,17 +392,17 @@ export default function SubscriptionPage() {
           transition={{ delay: 0.3 }}
           className="grid grid-cols-3 gap-3"
         >
-          <div className="card-minimal p-4 text-center">
-            <Sparkles size={24} className="text-yellow-500 mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground">{t('subscription.benefit1', 'Ексклюзивний контент')}</p>
+          <div className="p-4 text-center rounded-2xl" style={{ backgroundColor: theme.colors.card, border: `1px solid ${theme.colors.border}` }}>
+            <Sparkles size={24} className="mx-auto mb-2" style={{ color: theme.colors.accent }} />
+            <p className="text-xs" style={{ color: theme.colors.textMuted }}>{t('subscription.benefit1', 'Ексклюзивний контент')}</p>
           </div>
-          <div className="card-minimal p-4 text-center">
-            <Shield size={24} className="text-green-500 mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground">{t('subscription.benefit2', 'Пожиттєвий доступ')}</p>
+          <div className="p-4 text-center rounded-2xl" style={{ backgroundColor: theme.colors.card, border: `1px solid ${theme.colors.border}` }}>
+            <Shield size={24} className="mx-auto mb-2" style={{ color: theme.colors.success }} />
+            <p className="text-xs" style={{ color: theme.colors.textMuted }}>{t('subscription.benefit2', 'Пожиттєвий доступ')}</p>
           </div>
-          <div className="card-minimal p-4 text-center">
-            <Zap size={24} className="text-blue-500 mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground">{t('subscription.benefit3', 'Пріоритетна підтримка')}</p>
+          <div className="p-4 text-center rounded-2xl" style={{ backgroundColor: theme.colors.card, border: `1px solid ${theme.colors.border}` }}>
+            <Zap size={24} className="mx-auto mb-2" style={{ color: theme.colors.primary }} />
+            <p className="text-xs" style={{ color: theme.colors.textMuted }}>{t('subscription.benefit3', 'Пріоритетна підтримка')}</p>
           </div>
         </motion.div>
       </div>
