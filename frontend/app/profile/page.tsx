@@ -514,21 +514,35 @@ export default function ProfilePage() {
               {/* КНОПКА АДМІНА */}
               {user?.isAdmin && (
                 <Link href="/admin" className="block">
-                  <div className="w-full p-5 rounded-[28px] bg-gradient-to-r from-gray-900 to-gray-800 text-white flex items-center justify-between shadow-xl hover:shadow-2xl hover:translate-y-[-2px] transition-all cursor-pointer">
+                  <div
+                    className="w-full p-5 rounded-[28px] flex items-center justify-between hover:translate-y-[-2px] transition-all cursor-pointer"
+                    style={{
+                      background: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.accent} 100%)`,
+                      color: '#FFFFFF',
+                      boxShadow: theme.shadows.lg,
+                      border: `1px solid ${theme.colors.border}`,
+                    }}
+                  >
                     <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-sm">
-                        <Sparkles size={24} className="text-yellow-300" />
+                      <div
+                        className="p-3 rounded-2xl"
+                        style={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                          backdropFilter: 'blur(10px)',
+                        }}
+                      >
+                        <Shield size={24} style={{ color: '#FFF' }} />
                       </div>
                       <div>
-                        <h3 className="font-bold text-lg">
+                        <h3 className="font-bold text-lg text-white">
                           {t('profilePages.main.admin.title') || 'Панель адміністратора'}
                         </h3>
-                        <p className="text-sm text-white/60">
+                        <p className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
                           {t('profilePages.main.admin.description') || 'Керування користувачами та контентом'}
                         </p>
                       </div>
                     </div>
-                    <ChevronRight size={20} className="text-white/50" />
+                    <ChevronRight size={20} style={{ color: 'rgba(255, 255, 255, 0.7)' }} />
                   </div>
                 </Link>
               )}

@@ -300,7 +300,13 @@ export const profileAPI = {
   getProfile: async () => {
     return getData(await api.get('/profile/me'));
   },
-  updateProfile: async (data: { email?: string; phone?: string }) => {
+  updateProfile: async (data: {
+    email?: string;
+    phone?: string;
+    first_name?: string;
+    last_name?: string;
+    birth_date?: string;
+  }) => {
     return getData(await api.patch('/auth/profile', data));
   },
   changePassword: async (data: { currentPassword: string; newPassword: string }) => {

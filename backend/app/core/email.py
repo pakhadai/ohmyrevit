@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import List, Optional, Dict
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from app.core.config import settings
@@ -154,10 +155,14 @@ class EmailService:
                 resend = self._get_resend_client()
                 if resend:
                     params = {
-                        "from": settings.FROM_EMAIL,
+                        "from": f"OhMyRevit <{settings.FROM_EMAIL}>",
                         "to": [to],
                         "subject": subject,
                         "html": html_content,
+                        "reply_to": "support@ohmyrevit.pp.ua",
+                        "headers": {
+                            "X-Entity-Ref-ID": f"ohmyrevit-{int(time.time())}",
+                        }
                     }
 
                     response = resend.Emails.send(params)

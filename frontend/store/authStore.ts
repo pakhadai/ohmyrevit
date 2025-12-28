@@ -21,6 +21,7 @@ interface AuthState {
   updateBalance: (newBalance: number) => void;
   checkTokenValidity: () => void;
   completeOnboarding: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 /**
@@ -37,6 +38,7 @@ const normalizeUser = (rawUser: any): User => {
     username: rawUser.username,
     firstName: rawUser.first_name ?? rawUser.firstName ?? 'User',
     lastName: rawUser.last_name ?? rawUser.lastName,
+    birthDate: rawUser.birth_date ?? rawUser.birthDate,
     email: rawUser.email,
     photoUrl: rawUser.photo_url ?? rawUser.photoUrl,
     languageCode: rawUser.language_code ?? rawUser.languageCode ?? 'uk',
@@ -201,6 +203,19 @@ export const useAuthStore = create<AuthState>()(
           console.log('[AuthStore] Token expired, logging out');
           get().logout();
           toast.error(i18n.t('toasts.sessionExpired', 'Сесія закінчилась, увійдіть знову'));
+        }
+      },
+
+      refreshUser: async () => {
+        try {
+          const { profileAPI } = await import('@/lib/api');
+          const rawUser = await profileAPI.getProfile();
+          const normalizedUser = normalizeUser(rawUser);
+          set({ user: normalizedUser });
+          console.log('[AuthStore] User refreshed successfully');
+        } catch (error: any) {
+          console.error('[AuthStore] Error refreshing user:', error);
+          throw error;
         }
       },
     }),

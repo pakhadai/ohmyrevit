@@ -279,6 +279,7 @@ async def verify_email(
 
     # Підтверджуємо email
     user.is_email_verified = True
+    user.is_active = True  # Активуємо користувача після підтвердження
     user.verification_token = None  # Очищаємо токен після використання
 
     await db.commit()

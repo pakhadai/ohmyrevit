@@ -438,6 +438,7 @@ class AuthService:
         password = AuthService.generate_strong_password()
         target_user.hashed_password = AuthService.get_password_hash(password)
         target_user.is_email_verified = True
+        target_user.is_active = True  # Активуємо після підтвердження
         target_user.verification_token = None
         await db.commit()
 
@@ -534,7 +535,7 @@ class AuthService:
                 first_name="User",
                 verification_token=verification_token,
                 is_email_verified=False,
-                is_active=True
+                is_active=False  # Неактивний до підтвердження email
             )
             for _ in range(5):
                 try:

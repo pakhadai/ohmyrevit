@@ -28,60 +28,60 @@ export default function FAQPage() {
   const faqItems: FAQItem[] = [
     {
       id: 1,
-      question: t('faq.q1'),
-      answer: t('faq.a1'),
+      question: t('profilePages.faq.items.q1'),
+      answer: t('profilePages.faq.items.a1'),
       category: 'general',
     },
     {
       id: 2,
-      question: t('faq.q2'),
-      answer: t('faq.a2'),
+      question: t('profilePages.faq.items.q2'),
+      answer: t('profilePages.faq.items.a2'),
       category: 'payments',
     },
     {
       id: 3,
-      question: t('faq.q3'),
-      answer: t('faq.a3'),
+      question: t('profilePages.faq.items.q3'),
+      answer: t('profilePages.faq.items.a3'),
       category: 'downloads',
     },
     {
       id: 4,
-      question: t('faq.q4'),
-      answer: t('faq.a4'),
+      question: t('profilePages.faq.items.q4'),
+      answer: t('profilePages.faq.items.a4'),
       category: 'general',
     },
     {
       id: 5,
-      question: t('faq.q5'),
-      answer: t('faq.a5'),
+      question: t('profilePages.faq.items.q5'),
+      answer: t('profilePages.faq.items.a5'),
       category: 'payments',
     },
     {
       id: 6,
-      question: t('faq.q6'),
-      answer: t('faq.a6'),
+      question: t('profilePages.faq.items.q6'),
+      answer: t('profilePages.faq.items.a6'),
       category: 'downloads',
     },
     {
       id: 7,
-      question: t('faq.q7'),
-      answer: t('faq.a7'),
+      question: t('profilePages.faq.items.q7'),
+      answer: t('profilePages.faq.items.a7'),
       category: 'subscription',
     },
     {
       id: 8,
-      question: t('faq.q8'),
-      answer: t('faq.a8'),
+      question: t('profilePages.faq.items.q8'),
+      answer: t('profilePages.faq.items.a8'),
       category: 'subscription',
     },
   ];
 
   const categories = [
-    { key: 'all', label: t('faq.all') },
-    { key: 'general', label: t('faq.general') },
-    { key: 'payments', label: t('faq.payments') },
-    { key: 'downloads', label: t('faq.downloadsCategory') },
-    { key: 'subscription', label: t('faq.subscription') },
+    { key: 'all', label: t('profilePages.faq.all') },
+    { key: 'general', label: t('profilePages.faq.general') },
+    { key: 'payments', label: t('profilePages.faq.payments') },
+    { key: 'downloads', label: t('profilePages.faq.downloadsCategory') },
+    { key: 'subscription', label: t('profilePages.faq.subscription') },
   ];
 
   const filteredItems = faqItems.filter(item => {
@@ -107,7 +107,7 @@ export default function FAQPage() {
             <ArrowLeft size={20} />
           </button>
           <h1 className="text-xl font-bold" style={{ color: theme.colors.text }}>
-            {t('faq.title')}
+            {t('profilePages.faq.title')}
           </h1>
         </div>
 
@@ -121,7 +121,7 @@ export default function FAQPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t('faq.search')}
+            placeholder={t('profilePages.faq.search')}
             className="w-full pl-11 pr-4 py-3 text-sm outline-none transition-all"
             style={{
               backgroundColor: theme.colors.card,
@@ -159,7 +159,7 @@ export default function FAQPage() {
             }}
           >
             <HelpCircle size={40} className="mx-auto mb-3" style={{ color: theme.colors.textMuted, opacity: 0.5 }} />
-            <p style={{ color: theme.colors.textMuted }}>{t('faq.noResults')}</p>
+            <p style={{ color: theme.colors.textMuted }}>{t('profilePages.faq.noResults')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -226,7 +226,7 @@ export default function FAQPage() {
           }}
         >
           <p className="text-sm mb-3" style={{ color: theme.colors.textSecondary }}>
-            {t('faq.stillNeedHelp')}
+            {t('profilePages.faq.stillNeedHelp')}
           </p>
           <button
             onClick={() => router.push('/profile/support')}
@@ -237,7 +237,7 @@ export default function FAQPage() {
               borderRadius: theme.radius.xl,
             }}
           >
-            {t('faq.contactSupport')}
+            {t('profilePages.faq.contactSupport')}
           </button>
         </div>
       </div>
