@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, update
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import datetime
@@ -9,6 +9,7 @@ from app.users.models import User
 from app.products.models import Product, ModerationStatus
 from app.orders.models import Order
 from app.core.config import settings
+from app.core.sanitize import sanitize_html, sanitize_text
 import logging
 
 logger = logging.getLogger(__name__)
@@ -123,7 +124,11 @@ class CreatorService:
         usdt_network: str
     ) -> CreatorPayout:
         """Створити запит на виплату"""
-        user = await self.db.get(User, user_id)
+        # Блокуємо користувача для запобігання race condition
+        user_query = select(User).where(User.id == user_id).with_for_update()
+        result = await self.db.execute(user_query)
+        user = result.scalar_one_or_none()
+
         if not user or not user.is_creator:
             raise ValueError("User is not a creator")
 
@@ -152,7 +157,10 @@ class CreatorService:
         )
         self.db.add(payout)
 
-        # Створюємо транзакцію
+        # Флашимо для отримання payout.id
+        await self.db.flush()
+
+        # Створюємо транзакцію (тепер payout.id доступний)
         transaction = CreatorTransaction(
             creator_id=user_id,
             transaction_type="payout",
@@ -303,16 +311,19 @@ class CreatorService:
         platform_commission = int(sale_coins * commission_percent / 100)
         creator_earnings = sale_coins - platform_commission
 
-        # Нараховуємо монети креатору з блокуванням
-        query = select(User).where(User.id == product.author_id).with_for_update()
-        result = await self.db.execute(query)
-        creator = result.scalar_one_or_none()
+        # Нараховуємо монети креатору БЕЗ блокування (запобігаємо Deadlock)
+        # Використовуємо атомарний UPDATE замість SELECT FOR UPDATE
+        result = await self.db.execute(
+            update(User)
+            .where(User.id == product.author_id)
+            .values(creator_balance=User.creator_balance + creator_earnings)
+            .returning(User.id)
+        )
+        updated_creator = result.scalar_one_or_none()
 
-        if not creator:
+        if not updated_creator:
             logger.error(f"Creator {product.author_id} not found during sale")
             return None
-
-        creator.creator_balance += creator_earnings
 
         # Створюємо транзакцію для креатора
         transaction = CreatorTransaction(
@@ -388,12 +399,16 @@ class CreatorService:
         self.db.add(product)
         await self.db.flush()
 
+        # КРИТИЧНО: Санітизуємо вхідний текст від XSS атак
+        safe_title = sanitize_text(product_data["title_uk"])
+        safe_description = sanitize_html(product_data["description_uk"])
+
         # Додаємо переклад (поки тільки українська)
         translation = ProductTranslation(
             product_id=product.id,
             language_code="uk",
-            title=product_data["title_uk"],
-            description=product_data["description_uk"]
+            title=safe_title,
+            description=safe_description
         )
         self.db.add(translation)
 
@@ -488,14 +503,16 @@ class CreatorService:
         if "compatibility" in update_data:
             product.compatibility = update_data["compatibility"]
 
-        # Оновлюємо переклад
+        # КРИТИЧНО: Санітизуємо вхідний текст від XSS атак
         if "title_uk" in update_data or "description_uk" in update_data:
             translation = next((t for t in product.translations if t.language_code == "uk"), None)
             if translation:
                 if "title_uk" in update_data:
-                    translation.title = update_data["title_uk"]
+                    translation.title = sanitize_text(update_data["title_uk"])
                 if "description_uk" in update_data:
-                    translation.description = update_data["description_uk"]
+                    translation.description = sanitize_html(
+                        update_data["description_uk"]
+                    )
 
         # Оновлюємо категорії
         if "category_ids" in update_data:

@@ -218,6 +218,11 @@ class SubscriptionService:
         return result.rowcount
 
     async def process_auto_renewals(self) -> dict:
+        # КРИТИЧНО: Перевіряємо чи підписки взагалі активні
+        if not settings.SUBSCRIPTION_ENABLED:
+            logger.info("Subscription auto-renewal skipped (feature disabled)")
+            return {"renewed": 0, "failed": 0, "skipped": "feature_disabled"}
+
         now = datetime.now(timezone.utc)
         tomorrow = now + timedelta(days=1)
 

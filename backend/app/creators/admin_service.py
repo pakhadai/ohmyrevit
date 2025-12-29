@@ -2,10 +2,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from typing import List, Optional
 from datetime import datetime
+import logging
 
 from app.creators.models import CreatorApplication, CreatorPayout, CreatorTransaction, CreatorApplicationStatus, PayoutStatus
 from app.products.models import Product, ModerationStatus
 from app.users.models import User
+
+logger = logging.getLogger(__name__)
 
 
 class CreatorAdminService:
@@ -179,33 +182,53 @@ class CreatorAdminService:
 
     async def reject_payout(self, payout_id: int, reason: str) -> CreatorPayout:
         """Відхилити виплату та повернути баланс"""
-        payout = await self.db.get(CreatorPayout, payout_id)
-        if not payout:
-            raise ValueError("Payout not found")
+        try:
+            payout = await self.db.get(CreatorPayout, payout_id)
+            if not payout:
+                raise ValueError("Payout not found")
 
-        if payout.status != PayoutStatus.PENDING:
-            raise ValueError("Payout is not pending")
+            if payout.status != PayoutStatus.PENDING:
+                raise ValueError("Payout is not pending")
 
-        # Повернути баланс креатору
-        creator = await self.db.get(User, payout.creator_id)
-        if creator:
-            creator.creator_balance += payout.amount_coins
+            # Повернути баланс креатору
+            creator = await self.db.get(User, payout.creator_id)
+            if creator:
+                creator.creator_balance += payout.amount_coins
+            else:
+                logger.error(
+                    f"Creator {payout.creator_id} not found when rejecting "
+                    f"payout {payout_id}"
+                )
+                raise ValueError("Creator not found")
 
-        # Створити транзакцію повернення
-        refund_transaction = CreatorTransaction(
-            creator_id=payout.creator_id,
-            transaction_type="payout_refund",
-            amount_coins=payout.amount_coins,
-            description=f"Payout #{payout.id} rejected: {reason}"
-        )
-        self.db.add(refund_transaction)
+            # Створити транзакцію повернення
+            refund_transaction = CreatorTransaction(
+                creator_id=payout.creator_id,
+                transaction_type="payout_refund",
+                amount_coins=payout.amount_coins,
+                description=f"Payout #{payout.id} rejected: {reason}"
+            )
+            self.db.add(refund_transaction)
 
-        payout.status = PayoutStatus.REJECTED
-        payout.processed_at = datetime.utcnow()
+            payout.status = PayoutStatus.REJECTED
+            payout.processed_at = datetime.utcnow()
 
-        await self.db.commit()
-        await self.db.refresh(payout)
-        return payout
+            await self.db.commit()
+            await self.db.refresh(payout)
+
+            logger.info(
+                f"Payout {payout_id} rejected, balance {payout.amount_coins} "
+                f"returned to creator {payout.creator_id}"
+            )
+
+            return payout
+
+        except Exception as e:
+            logger.error(
+                f"Error rejecting payout {payout_id}: {str(e)}", exc_info=True
+            )
+            await self.db.rollback()
+            raise
 
     # ============ Statistics ============
 

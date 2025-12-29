@@ -7,11 +7,12 @@ from datetime import datetime, timezone
 import logging
 import json
 
-from app.products.models import Product, Category, ProductTranslation, ProductType
+from app.products.models import Product, Category, ProductTranslation, ProductType, ModerationStatus
 from app.products.translation_service import translation_service
 from app.products.schemas import ProductCreate, ProductUpdate, ProductFilter
 from app.core.cache import cache
 from app.core.translations import get_text
+from app.core.sanitize import sanitize_html, sanitize_text
 from app.subscriptions.models import Subscription, SubscriptionStatus, UserProductAccess, AccessType
 from app.core.telegram_service import telegram_service
 from app.users.models import User
@@ -48,11 +49,15 @@ class ProductService:
             db.add(product)
             await db.flush()
 
+            # КРИТИЧНО: Санітизуємо вхідний текст від XSS атак
+            safe_title = sanitize_text(product_data.title_uk)
+            safe_description = sanitize_html(product_data.description_uk)
+
             uk_translation = ProductTranslation(
                 product_id=product.id,
                 language_code='uk',
-                title=product_data.title_uk,
-                description=product_data.description_uk,
+                title=safe_title,
+                description=safe_description,
                 is_auto_translated=False
             )
             db.add(uk_translation)
@@ -92,8 +97,8 @@ class ProductService:
             background_tasks.add_task(
                 self._translate_product_background,
                 product.id,
-                product_data.title_uk,
-                product_data.description_uk
+                safe_title,
+                safe_description
             )
 
             await cache.delete_pattern("products_list:*")
@@ -174,6 +179,10 @@ class ProductService:
         if not product:
             return None
 
+        # КРИТИЧНО: Перевіряємо статус модерації (захист від прямого доступу по ID)
+        if product.moderation_status not in [ModerationStatus.APPROVED, None]:
+            return None  # Повертаємо 404 для непублічних товарів
+
         translation = product.get_translation(language_code)
         if not translation:
             translation = product.get_translation('uk')
@@ -242,6 +251,14 @@ class ProductService:
             selectinload(Product.translations),
             selectinload(Product.categories).selectinload(Category.translations),
             selectinload(Product.author)
+        )
+
+        # КРИТИЧНО: Показуємо тільки схвалені товари (або legacy без статусу)
+        query = query.where(
+            or_(
+                Product.moderation_status == ModerationStatus.APPROVED,
+                Product.moderation_status.is_(None)  # Старі товари без модерації
+            )
         )
 
         if filters:
@@ -321,6 +338,15 @@ class ProductService:
                 })
 
         count_query = select(func.count(Product.id))
+
+        # КРИТИЧНО: Підраховуємо тільки схвалені товари
+        count_query = count_query.where(
+            or_(
+                Product.moderation_status == ModerationStatus.APPROVED,
+                Product.moderation_status.is_(None)
+            )
+        )
+
         if filters and filters.category_id:
             count_query = count_query.join(Product.categories).where(
                 Category.id == filters.category_id
@@ -412,20 +438,31 @@ class ProductService:
             title_to_translate = ""
             description_to_translate = ""
 
+            # КРИТИЧНО: Санітизуємо вхідний текст від XSS атак
             if uk_trans:
                 if update_data.title_uk:
-                    uk_trans.title = update_data.title_uk
+                    uk_trans.title = sanitize_text(update_data.title_uk)
                 if update_data.description_uk:
-                    uk_trans.description = update_data.description_uk
+                    uk_trans.description = sanitize_html(
+                        update_data.description_uk
+                    )
 
                 title_to_translate = uk_trans.title
                 description_to_translate = uk_trans.description
             else:
+                safe_title = sanitize_text(
+                    update_data.title_uk or
+                    get_text("product_service_default_title", "uk")
+                )
+                safe_desc = sanitize_html(
+                    update_data.description_uk or
+                    get_text("product_service_default_description", "uk")
+                )
                 uk_trans = ProductTranslation(
                     product_id=product.id,
                     language_code='uk',
-                    title=update_data.title_uk or get_text("product_service_default_title", "uk"),
-                    description=update_data.description_uk or get_text("product_service_default_description", "uk"),
+                    title=safe_title,
+                    description=safe_desc,
                     is_auto_translated=False
                 )
                 db.add(uk_trans)

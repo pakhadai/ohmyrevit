@@ -100,6 +100,13 @@ class OrderService:
         if not products:
             raise ValueError(get_text("order_error_products_not_found", language_code))
 
+        # КРИТИЧНО: Забороняємо купівлю власних товарів (захист від wash trading)
+        for product in products:
+            if product.author_id == user_id:
+                translation = product.get_translation(language_code)
+                product_name = translation.title if translation else f"Product #{product.id}"
+                raise ValueError(f"Ви не можете купити власний товар: {product_name}")
+
         product_ids_list = [p.id for p in products]
         existing_access_query = (
             select(UserProductAccess)
@@ -146,6 +153,13 @@ class OrderService:
 
         user.balance -= final_coins
         new_balance = user.balance
+
+        # КРИТИЧНО: Перевіряємо що баланс не став від'ємним (race condition захист)
+        if user.balance < 0:
+            await self.db.rollback()
+            raise ValueError(
+                f"INSUFFICIENT_FUNDS|{final_coins}|{user.balance + final_coins}|{final_coins - (user.balance + final_coins)}"
+            )
 
         order = Order(
             user_id=user_id,
@@ -195,26 +209,44 @@ class OrderService:
             ))
 
         if discount_data["promo_code_id"]:
-            promo = await self.db.get(PromoCode, discount_data["promo_code_id"])
+            # Блокуємо промокод для запобігання race condition (перевищення max_uses)
+            promo_query = select(PromoCode).where(
+                PromoCode.id == discount_data["promo_code_id"]
+            ).with_for_update()
+            promo_result = await self.db.execute(promo_query)
+            promo = promo_result.scalar_one_or_none()
+
             if promo:
+                # Перевіряємо ліміт ПІСЛЯ блокування
+                if promo.max_uses and promo.current_uses >= promo.max_uses:
+                    await self.db.rollback()
+                    raise ValueError("Promo code usage limit reached")
+
                 promo.current_uses += 1
 
         # КРИТИЧНО: Нараховуємо комісії креаторам ДО commit
         # Якщо це впаде - вся транзакція скасується
         await self._process_creator_commissions(products, order.id, final_coins)
 
+        # КРИТИЧНО: Нараховуємо реферальні бонуси ДО commit
+        # Якщо це впаде - вся транзакція скасується (гарантія атомарності)
+        await self._process_referral_bonus(user, final_coins, order.id, language_code)
+
         await self.db.commit()
         await self.db.refresh(order)
 
-        try:
-            await self._process_referral_bonus(user, final_coins, order.id, language_code)
-        except Exception as e:
-            logger.error(f"Failed to process referral bonus: {e}")
-
+        # Відправляємо Telegram повідомлення ПІСЛЯ commit (не критично якщо впадуть)
         try:
             await self._send_purchase_notification(user, products, final_coins, new_balance, language_code)
         except Exception as e:
             logger.error(f"Failed to send purchase notification: {e}")
+
+        # Відправляємо повідомлення реферу (якщо є)
+        if user.referrer_id:
+            try:
+                await self._send_referral_notification(user, final_coins)
+            except Exception as e:
+                logger.error(f"Failed to send referral notification: {e}")
 
         logger.info(
             f"Order {order.id} created and paid: user={user_id}, "
@@ -262,6 +294,7 @@ class OrderService:
             order_id: int,
             language_code: str
     ):
+        """Нараховує реферальний бонус (викликається ДО commit)"""
         if not buyer.referrer_id:
             return
 
@@ -296,15 +329,8 @@ class OrderService:
         )
         self.db.add(referral_log)
 
-        await self.db.commit()
-
-        try:
-            await telegram_service.send_message(
-                referrer.telegram_id,
-                f"🎁 Ви отримали {bonus_coins} OMR Coins за покупку вашого реферала {buyer.first_name}!"
-            )
-        except Exception as e:
-            logger.error(f"Failed to notify referrer: {e}")
+        # НЕ робимо commit тут - це частина головної транзакції
+        # Telegram повідомлення відправимо ПІСЛЯ commit у create_order
 
     async def _process_creator_commissions(
             self,
@@ -371,6 +397,25 @@ class OrderService:
             f"Перейдіть в розділ 'Мої покупки' для завантаження."
         )
         await telegram_service.send_message(user.telegram_id, message)
+
+    async def _send_referral_notification(self, buyer: User, coins_spent: int):
+        """Відправити повідомлення реферу про бонус"""
+        from app.core.database import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as db:
+            referrer = await db.get(User, buyer.referrer_id)
+            if not referrer:
+                return
+
+            bonus_coins = int(coins_spent * settings.REFERRAL_PURCHASE_PERCENT)
+            if bonus_coins <= 0:
+                return
+
+            message = (
+                f"🎁 Ви отримали {bonus_coins} OMR Coins за покупку "
+                f"вашого реферала {buyer.first_name}!"
+            )
+            await telegram_service.send_message(referrer.telegram_id, message)
 
     async def process_successful_order(self, order_id: int) -> Order:
         order_res = await self.db.execute(

@@ -25,11 +25,13 @@ export default function ProductCard({ product }: ProductCardProps) {
   const { t } = useTranslation();
   const { checkAccess } = useAccessStore();
   const { favoritedProductIds } = useCollectionStore();
+  const { user } = useAuthStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const hasAccess = checkAccess(product.id) || product.product_type === 'free';
   const isFavorited = favoritedProductIds.has(product.id);
   const isInCart = items.some(item => item.id === product.id);
+  const isOwnProduct = user && product.author_id === user.id;
 
   const handleCartAction = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -228,7 +230,21 @@ export default function ProductCard({ product }: ProductCardProps) {
             </span>
           </div>
 
-          {hasAccess ? (
+          {isOwnProduct ? (
+            <Link
+              href={`/creator/products/${product.id}/edit`}
+              className="w-full py-2 flex items-center justify-center gap-1.5 font-medium text-sm transition-all active:scale-95"
+              style={{
+                backgroundColor: theme.colors.blue,
+                color: '#FFF',
+                borderRadius: theme.radius.lg,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Download size={14} />
+              <span>{t('productPage.editProduct') || 'Редагувати'}</span>
+            </Link>
+          ) : hasAccess ? (
             <button
               onClick={handleDownload}
               className="w-full py-2 flex items-center justify-center gap-1.5 font-medium text-sm transition-all active:scale-95"

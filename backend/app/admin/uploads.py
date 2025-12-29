@@ -1,5 +1,6 @@
 import aiofiles
 import magic
+import os
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from pathlib import Path
 import logging
@@ -17,6 +18,10 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
 ALLOWED_ARCHIVE_TYPES = ["application/zip", "application/x-rar-compressed", "application/x-7z-compressed"]
+
+# Максимальні розміри файлів (в байтах)
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_ARCHIVE_SIZE = 500 * 1024 * 1024  # 500MB
 
 # MIME-типи для реальної перевірки файлів
 ALLOWED_IMAGE_MIME = ["image/jpeg", "image/png", "image/webp"]
@@ -77,6 +82,13 @@ async def upload_image(
     # Читаємо файл
     content = await file.read()
 
+    # Перевірка розміру файлу
+    if len(content) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Image too large (max {MAX_IMAGE_SIZE // 1024 // 1024}MB)"
+        )
+
     # Перевірка 1: Content-Type header (швидка, але ненадійна)
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
@@ -87,7 +99,9 @@ async def upload_image(
     # Перевірка 2: Реальний вміст файлу через magic bytes (надійна)
     validate_file_type(content, ALLOWED_IMAGE_MIME, file.filename)
 
-    file_path = UPLOAD_DIR / "images" / file.filename
+    # Захист від Path Traversal: використовуємо тільки базове ім'я файлу
+    safe_filename = os.path.basename(file.filename)
+    file_path = UPLOAD_DIR / "images" / safe_filename
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -100,7 +114,7 @@ async def upload_image(
             detail=get_text("admin_upload_error_save_generic", lang)
         )
 
-    return {"file_path": f"/uploads/images/{file.filename}"}
+    return {"file_path": f"/uploads/images/{safe_filename}"}
 
 
 @router.post("/upload/archive", response_model=dict)
@@ -113,6 +127,13 @@ async def upload_archive(
     # Читаємо файл
     content = await file.read()
 
+    # Перевірка розміру файлу
+    if len(content) > MAX_ARCHIVE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Archive too large (max {MAX_ARCHIVE_SIZE // 1024 // 1024}MB)"
+        )
+
     # Перевірка 1: Content-Type header (швидка, але ненадійна)
     if file.content_type not in ALLOWED_ARCHIVE_TYPES:
         raise HTTPException(
@@ -123,7 +144,9 @@ async def upload_archive(
     # Перевірка 2: Реальний вміст файлу через magic bytes (надійна)
     validate_file_type(content, ALLOWED_ARCHIVE_MIME, file.filename)
 
-    file_path = UPLOAD_DIR / "archives" / file.filename
+    # Захист від Path Traversal: використовуємо тільки базове ім'я файлу
+    safe_filename = os.path.basename(file.filename)
+    file_path = UPLOAD_DIR / "archives" / safe_filename
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -136,4 +159,4 @@ async def upload_archive(
             detail=get_text("admin_upload_error_save_generic", lang)
         )
 
-    return {"file_path": f"/uploads/archives/{file.filename}"}
+    return {"file_path": f"/uploads/archives/{safe_filename}"}

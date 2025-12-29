@@ -179,11 +179,7 @@ export default function ProfilePage() {
         setIsDarkMode(tg.colorScheme === 'dark');
       });
 
-      // Налаштовуємо кнопку "Назад"
-      tg.BackButton.show();
-      tg.BackButton.onClick(() => {
-        router.back();
-      });
+      // BackButton керується глобально в AppProvider - не дублюємо тут
 
       // Розширюємо на весь екран
       tg.expand();
@@ -208,16 +204,6 @@ export default function ProfilePage() {
       return () => clearTimeout(timer);
     }
   }, [isHydrated]);
-
-  // Приховуємо кнопку "Назад" при розмонтуванні
-  useEffect(() => {
-    return () => {
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg) {
-        tg.BackButton.hide();
-      }
-    };
-  }, []);
 
   const { theme, isDark } = useTheme();
 

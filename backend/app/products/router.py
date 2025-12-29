@@ -188,6 +188,18 @@ async def update_product(
         db: AsyncSession = Depends(get_db),
         admin_user: User = Depends(require_admin)
 ):
+    # ВАЖЛИВО: Логуємо якщо адмін редагує товар креатора
+    from app.products.models import Product
+    import logging
+    logger = logging.getLogger(__name__)
+
+    existing_product = await db.get(Product, product_id)
+    if existing_product and existing_product.author_id:
+        logger.warning(
+            f"ADMIN_EDIT_CREATOR_PRODUCT: Admin {admin_user.id} ({admin_user.username}) "
+            f"editing creator product {product_id} (owner: {existing_product.author_id})"
+        )
+
     product = await product_service.update_product(
         product_id=product_id,
         update_data=update_data,

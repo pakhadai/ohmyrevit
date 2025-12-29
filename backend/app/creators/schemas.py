@@ -1,6 +1,7 @@
-from pydantic import BaseModel, HttpUrl, Field
+from pydantic import BaseModel, HttpUrl, Field, field_validator
 from typing import Optional
 from datetime import datetime
+import re
 from app.creators.models import CreatorApplicationStatus
 
 
@@ -55,6 +56,29 @@ class PayoutRequest(BaseModel):
     amount_coins: int = Field(..., gt=0, description="Кількість coins для виплати")
     usdt_address: str = Field(..., min_length=20, max_length=100, description="USDT адреса")
     usdt_network: str = Field(..., description="Мережа (TRC20, ERC20, BEP20)")
+
+    @field_validator('usdt_address')
+    @classmethod
+    def validate_usdt_address(cls, v: str, info) -> str:
+        """Валідація USDT адреси в залежності від мережі"""
+        # Отримуємо мережу з даних (якщо вже встановлена)
+        data = info.data if hasattr(info, 'data') else {}
+        network = data.get('usdt_network', '').upper()
+
+        if network == 'TRC20':
+            # Tron адреса: T + 33 символи base58
+            if not re.match(r'^T[A-Za-z1-9]{33}$', v):
+                raise ValueError('Invalid TRC20 address format (must start with T and be 34 characters)')
+        elif network in ['ERC20', 'BEP20']:
+            # Ethereum/BSC адреса: 0x + 40 hex символів
+            if not re.match(r'^0x[a-fA-F0-9]{40}$', v):
+                raise ValueError(f'Invalid {network} address format (must be 0x followed by 40 hex characters)')
+        elif network:
+            # Якщо мережа вказана, але не підтримується
+            if network not in ['TRC20', 'ERC20', 'BEP20']:
+                raise ValueError(f'Unsupported network: {network}. Must be TRC20, ERC20, or BEP20')
+
+        return v
 
 
 class PayoutResponse(BaseModel):

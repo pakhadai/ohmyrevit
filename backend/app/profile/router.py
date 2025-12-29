@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, status, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import datetime
@@ -242,7 +242,12 @@ async def download_product_file(
             detail=get_text("profile_download_server_error", lang)
         )
 
-    product.downloads_count += 1
+    # Атомарний інкремент лічильника завантажень (захист від race condition)
+    await db.execute(
+        update(Product)
+        .where(Product.id == product_id)
+        .values(downloads_count=Product.downloads_count + 1)
+    )
     await db.commit()
     media_type = get_archive_media_type(file_path.name)
     return FileResponse(str(file_path), filename=file_path.name, media_type=media_type)

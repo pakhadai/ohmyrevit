@@ -35,7 +35,7 @@ export default function ProductDetailPage() {
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
   const addItemToCart = useCartStore((state) => state.addItem);
-  const { isAuthenticated, token } = useAuthStore();
+  const { isAuthenticated, token, user } = useAuthStore();
   const { checkAccess, fetchAccessStatus } = useAccessStore();
   const { favoritedProductIds } = useCollectionStore();
   const { t } = useTranslation();
@@ -157,6 +157,7 @@ export default function ProductDetailPage() {
   const isFavorited = product ? favoritedProductIds.has(product.id) : false;
   const price = product ? Number(product.price) : 0;
   const salePrice = product?.sale_price ? Number(product.sale_price) : null;
+  const isOwnProduct = product && user ? product.author_id === user.id : false;
 
   if (loading) {
     return (
@@ -469,7 +470,20 @@ export default function ProductDetailPage() {
               className="pointer-events-auto max-w-4xl mx-auto"
               style={{ boxShadow: theme.shadows.xl }}
             >
-              {hasAccess ? (
+              {isOwnProduct ? (
+                <button
+                  onClick={() => router.push(`/creator/products/${product.id}/edit`)}
+                  className="w-full py-4 font-bold text-base flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                  style={{
+                    backgroundColor: theme.colors.blue,
+                    color: '#FFF',
+                    borderRadius: theme.radius.xl,
+                  }}
+                >
+                  <User size={20} />
+                  <span>{t('productPage.editProduct') || 'Редагувати товар'}</span>
+                </button>
+              ) : hasAccess ? (
                 <button
                   onClick={handleDownload}
                   className="w-full py-4 font-bold text-base flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
