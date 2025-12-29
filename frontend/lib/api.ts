@@ -524,3 +524,49 @@ export const creatorsAPI = {
     return getData(await api.get('/creators/stats/products'));
   },
 };
+
+// ============ Admin Creators API ============
+export const adminCreatorsAPI = {
+  // Applications moderation
+  getPendingApplications: async (params?: { limit?: number; offset?: number }) => {
+    return getData(await api.get('/admin/creators/applications/pending', { params }));
+  },
+
+  reviewApplication: async (applicationId: number, data: {
+    action: 'approve' | 'reject';
+    rejection_reason?: string;
+  }) => {
+    return getData(await api.post(`/admin/creators/applications/${applicationId}/review`, data));
+  },
+
+  // Payouts moderation
+  getPendingPayouts: async (params?: { limit?: number; offset?: number }) => {
+    return getData(await api.get('/admin/creators/payouts/pending', { params }));
+  },
+
+  approvePayout: async (payoutId: number, transactionHash: string) => {
+    return getData(await api.post(`/admin/creators/payouts/${payoutId}/approve`, {
+      transaction_hash: transactionHash,
+    }));
+  },
+
+  rejectPayout: async (payoutId: number, reason: string) => {
+    return getData(await api.post(`/admin/creators/payouts/${payoutId}/reject`, null, {
+      params: { reason },
+    }));
+  },
+
+  // Statistics
+  getModerationStats: async () => {
+    return getData(await api.get('/admin/creators/stats/moderation'));
+  },
+
+  getCommissionStats: async () => {
+    return getData(await api.get('/admin/creators/stats/commissions'));
+  },
+
+  // Creators list
+  getCreatorsList: async (params?: { limit?: number; offset?: number }) => {
+    return getData(await api.get('/admin/creators/list', { params }));
+  },
+};
