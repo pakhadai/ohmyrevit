@@ -15,6 +15,7 @@ import { useAccessStore } from '@/store/accessStore';
 import { useCollectionStore } from '@/store/collectionStore';
 import { useTranslation } from 'react-i18next';
 import AddToCollectionModal from '@/components/collections/AddToCollectionModal';
+import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { useTheme } from '@/lib/theme';
 
 export default function ProductDetailPage() {
@@ -138,6 +139,10 @@ export default function ProductDetailPage() {
     );
   }
 
+  const categoryName = product.categories && product.categories.length > 0
+    ? product.categories[0].name
+    : null;
+
   return (
     <div className="min-h-screen pb-32" style={{ background: theme.colors.bgGradient }}>
       <AnimatePresence>
@@ -145,7 +150,16 @@ export default function ProductDetailPage() {
       </AnimatePresence>
 
       <div className="max-w-4xl mx-auto px-5 pt-6">
-        <div className="flex items-center justify-between mb-6">
+        {/* Breadcrumbs */}
+        <Breadcrumbs
+          items={[
+            { label: t('marketplace.title') || 'Маркетплейс', href: '/marketplace' },
+            ...(categoryName ? [{ label: categoryName }] : []),
+            { label: product.title },
+          ]}
+        />
+
+        <div className="flex items-center justify-end mb-6 gap-2">
           <button
             onClick={() => router.back()}
             className="p-2.5 transition-colors"

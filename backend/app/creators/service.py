@@ -182,6 +182,8 @@ class CreatorService:
 
     async def get_creator_product_stats(self, user_id: int) -> dict:
         """Отримати статистику товарів креатора"""
+        from datetime import datetime, timedelta
+
         # Загальна кількість товарів
         total = await self.db.execute(
             select(func.count(Product.id))
@@ -218,6 +220,32 @@ class CreatorService:
         )
         total_sales, total_revenue = sales_result.one()
 
+        # Топ товари за переглядами
+        top_products_views = await self.db.execute(
+            select(Product.id, Product.title_uk, Product.views_count)
+            .where(and_(Product.author_id == user_id, Product.moderation_status == ModerationStatus.APPROVED))
+            .order_by(Product.views_count.desc())
+            .limit(5)
+        )
+
+        # Топ товари за завантаженнями
+        top_products_downloads = await self.db.execute(
+            select(Product.id, Product.title_uk, Product.downloads_count)
+            .where(and_(Product.author_id == user_id, Product.moderation_status == ModerationStatus.APPROVED))
+            .order_by(Product.downloads_count.desc())
+            .limit(5)
+        )
+
+        # Загальна статистика переглядів та завантажень
+        stats_result = await self.db.execute(
+            select(
+                func.sum(Product.views_count),
+                func.sum(Product.downloads_count)
+            )
+            .where(Product.author_id == user_id)
+        )
+        total_views, total_downloads = stats_result.one()
+
         return {
             "total_products": total.scalar() or 0,
             "draft_products": draft.scalar() or 0,
@@ -225,7 +253,17 @@ class CreatorService:
             "approved_products": approved.scalar() or 0,
             "rejected_products": rejected.scalar() or 0,
             "total_sales": total_sales or 0,
-            "total_revenue_coins": total_revenue or 0
+            "total_revenue_coins": total_revenue or 0,
+            "total_views": total_views or 0,
+            "total_downloads": total_downloads or 0,
+            "top_products_by_views": [
+                {"id": row[0], "title": row[1], "views": row[2] or 0}
+                for row in top_products_views.all()
+            ],
+            "top_products_by_downloads": [
+                {"id": row[0], "title": row[1], "downloads": row[2] or 0}
+                for row in top_products_downloads.all()
+            ]
         }
 
     # ============ Sales Commission System ============

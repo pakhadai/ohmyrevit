@@ -142,6 +142,13 @@ class CreatorProductResponse(BaseModel):
         from_attributes = True
 
 
+class TopProductItem(BaseModel):
+    """Топ товар"""
+    id: int
+    title: str
+    views: Optional[int] = 0
+    downloads: Optional[int] = 0
+
 class CreatorProductStats(BaseModel):
     """Статистика товару креатора"""
     total_products: int = 0
@@ -151,3 +158,7 @@ class CreatorProductStats(BaseModel):
     rejected_products: int = 0
     total_sales: int = 0
     total_revenue_coins: int = 0
+    total_views: int = 0
+    total_downloads: int = 0
+    top_products_by_views: list[TopProductItem] = []
+    top_products_by_downloads: list[TopProductItem] = []
