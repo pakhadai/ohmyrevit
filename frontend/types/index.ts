@@ -17,6 +17,7 @@ export interface User {
   photoUrl?: string;
   email?: string;
   isAdmin: boolean;
+  is_creator?: boolean;
   balance: number;
   bonusStreak: number;
   lastBonusClaimDate?: string;

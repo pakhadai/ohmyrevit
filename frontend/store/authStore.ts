@@ -43,6 +43,7 @@ const normalizeUser = (rawUser: any): User => {
     photoUrl: rawUser.photo_url ?? rawUser.photoUrl,
     languageCode: rawUser.language_code ?? rawUser.languageCode ?? 'uk',
     isAdmin: rawUser.is_admin ?? rawUser.isAdmin ?? false,
+    is_creator: rawUser.is_creator ?? rawUser.isCreator ?? false,
     balance: rawUser.balance ?? 0,
     bonusStreak: rawUser.bonus_streak ?? rawUser.bonusStreak ?? 0,
     lastBonusClaimDate: rawUser.last_bonus_claim_date ?? rawUser.lastBonusClaimDate,

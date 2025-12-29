@@ -191,12 +191,13 @@ class ProductService:
 
         author_name = None
         if product.author:
-            if product.author.full_name:
-                author_name = product.author.full_name
+            full_name = f"{product.author.first_name or ''} {product.author.last_name or ''}".strip()
+            if full_name:
+                author_name = full_name
             elif product.author.username:
                 author_name = product.author.username
             else:
-                author_name = f"{product.author.first_name or ''} {product.author.last_name or ''}".strip()
+                author_name = f"User {product.author.id}"
 
         response = {
             "id": product.id,
@@ -311,12 +312,13 @@ class ProductService:
             if translation:
                 author_name = None
                 if product.author:
-                    if product.author.full_name:
-                        author_name = product.author.full_name
+                    full_name = f"{product.author.first_name or ''} {product.author.last_name or ''}".strip()
+                    if full_name:
+                        author_name = full_name
                     elif product.author.username:
                         author_name = product.author.username
                     else:
-                        author_name = f"{product.author.first_name or ''} {product.author.last_name or ''}".strip()
+                        author_name = f"User {product.author.id}"
 
                 products_list.append({
                     "id": product.id,

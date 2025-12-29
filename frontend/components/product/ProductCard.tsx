@@ -158,32 +158,37 @@ export default function ProductCard({ product }: ProductCardProps) {
                   borderRadius: theme.radius.full,
                 }}
               >
-                <Star size={10} fill="currentColor" /> PRO
+                <Star size={10} fill="currentColor" /> Креатор
               </span>
+            </div>
+          )}
+
+          {/* Author Name on Image */}
+          {product.author_id && product.author_name && (
+            <div className="absolute bottom-2 left-2">
+              <Link
+                href={`/creator/${product.author_id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="px-2 py-1 text-[11px] font-medium backdrop-blur-md transition-all hover:scale-105"
+                style={{
+                  backgroundColor: 'rgba(0,0,0,0.6)',
+                  color: '#FFF',
+                  borderRadius: theme.radius.md,
+                }}
+              >
+                {product.author_name}
+              </Link>
             </div>
           )}
         </div>
 
         <div className="p-3 flex flex-col flex-grow">
           <h3
-            className="font-semibold text-sm leading-tight mb-1 line-clamp-2"
+            className="font-semibold text-sm leading-tight mb-2 line-clamp-2"
             style={{ color: theme.colors.text }}
           >
             {product.title}
           </h3>
-
-          {product.author_id && product.author_name && (
-            <Link
-              href={`/creator/${product.author_id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="text-[11px] mb-1 hover:underline"
-              style={{ color: theme.colors.textMuted }}
-            >
-              {product.author_name}
-            </Link>
-          )}
-
-          {!product.author_id && <div className="mb-1" />}
 
           {/* Rating Display */}
           {product.ratings_count > 0 && (
@@ -198,24 +203,36 @@ export default function ProductCard({ product }: ProductCardProps) {
           <div className="flex-grow" />
 
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-col">
               {product.is_on_sale && salePrice ? (
                 <>
-                  <span className="text-base font-bold" style={{ color: theme.colors.primary }}>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base font-bold" style={{ color: theme.colors.primary }}>
+                      {Math.round(salePrice * 100)} 💎
+                    </span>
+                    <span className="text-xs line-through" style={{ color: theme.colors.textMuted }}>
+                      {Math.round(price * 100)} 💎
+                    </span>
+                  </div>
+                  <span className="text-[10px]" style={{ color: theme.colors.textMuted }}>
                     ${salePrice.toFixed(2)}
-                  </span>
-                  <span className="text-xs line-through" style={{ color: theme.colors.textMuted }}>
-                    ${price.toFixed(2)}
                   </span>
                 </>
               ) : (
-                <span className="text-base font-bold" style={{ color: theme.colors.text }}>
+                <>
                   {price === 0 ? (
-                    <span style={{ color: theme.colors.success }}>FREE</span>
+                    <span className="text-base font-bold" style={{ color: theme.colors.success }}>FREE</span>
                   ) : (
-                    `$${price.toFixed(2)}`
+                    <>
+                      <span className="text-base font-bold" style={{ color: theme.colors.text }}>
+                        {Math.round(price * 100)} 💎
+                      </span>
+                      <span className="text-[10px]" style={{ color: theme.colors.textMuted }}>
+                        ${price.toFixed(2)}
+                      </span>
+                    </>
                   )}
-                </span>
+                </>
               )}
             </div>
             <span

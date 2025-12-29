@@ -144,15 +144,18 @@ async def get_pending_products(
     result = []
     for product in products:
         author = await db.get(User, product.author_id) if product.author_id else None
+        translation = product.get_translation("uk")
+        # Конвертуємо ціну в монети (1 USD = 100 coins)
+        price_coins = int(float(product.price) * 100) if product.price else 0
         result.append({
             "id": product.id,
-            "title": product.title_uk,  # За замовчуванням українська
-            "description": product.description_uk,
-            "price_coins": product.price_coins,
+            "title": translation.title if translation else "Untitled",
+            "description": translation.description if translation else "",
+            "price_coins": price_coins,
             "author_id": product.author_id,
             "author_name": f"{author.first_name} {author.last_name or ''}".strip() if author else "Unknown",
-            "file_url": product.file_url,
-            "images": product.images or [],
+            "file_url": product.zip_file_path,
+            "images": product.gallery_image_urls or [],
             "created_at": product.created_at
         })
 

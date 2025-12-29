@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { creatorsAPI } from '@/lib/api';
 import { MARKETPLACE_ENABLED } from '@/lib/features';
+import { useTheme } from '@/lib/theme';
 
 interface CreatorBalance {
   balance_coins: number;
@@ -12,6 +13,7 @@ interface CreatorBalance {
 
 export default function CreatorPayoutPage() {
   const router = useRouter();
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [balance, setBalance] = useState<CreatorBalance | null>(null);
@@ -93,19 +95,20 @@ export default function CreatorPayoutPage() {
 
   if (!MARKETPLACE_ENABLED || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Завантаження...</div>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: theme.colors.bgGradient }}>
+        <div style={{ color: theme.colors.text }} className="text-xl">Завантаження...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 p-6 pb-28">
+    <div className="min-h-screen p-6 pb-28" style={{ background: theme.colors.bgGradient }}>
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <button
           onClick={() => router.push('/creator/dashboard')}
-          className="text-purple-400 hover:text-purple-300 mb-6 flex items-center gap-2"
+          className="mb-6 flex items-center gap-2 transition-colors hover:opacity-80"
+          style={{ color: theme.colors.purple }}
         >
           ← Назад до дашборду
         </button>
@@ -114,26 +117,40 @@ export default function CreatorPayoutPage() {
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             Запит на виплату
           </h1>
-          <p className="text-slate-400">Виведіть свій заробіток у USDT</p>
+          <p style={{ color: theme.colors.textSecondary }}>Виведіть свій заробіток у USDT</p>
         </div>
 
         {/* Balance Card */}
-        <div className="bg-gradient-to-br from-green-900/50 to-slate-800/50 backdrop-blur-sm border border-green-500/20 rounded-2xl p-6 mb-8">
-          <div className="text-slate-400 mb-2">Доступний баланс</div>
-          <div className="text-4xl font-bold text-white mb-1">
+        <div
+          className="backdrop-blur-sm p-6 mb-8"
+          style={{
+            background: `linear-gradient(to bottom right, ${theme.colors.green}50, ${theme.colors.card}80)`,
+            border: `1px solid ${theme.colors.green}30`,
+            borderRadius: theme.radius['2xl']
+          }}
+        >
+          <div style={{ color: theme.colors.textSecondary }} className="mb-2">Доступний баланс</div>
+          <div className="text-4xl font-bold mb-1" style={{ color: theme.colors.text }}>
             {balance?.balance_coins.toLocaleString('uk-UA')} 💎
           </div>
-          <div className="text-2xl text-green-400">
+          <div className="text-2xl" style={{ color: theme.colors.green }}>
             ${balance?.balance_usd.toFixed(2)}
           </div>
         </div>
 
         {/* Form */}
-        <div className="bg-slate-800/50 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-8">
+        <div
+          className="backdrop-blur-sm p-8"
+          style={{
+            backgroundColor: theme.colors.card + '80',
+            border: `1px solid ${theme.colors.purple}30`,
+            borderRadius: theme.radius['2xl']
+          }}
+        >
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Amount */}
             <div>
-              <label className="block text-slate-300 mb-2 font-medium">
+              <label className="block mb-2 font-medium" style={{ color: theme.colors.text }}>
                 Сума виплати (в монетах)
               </label>
               <div className="relative">
@@ -144,19 +161,25 @@ export default function CreatorPayoutPage() {
                   placeholder="3000"
                   min={MIN_PAYOUT}
                   max={balance?.balance_coins || 0}
-                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full px-4 py-3 focus:outline-none transition-colors"
+                  style={{
+                    backgroundColor: theme.colors.surface + '80',
+                    border: `1px solid ${theme.colors.textMuted}40`,
+                    borderRadius: theme.radius.lg,
+                    color: theme.colors.text
+                  }}
                   required
                 />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">
+                <div className="absolute right-4 top-1/2 -translate-y-1/2" style={{ color: theme.colors.textMuted }}>
                   💎
                 </div>
               </div>
               {amountCoins && parseInt(amountCoins) >= MIN_PAYOUT && (
-                <div className="mt-2 text-green-400 text-sm">
+                <div className="mt-2 text-sm" style={{ color: theme.colors.green }}>
                   ≈ ${calculateUsd(parseInt(amountCoins))} USDT
                 </div>
               )}
-              <p className="text-slate-500 text-sm mt-2">
+              <p className="text-sm mt-2" style={{ color: theme.colors.textMuted }}>
                 Мінімум: {MIN_PAYOUT.toLocaleString('uk-UA')} монет ($30)
               </p>
             </div>
@@ -167,7 +190,12 @@ export default function CreatorPayoutPage() {
                 type="button"
                 onClick={() => setAmountCoins('3000')}
                 disabled={(balance?.balance_coins || 0) < 3000}
-                className="py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="py-2 transition-all hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.text,
+                  borderRadius: theme.radius.lg
+                }}
               >
                 $30
               </button>
@@ -175,7 +203,12 @@ export default function CreatorPayoutPage() {
                 type="button"
                 onClick={() => setAmountCoins('5000')}
                 disabled={(balance?.balance_coins || 0) < 5000}
-                className="py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="py-2 transition-all hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.text,
+                  borderRadius: theme.radius.lg
+                }}
               >
                 $50
               </button>
@@ -183,7 +216,12 @@ export default function CreatorPayoutPage() {
                 type="button"
                 onClick={() => setAmountCoins(String(balance?.balance_coins || 0))}
                 disabled={(balance?.balance_coins || 0) < MIN_PAYOUT}
-                className="py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="py-2 transition-all hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.text,
+                  borderRadius: theme.radius.lg
+                }}
               >
                 Все
               </button>
@@ -191,7 +229,7 @@ export default function CreatorPayoutPage() {
 
             {/* USDT Address */}
             <div>
-              <label className="block text-slate-300 mb-2 font-medium">
+              <label className="block mb-2 font-medium" style={{ color: theme.colors.text }}>
                 USDT адреса гаманця
               </label>
               <input
@@ -199,17 +237,23 @@ export default function CreatorPayoutPage() {
                 value={usdtAddress}
                 onChange={(e) => setUsdtAddress(e.target.value)}
                 placeholder="T..."
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors font-mono text-sm"
+                className="w-full px-4 py-3 focus:outline-none transition-colors font-mono text-sm"
+                style={{
+                  backgroundColor: theme.colors.surface + '80',
+                  border: `1px solid ${theme.colors.textMuted}40`,
+                  borderRadius: theme.radius.lg,
+                  color: theme.colors.text
+                }}
                 required
               />
-              <p className="text-slate-500 text-sm mt-2">
+              <p className="text-sm mt-2" style={{ color: theme.colors.textMuted }}>
                 Введіть адресу вашого USDT гаманця
               </p>
             </div>
 
             {/* Network Selection */}
             <div>
-              <label className="block text-slate-300 mb-2 font-medium">
+              <label className="block mb-2 font-medium" style={{ color: theme.colors.text }}>
                 Мережа
               </label>
               <div className="grid grid-cols-3 gap-3">
@@ -218,18 +262,28 @@ export default function CreatorPayoutPage() {
                     key={network}
                     type="button"
                     onClick={() => setUsdtNetwork(network)}
-                    className={`py-3 rounded-lg font-medium transition-all ${
-                      usdtNetwork === network
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                        : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
-                    }`}
+                    className="py-3 font-medium transition-all"
+                    style={{
+                      background: usdtNetwork === network
+                        ? `linear-gradient(to right, ${theme.colors.purple}, ${theme.colors.pink})`
+                        : theme.colors.surface,
+                      color: usdtNetwork === network ? '#FFFFFF' : theme.colors.textSecondary,
+                      borderRadius: theme.radius.lg
+                    }}
                   >
                     {network}
                   </button>
                 ))}
               </div>
-              <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                <p className="text-blue-400 text-sm">
+              <div
+                className="mt-3 p-3"
+                style={{
+                  backgroundColor: theme.colors.blueLight,
+                  border: `1px solid ${theme.colors.blue}30`,
+                  borderRadius: theme.radius.lg
+                }}
+              >
+                <p className="text-sm" style={{ color: theme.colors.blue }}>
                   {usdtNetwork === 'TRC20' && '⚡ TRON - Низькі комісії, швидко'}
                   {usdtNetwork === 'ERC20' && '🔷 Ethereum - Високі комісії'}
                   {usdtNetwork === 'BEP20' && '🟡 BSC - Середні комісії'}
@@ -238,14 +292,28 @@ export default function CreatorPayoutPage() {
             </div>
 
             {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-                <p className="text-red-400 text-sm">{error}</p>
+              <div
+                className="p-4"
+                style={{
+                  backgroundColor: theme.colors.errorLight,
+                  border: `1px solid ${theme.colors.error}30`,
+                  borderRadius: theme.radius.lg
+                }}
+              >
+                <p className="text-sm" style={{ color: theme.colors.error }}>{error}</p>
               </div>
             )}
 
             {success && (
-              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-                <p className="text-green-400 text-sm">
+              <div
+                className="p-4"
+                style={{
+                  backgroundColor: theme.colors.successLight,
+                  border: `1px solid ${theme.colors.success}30`,
+                  borderRadius: theme.radius.lg
+                }}
+              >
+                <p className="text-sm" style={{ color: theme.colors.success }}>
                   ✅ Запит на виплату успішно створено! Очікуйте обробки адміністратором.
                 </p>
               </div>
@@ -254,33 +322,42 @@ export default function CreatorPayoutPage() {
             <button
               type="submit"
               disabled={submitting || success || (balance?.balance_coins || 0) < MIN_PAYOUT}
-              className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-lg hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-green-500/50"
+              className="w-full py-4 font-bold transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: `linear-gradient(to right, ${theme.colors.green}, #10B981)`,
+                color: '#FFFFFF',
+                borderRadius: theme.radius.lg,
+                boxShadow: theme.shadows.lg
+              }}
             >
               {submitting ? 'Відправка...' : '💸 Запитати виплату'}
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-700">
-            <h3 className="font-bold text-white mb-3">Важлива інформація:</h3>
-            <ul className="space-y-2 text-slate-300 text-sm">
+          <div
+            className="mt-6 pt-6"
+            style={{ borderTop: `1px solid ${theme.colors.textMuted}30` }}
+          >
+            <h3 className="font-bold mb-3" style={{ color: theme.colors.text }}>Важлива інформація:</h3>
+            <ul className="space-y-2 text-sm" style={{ color: theme.colors.text }}>
               <li className="flex items-start">
-                <span className="text-purple-400 mr-2">•</span>
+                <span className="mr-2" style={{ color: theme.colors.purple }}>•</span>
                 <span>Виплати обробляються вручну адміністратором протягом 24-48 годин</span>
               </li>
               <li className="flex items-start">
-                <span className="text-purple-400 mr-2">•</span>
+                <span className="mr-2" style={{ color: theme.colors.purple }}>•</span>
                 <span>Мінімальна сума для виплати: $30 (3000 монет)</span>
               </li>
               <li className="flex items-start">
-                <span className="text-purple-400 mr-2">•</span>
+                <span className="mr-2" style={{ color: theme.colors.purple }}>•</span>
                 <span>Перевірте правильність адреси - транзакції необоротні!</span>
               </li>
               <li className="flex items-start">
-                <span className="text-purple-400 mr-2">•</span>
+                <span className="mr-2" style={{ color: theme.colors.purple }}>•</span>
                 <span>Рекомендуємо TRC20 (TRON) для найнижчих комісій</span>
               </li>
               <li className="flex items-start">
-                <span className="text-purple-400 mr-2">•</span>
+                <span className="mr-2" style={{ color: theme.colors.purple }}>•</span>
                 <span>Комісія блокчейну сплачується платформою</span>
               </li>
             </ul>

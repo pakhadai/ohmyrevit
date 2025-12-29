@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from datetime import datetime
 import logging
@@ -85,6 +86,7 @@ class CreatorAdminService:
         query = (
             select(Product)
             .where(Product.moderation_status == ModerationStatus.PENDING)
+            .options(selectinload(Product.translations))
             .order_by(Product.created_at.asc())
             .limit(limit)
             .offset(offset)

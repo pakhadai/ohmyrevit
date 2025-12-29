@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { creatorsAPI } from '@/lib/api';
 import { MARKETPLACE_ENABLED } from '@/lib/features';
+import { useTheme } from '@/lib/theme';
 
 interface Transaction {
   id: number;
@@ -15,6 +16,7 @@ interface Transaction {
 
 export default function CreatorTransactionsPage() {
   const router = useRouter();
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -71,15 +73,15 @@ export default function CreatorTransactionsPage() {
   const getTransactionColor = (type: string) => {
     switch (type) {
       case 'sale':
-        return 'text-green-400';
+        return theme.colors.green;
       case 'commission':
-        return 'text-orange-400';
+        return theme.colors.orange;
       case 'payout':
-        return 'text-blue-400';
+        return theme.colors.blue;
       case 'payout_refund':
-        return 'text-yellow-400';
+        return theme.colors.yellow;
       default:
-        return 'text-slate-400';
+        return theme.colors.textMuted;
     }
   };
 
@@ -116,22 +118,22 @@ export default function CreatorTransactionsPage() {
   const getBgColor = (type: string) => {
     switch (type) {
       case 'sale':
-        return 'bg-green-500/10 border-green-500/20';
+        return { bg: theme.colors.greenLight, border: theme.colors.green + '30' };
       case 'commission':
-        return 'bg-orange-500/10 border-orange-500/20';
+        return { bg: theme.colors.orangeLight, border: theme.colors.orange + '30' };
       case 'payout':
-        return 'bg-blue-500/10 border-blue-500/20';
+        return { bg: theme.colors.blueLight, border: theme.colors.blue + '30' };
       case 'payout_refund':
-        return 'bg-yellow-500/10 border-yellow-500/20';
+        return { bg: theme.colors.yellowLight, border: theme.colors.yellow + '30' };
       default:
-        return 'bg-slate-900/50 border-slate-700';
+        return { bg: theme.colors.surface + '80', border: theme.colors.textMuted + '40' };
     }
   };
 
   if (!MARKETPLACE_ENABLED || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Завантаження...</div>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: theme.colors.bgGradient }}>
+        <div style={{ color: theme.colors.text }} className="text-xl">Завантаження...</div>
       </div>
     );
   }
@@ -153,12 +155,13 @@ export default function CreatorTransactionsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 p-6 pb-28">
+    <div className="min-h-screen p-6 pb-28" style={{ background: theme.colors.bgGradient }}>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <button
           onClick={() => router.push('/creator/dashboard')}
-          className="text-purple-400 hover:text-purple-300 mb-6 flex items-center gap-2"
+          className="mb-6 flex items-center gap-2 transition-colors hover:opacity-80"
+          style={{ color: theme.colors.purple }}
         >
           ← Назад до дашборду
         </button>
@@ -167,72 +170,125 @@ export default function CreatorTransactionsPage() {
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             Історія транзакцій
           </h1>
-          <p className="text-slate-400">Всі операції з вашим балансом</p>
+          <p style={{ color: theme.colors.textSecondary }}>Всі операції з вашим балансом</p>
         </div>
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-green-900/30 backdrop-blur-sm border border-green-500/20 rounded-xl p-4">
-            <div className="text-green-400 text-sm mb-1">Заroблено</div>
-            <div className="text-2xl font-bold text-white">
+          <div
+            className="backdrop-blur-sm p-4"
+            style={{
+              backgroundColor: theme.colors.greenLight,
+              border: `1px solid ${theme.colors.green}30`,
+              borderRadius: theme.radius.xl
+            }}
+          >
+            <div className="text-sm mb-1" style={{ color: theme.colors.green }}>Заroблено</div>
+            <div className="text-2xl font-bold" style={{ color: theme.colors.text }}>
               {formatCoins(stats.totalEarned)} 💎
             </div>
           </div>
-          <div className="bg-orange-900/30 backdrop-blur-sm border border-orange-500/20 rounded-xl p-4">
-            <div className="text-orange-400 text-sm mb-1">Комісія</div>
-            <div className="text-2xl font-bold text-white">
+          <div
+            className="backdrop-blur-sm p-4"
+            style={{
+              backgroundColor: theme.colors.orangeLight,
+              border: `1px solid ${theme.colors.orange}30`,
+              borderRadius: theme.radius.xl
+            }}
+          >
+            <div className="text-sm mb-1" style={{ color: theme.colors.orange }}>Комісія</div>
+            <div className="text-2xl font-bold" style={{ color: theme.colors.text }}>
               {formatCoins(stats.totalCommission)} 💎
             </div>
           </div>
-          <div className="bg-blue-900/30 backdrop-blur-sm border border-blue-500/20 rounded-xl p-4">
-            <div className="text-blue-400 text-sm mb-1">Виплачено</div>
-            <div className="text-2xl font-bold text-white">
+          <div
+            className="backdrop-blur-sm p-4"
+            style={{
+              backgroundColor: theme.colors.blueLight,
+              border: `1px solid ${theme.colors.blue}30`,
+              borderRadius: theme.radius.xl
+            }}
+          >
+            <div className="text-sm mb-1" style={{ color: theme.colors.blue }}>Виплачено</div>
+            <div className="text-2xl font-bold" style={{ color: theme.colors.text }}>
               {formatCoins(stats.totalPayout)} 💎
             </div>
           </div>
-          <div className="bg-purple-900/30 backdrop-blur-sm border border-purple-500/20 rounded-xl p-4">
-            <div className="text-purple-400 text-sm mb-1">Продажів</div>
-            <div className="text-2xl font-bold text-white">
+          <div
+            className="backdrop-blur-sm p-4"
+            style={{
+              backgroundColor: theme.colors.purpleLight,
+              border: `1px solid ${theme.colors.purple}30`,
+              borderRadius: theme.radius.xl
+            }}
+          >
+            <div className="text-sm mb-1" style={{ color: theme.colors.purple }}>Продажів</div>
+            <div className="text-2xl font-bold" style={{ color: theme.colors.text }}>
               {stats.salesCount}
             </div>
           </div>
         </div>
 
         {/* Transactions List */}
-        <div className="bg-slate-800/50 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-6">
+        <div
+          className="backdrop-blur-sm p-6"
+          style={{
+            backgroundColor: theme.colors.card + '80',
+            border: `1px solid ${theme.colors.purple}30`,
+            borderRadius: theme.radius['2xl']
+          }}
+        >
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6">
-              <p className="text-red-400 text-sm">{error}</p>
+            <div
+              className="p-4 mb-6"
+              style={{
+                backgroundColor: theme.colors.errorLight,
+                border: `1px solid ${theme.colors.error}30`,
+                borderRadius: theme.radius.lg
+              }}
+            >
+              <p className="text-sm" style={{ color: theme.colors.error }}>{error}</p>
             </div>
           )}
 
           {transactions.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
+            <div className="text-center py-12" style={{ color: theme.colors.textMuted }}>
               <div className="text-6xl mb-4">📊</div>
               <p>Поки що немає транзакцій</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {transactions.map((tx) => (
+              {transactions.map((tx) => {
+                const bgColors = getBgColor(tx.transaction_type);
+                return (
                 <div
                   key={tx.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border ${getBgColor(
-                    tx.transaction_type
-                  )}`}
+                  className="flex items-center justify-between p-4"
+                  style={{
+                    backgroundColor: bgColors.bg,
+                    border: `1px solid ${bgColors.border}`,
+                    borderRadius: theme.radius.lg
+                  }}
                 >
                   <div className="flex items-center gap-4 flex-1">
                     <div className="text-3xl">{getTransactionIcon(tx.transaction_type)}</div>
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-1">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${getTransactionColor(tx.transaction_type)}`}>
+                        <span
+                          className="px-2 py-0.5 text-xs font-medium"
+                          style={{
+                            color: getTransactionColor(tx.transaction_type),
+                            borderRadius: theme.radius.md
+                          }}
+                        >
                           {getTransactionLabel(tx.transaction_type)}
                         </span>
-                        <span className="text-slate-500 text-sm">
+                        <span className="text-sm" style={{ color: theme.colors.textMuted }}>
                           #{tx.id}
                         </span>
                       </div>
-                      <div className="text-white font-medium mb-1">{tx.description}</div>
-                      <div className="text-slate-500 text-sm">
+                      <div className="font-medium mb-1" style={{ color: theme.colors.text }}>{tx.description}</div>
+                      <div className="text-sm" style={{ color: theme.colors.textMuted }}>
                         {new Date(tx.created_at).toLocaleString('uk-UA', {
                           year: 'numeric',
                           month: 'long',
@@ -244,16 +300,17 @@ export default function CreatorTransactionsPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`text-xl font-bold ${getTransactionColor(tx.transaction_type)}`}>
+                    <div className="text-xl font-bold" style={{ color: getTransactionColor(tx.transaction_type) }}>
                       {tx.amount_coins > 0 ? '+' : ''}
                       {formatCoins(tx.amount_coins)} 💎
                     </div>
-                    <div className="text-slate-500 text-sm">
+                    <div className="text-sm" style={{ color: theme.colors.textMuted }}>
                       ${(Math.abs(tx.amount_coins) / 100).toFixed(2)}
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -263,7 +320,12 @@ export default function CreatorTransactionsPage() {
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-medium rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="px-6 py-3 font-medium transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  background: `linear-gradient(to right, ${theme.colors.purple}, ${theme.colors.pink})`,
+                  color: '#FFFFFF',
+                  borderRadius: theme.radius.lg
+                }}
               >
                 {loadingMore ? 'Завантаження...' : 'Завантажити ще'}
               </button>

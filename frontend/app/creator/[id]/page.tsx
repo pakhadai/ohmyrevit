@@ -57,6 +57,34 @@ export default function CreatorPublicProfilePage() {
     }
   };
 
+  // Hooks must be called before any conditional returns
+  const sortedProducts = useMemo(() => {
+    if (!profile?.products) return [];
+
+    const products = [...profile.products];
+
+    switch (sortBy) {
+      case 'newest':
+        return products.sort((a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      case 'popular':
+        return products.sort((a, b) =>
+          (b.views_count || 0) - (a.views_count || 0)
+        );
+      case 'price_asc':
+        return products.sort((a, b) => a.price - b.price);
+      case 'price_desc':
+        return products.sort((a, b) => b.price - a.price);
+      case 'downloads':
+        return products.sort((a, b) =>
+          (b.downloads_count || 0) - (a.downloads_count || 0)
+        );
+      default:
+        return products;
+    }
+  }, [profile?.products, sortBy]);
+
   if (!MARKETPLACE_ENABLED || loading) {
     return (
       <div
@@ -113,33 +141,6 @@ export default function CreatorPublicProfilePage() {
     year: 'numeric',
     month: 'long'
   });
-
-  const sortedProducts = useMemo(() => {
-    if (!profile?.products) return [];
-
-    const products = [...profile.products];
-
-    switch (sortBy) {
-      case 'newest':
-        return products.sort((a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-      case 'popular':
-        return products.sort((a, b) =>
-          (b.views_count || 0) - (a.views_count || 0)
-        );
-      case 'price_asc':
-        return products.sort((a, b) => a.price - b.price);
-      case 'price_desc':
-        return products.sort((a, b) => b.price - a.price);
-      case 'downloads':
-        return products.sort((a, b) =>
-          (b.downloads_count || 0) - (a.downloads_count || 0)
-        );
-      default:
-        return products;
-    }
-  }, [profile?.products, sortBy]);
 
   const handleShare = () => {
     const url = window.location.href;

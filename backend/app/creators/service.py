@@ -228,17 +228,17 @@ class CreatorService:
         )
         total_sales, total_revenue = sales_result.one()
 
-        # Топ товари за переглядами
+        # Топ товари за переглядами (без title, бо він в ProductTranslation)
         top_products_views = await self.db.execute(
-            select(Product.id, Product.title_uk, Product.views_count)
+            select(Product.id, Product.views_count)
             .where(and_(Product.author_id == user_id, Product.moderation_status == ModerationStatus.APPROVED))
             .order_by(Product.views_count.desc())
             .limit(5)
         )
 
-        # Топ товари за завантаженнями
+        # Топ товари за завантаженнями (без title, бо він в ProductTranslation)
         top_products_downloads = await self.db.execute(
-            select(Product.id, Product.title_uk, Product.downloads_count)
+            select(Product.id, Product.downloads_count)
             .where(and_(Product.author_id == user_id, Product.moderation_status == ModerationStatus.APPROVED))
             .order_by(Product.downloads_count.desc())
             .limit(5)
@@ -265,11 +265,11 @@ class CreatorService:
             "total_views": total_views or 0,
             "total_downloads": total_downloads or 0,
             "top_products_by_views": [
-                {"id": row[0], "title": row[1], "views": row[2] or 0}
+                {"id": row[0], "views": row[1] or 0}
                 for row in top_products_views.all()
             ],
             "top_products_by_downloads": [
-                {"id": row[0], "title": row[1], "downloads": row[2] or 0}
+                {"id": row[0], "downloads": row[1] or 0}
                 for row in top_products_downloads.all()
             ]
         }
@@ -330,7 +330,7 @@ class CreatorService:
             creator_id=product.author_id,
             transaction_type="sale",
             amount_coins=creator_earnings,
-            description=f"Продаж товару: {product.title_uk or product.title_en or f'Product #{product.id}'} (Комісія {commission_percent}%)",
+            description=f"Продаж товару #{product.id} (Комісія {commission_percent}%)",
             order_id=order_id,
             product_id=product_id
         )
@@ -450,12 +450,11 @@ class CreatorService:
     async def get_creator_products(self, creator_id: int, limit: int = 50, offset: int = 0):
         """Отримує список товарів креатора"""
         from app.products.models import Product
-        from sqlalchemy.orm import selectinload
 
         result = await self.db.execute(
             select(Product)
             .where(Product.author_id == creator_id)
-            .options(selectinload(Product.translations))
+            .options(selectinload(Product.translations), selectinload(Product.categories))
             .order_by(Product.created_at.desc())
             .limit(limit)
             .offset(offset)

@@ -578,6 +578,25 @@ export const creatorsAPI = {
   getCreatorPublicProfile: async (creatorId: number) => {
     return getData(await api.get(`/creators/${creatorId}/profile`));
   },
+
+  // File upload for creators
+  uploadImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/creators/upload/image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return getData(response);
+  },
+
+  uploadArchive: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/creators/upload/archive', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return getData(response);
+  },
 };
 
 // ============ Admin Creators API ============

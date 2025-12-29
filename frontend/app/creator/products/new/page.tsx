@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { creatorsAPI, productsAPI, adminAPI } from '@/lib/api';
 import { MARKETPLACE_ENABLED } from '@/lib/features';
+import { useTheme } from '@/lib/theme';
 
 interface Category {
   id: number;
@@ -13,6 +14,7 @@ interface Category {
 
 export default function CreateProductPage() {
   const router = useRouter();
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -91,7 +93,7 @@ export default function CreateProductPage() {
     setError('');
 
     try {
-      const response = await adminAPI.uploadImage(file);
+      const response = await creatorsAPI.uploadImage(file);
       setMainImageUrl(response.file_path);
     } catch (err: any) {
       setError('Не вдалося завантажити головне зображення');
@@ -142,7 +144,7 @@ export default function CreateProductPage() {
       const uploadedUrls = [];
 
       for (const file of files) {
-        const response = await adminAPI.uploadImage(file);
+        const response = await creatorsAPI.uploadImage(file);
         uploadedUrls.push(response.file_path);
       }
 
@@ -188,8 +190,9 @@ export default function CreateProductPage() {
     setError('');
 
     try {
-      const response = await adminAPI.uploadArchive(file);
+      const response = await creatorsAPI.uploadArchive(file);
       setZipFileUrl(response.file_path);
+      setZipFileSize(response.file_size_mb);
     } catch (err: any) {
       setError('Не вдалося завантажити ZIP файл');
       setZipFile(null);
@@ -266,19 +269,20 @@ export default function CreateProductPage() {
 
   if (!MARKETPLACE_ENABLED || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Завантаження...</div>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: theme.colors.bgGradient }}>
+        <div style={{ color: theme.colors.text }} className="text-xl">Завантаження...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 p-6 pb-28">
+    <div className="min-h-screen p-6 pb-28" style={{ background: theme.colors.bgGradient }}>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <button
           onClick={() => router.push('/creator/dashboard')}
-          className="text-purple-400 hover:text-purple-300 mb-6 flex items-center gap-2"
+          className="mb-6 flex items-center gap-2 transition-colors hover:opacity-80"
+          style={{ color: theme.colors.purple }}
         >
           ← Назад до дашборду
         </button>
@@ -287,7 +291,7 @@ export default function CreateProductPage() {
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             Створити новий товар
           </h1>
-          <p className="text-slate-400">
+          <p style={{ color: theme.colors.textSecondary }}>
             Додайте свій плагін для Revit на маркетплейс
           </p>
         </div>
@@ -295,13 +299,20 @@ export default function CreateProductPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Info */}
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-6">
-            <h2 className="text-2xl font-bold text-white mb-6">Основна інформація</h2>
+          <div
+            className="backdrop-blur-sm p-6"
+            style={{
+              backgroundColor: theme.colors.card + '80',
+              border: `1px solid ${theme.colors.purple}30`,
+              borderRadius: theme.radius['2xl']
+            }}
+          >
+            <h2 className="text-2xl font-bold mb-6" style={{ color: theme.colors.text }}>Основна інформація</h2>
 
             <div className="space-y-4">
               {/* Title */}
               <div>
-                <label className="block text-slate-300 mb-2 font-medium">
+                <label className="block mb-2 font-medium" style={{ color: theme.colors.textSecondary }}>
                   Назва товару *
                 </label>
                 <input
@@ -309,14 +320,22 @@ export default function CreateProductPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Наприклад: Автоматичне розміщення MEP"
-                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full px-4 py-3 focus:outline-none transition-colors"
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    border: `1px solid ${theme.colors.textMuted}40`,
+                    borderRadius: theme.radius.lg,
+                    color: theme.colors.text
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = theme.colors.purple}
+                  onBlur={(e) => e.target.style.borderColor = theme.colors.textMuted + '40'}
                   required
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-slate-300 mb-2 font-medium">
+                <label className="block mb-2 font-medium" style={{ color: theme.colors.textSecondary }}>
                   Опис товару *
                 </label>
                 <textarea
@@ -324,17 +343,25 @@ export default function CreateProductPage() {
                   onChange={(e) => setDescription(e.target.value)}
                   rows={6}
                   placeholder="Детальний опис функціоналу плагіна..."
-                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors resize-none"
+                  className="w-full px-4 py-3 focus:outline-none transition-colors resize-none"
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    border: `1px solid ${theme.colors.textMuted}40`,
+                    borderRadius: theme.radius.lg,
+                    color: theme.colors.text
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = theme.colors.purple}
+                  onBlur={(e) => e.target.style.borderColor = theme.colors.textMuted + '40'}
                   required
                 />
-                <p className="text-slate-500 text-sm mt-2">
+                <p className="text-sm mt-2" style={{ color: theme.colors.textMuted }}>
                   {description.length} символів (мінімум 10)
                 </p>
               </div>
 
               {/* Price */}
               <div>
-                <label className="block text-slate-300 mb-2 font-medium">
+                <label className="block mb-2 font-medium" style={{ color: theme.colors.textSecondary }}>
                   Ціна (USD) *
                 </label>
                 <input
@@ -344,17 +371,25 @@ export default function CreateProductPage() {
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   placeholder="2.00"
-                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full px-4 py-3 focus:outline-none transition-colors"
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    border: `1px solid ${theme.colors.textMuted}40`,
+                    borderRadius: theme.radius.lg,
+                    color: theme.colors.text
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = theme.colors.purple}
+                  onBlur={(e) => e.target.style.borderColor = theme.colors.textMuted + '40'}
                   required
                 />
-                <p className="text-slate-500 text-sm mt-2">
+                <p className="text-sm mt-2" style={{ color: theme.colors.textMuted }}>
                   Мінімальна ціна: $2.00. Ви отримаєте 85% від продажу.
                 </p>
               </div>
 
               {/* Compatibility */}
               <div>
-                <label className="block text-slate-300 mb-2 font-medium">
+                <label className="block mb-2 font-medium" style={{ color: theme.colors.textSecondary }}>
                   Сумісність з Revit
                 </label>
                 <input
@@ -362,26 +397,46 @@ export default function CreateProductPage() {
                   value={compatibility}
                   onChange={(e) => setCompatibility(e.target.value)}
                   placeholder="Наприклад: Revit 2020-2024"
-                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full px-4 py-3 focus:outline-none transition-colors"
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    border: `1px solid ${theme.colors.textMuted}40`,
+                    borderRadius: theme.radius.lg,
+                    color: theme.colors.text
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = theme.colors.purple}
+                  onBlur={(e) => e.target.style.borderColor = theme.colors.textMuted + '40'}
                 />
               </div>
             </div>
           </div>
 
           {/* Categories */}
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-6">
-            <h2 className="text-2xl font-bold text-white mb-6">Категорії</h2>
+          <div
+            className="backdrop-blur-sm p-6"
+            style={{
+              backgroundColor: theme.colors.card + '80',
+              border: `1px solid ${theme.colors.purple}30`,
+              borderRadius: theme.radius['2xl']
+            }}
+          >
+            <h2 className="text-2xl font-bold mb-6" style={{ color: theme.colors.text }}>Категорії</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {categories.map((category) => (
                 <button
                   key={category.id}
                   type="button"
                   onClick={() => toggleCategory(category.id)}
-                  className={`py-3 px-4 rounded-lg font-medium transition-all ${
-                    selectedCategories.includes(category.id)
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                      : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                  }`}
+                  className="py-3 px-4 font-medium transition-all hover:opacity-90"
+                  style={selectedCategories.includes(category.id) ? {
+                    background: `linear-gradient(to right, ${theme.colors.purple}, ${theme.colors.pink})`,
+                    color: '#FFFFFF',
+                    borderRadius: theme.radius.lg
+                  } : {
+                    backgroundColor: theme.colors.surface,
+                    color: theme.colors.textSecondary,
+                    borderRadius: theme.radius.lg
+                  }}
                 >
                   {category.name}
                 </button>
@@ -390,15 +445,23 @@ export default function CreateProductPage() {
           </div>
 
           {/* Main Image */}
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-6">
-            <h2 className="text-2xl font-bold text-white mb-6">Головне зображення *</h2>
+          <div
+            className="backdrop-blur-sm p-6"
+            style={{
+              backgroundColor: theme.colors.card + '80',
+              border: `1px solid ${theme.colors.purple}30`,
+              borderRadius: theme.radius['2xl']
+            }}
+          >
+            <h2 className="text-2xl font-bold mb-6" style={{ color: theme.colors.text }}>Головне зображення *</h2>
 
             {mainImagePreview ? (
               <div className="relative">
                 <img
                   src={mainImagePreview}
                   alt="Preview"
-                  className="w-full h-64 object-cover rounded-lg"
+                  className="w-full h-64 object-cover"
+                  style={{ borderRadius: theme.radius.lg }}
                 />
                 <button
                   type="button"
@@ -407,23 +470,40 @@ export default function CreateProductPage() {
                     setMainImagePreview('');
                     setMainImageUrl('');
                   }}
-                  className="absolute top-2 right-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                  className="absolute top-2 right-2 px-3 py-2 transition-colors hover:opacity-90"
+                  style={{
+                    backgroundColor: theme.colors.error,
+                    color: '#FFFFFF',
+                    borderRadius: theme.radius.lg
+                  }}
                 >
                   Видалити
                 </button>
                 {uploadingMain && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
-                    <div className="text-white">Завантаження...</div>
+                  <div
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      borderRadius: theme.radius.lg
+                    }}
+                  >
+                    <div style={{ color: theme.colors.text }}>Завантаження...</div>
                   </div>
                 )}
               </div>
             ) : (
-              <label className="block border-2 border-dashed border-slate-700 rounded-lg p-12 text-center cursor-pointer hover:border-purple-500 transition-colors">
+              <label
+                className="block border-2 border-dashed p-12 text-center cursor-pointer transition-colors hover:opacity-80"
+                style={{
+                  borderColor: theme.colors.textMuted + '60',
+                  borderRadius: theme.radius.lg
+                }}
+              >
                 <div className="text-4xl mb-2">📷</div>
-                <div className="text-white font-medium mb-2">
+                <div className="font-medium mb-2" style={{ color: theme.colors.text }}>
                   Натисніть щоб обрати зображення
                 </div>
-                <div className="text-slate-400 text-sm">PNG, JPG (макс. 5MB)</div>
+                <div className="text-sm" style={{ color: theme.colors.textSecondary }}>PNG, JPG (макс. 5MB)</div>
                 <input
                   type="file"
                   accept="image/*"
@@ -435,11 +515,18 @@ export default function CreateProductPage() {
           </div>
 
           {/* Gallery Images */}
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-6">
-            <h2 className="text-2xl font-bold text-white mb-6">
+          <div
+            className="backdrop-blur-sm p-6"
+            style={{
+              backgroundColor: theme.colors.card + '80',
+              border: `1px solid ${theme.colors.purple}30`,
+              borderRadius: theme.radius['2xl']
+            }}
+          >
+            <h2 className="text-2xl font-bold mb-6" style={{ color: theme.colors.text }}>
               Галерея зображень (опціонально)
             </h2>
-            <p className="text-slate-400 text-sm mb-4">Максимум 5 зображень</p>
+            <p className="text-sm mb-4" style={{ color: theme.colors.textSecondary }}>Максимум 5 зображень</p>
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
               {galleryPreviews.map((preview, index) => (
@@ -447,12 +534,18 @@ export default function CreateProductPage() {
                   <img
                     src={preview}
                     alt={`Gallery ${index + 1}`}
-                    className="w-full h-32 object-cover rounded-lg"
+                    className="w-full h-32 object-cover"
+                    style={{ borderRadius: theme.radius.lg }}
                   />
                   <button
                     type="button"
                     onClick={() => removeGalleryImage(index)}
-                    className="absolute top-1 right-1 px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                    className="absolute top-1 right-1 px-2 py-1 text-xs transition-colors hover:opacity-90"
+                    style={{
+                      backgroundColor: theme.colors.error,
+                      color: '#FFFFFF',
+                      borderRadius: theme.radius.md
+                    }}
                   >
                     ✕
                   </button>
@@ -461,9 +554,15 @@ export default function CreateProductPage() {
             </div>
 
             {galleryImages.length < 5 && (
-              <label className="block border-2 border-dashed border-slate-700 rounded-lg p-8 text-center cursor-pointer hover:border-purple-500 transition-colors">
+              <label
+                className="block border-2 border-dashed p-8 text-center cursor-pointer transition-colors hover:opacity-80"
+                style={{
+                  borderColor: theme.colors.textMuted + '60',
+                  borderRadius: theme.radius.lg
+                }}
+              >
                 <div className="text-2xl mb-2">📸</div>
-                <div className="text-white font-medium">Додати зображення</div>
+                <div className="font-medium" style={{ color: theme.colors.text }}>Додати зображення</div>
                 <input
                   type="file"
                   accept="image/*"
@@ -475,21 +574,35 @@ export default function CreateProductPage() {
             )}
 
             {uploadingGallery && (
-              <div className="text-center text-purple-400 mt-4">
+              <div className="text-center mt-4" style={{ color: theme.colors.purple }}>
                 Завантаження зображень...
               </div>
             )}
           </div>
 
           {/* ZIP File */}
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-6">
-            <h2 className="text-2xl font-bold text-white mb-6">ZIP файл плагіна *</h2>
+          <div
+            className="backdrop-blur-sm p-6"
+            style={{
+              backgroundColor: theme.colors.card + '80',
+              border: `1px solid ${theme.colors.purple}30`,
+              borderRadius: theme.radius['2xl']
+            }}
+          >
+            <h2 className="text-2xl font-bold mb-6" style={{ color: theme.colors.text }}>ZIP файл плагіна *</h2>
 
             {zipFile ? (
-              <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 flex items-center justify-between">
+              <div
+                className="p-4 flex items-center justify-between"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  border: `1px solid ${theme.colors.textMuted}40`,
+                  borderRadius: theme.radius.lg
+                }}
+              >
                 <div>
-                  <div className="text-white font-medium">{zipFile.name}</div>
-                  <div className="text-slate-400 text-sm">
+                  <div className="font-medium" style={{ color: theme.colors.text }}>{zipFile.name}</div>
+                  <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
                     {zipFileSize.toFixed(2)} MB
                   </div>
                 </div>
@@ -500,18 +613,29 @@ export default function CreateProductPage() {
                     setZipFileUrl('');
                     setZipFileSize(0);
                   }}
-                  className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                  className="px-3 py-2 transition-colors hover:opacity-90"
+                  style={{
+                    backgroundColor: theme.colors.error,
+                    color: '#FFFFFF',
+                    borderRadius: theme.radius.lg
+                  }}
                 >
                   Видалити
                 </button>
               </div>
             ) : (
-              <label className="block border-2 border-dashed border-slate-700 rounded-lg p-12 text-center cursor-pointer hover:border-purple-500 transition-colors">
+              <label
+                className="block border-2 border-dashed p-12 text-center cursor-pointer transition-colors hover:opacity-80"
+                style={{
+                  borderColor: theme.colors.textMuted + '60',
+                  borderRadius: theme.radius.lg
+                }}
+              >
                 <div className="text-4xl mb-2">📦</div>
-                <div className="text-white font-medium mb-2">
+                <div className="font-medium mb-2" style={{ color: theme.colors.text }}>
                   Натисніть щоб обрати ZIP файл
                 </div>
-                <div className="text-slate-400 text-sm">Максимум 10 MB</div>
+                <div className="text-sm" style={{ color: theme.colors.textSecondary }}>Максимум 10 MB</div>
                 <input
                   type="file"
                   accept=".zip"
@@ -522,7 +646,7 @@ export default function CreateProductPage() {
             )}
 
             {uploadingZip && (
-              <div className="text-center text-purple-400 mt-4">
+              <div className="text-center mt-4" style={{ color: theme.colors.purple }}>
                 Завантаження файлу...
               </div>
             )}
@@ -530,14 +654,28 @@ export default function CreateProductPage() {
 
           {/* Error/Success Messages */}
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-              <p className="text-red-400 text-sm">{error}</p>
+            <div
+              className="p-4"
+              style={{
+                backgroundColor: theme.colors.errorLight,
+                border: `1px solid ${theme.colors.error}30`,
+                borderRadius: theme.radius.lg
+              }}
+            >
+              <p className="text-sm" style={{ color: theme.colors.error }}>{error}</p>
             </div>
           )}
 
           {success && (
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-              <p className="text-green-400 text-sm">
+            <div
+              className="p-4"
+              style={{
+                backgroundColor: theme.colors.successLight,
+                border: `1px solid ${theme.colors.success}30`,
+                borderRadius: theme.radius.lg
+              }}
+            >
+              <p className="text-sm" style={{ color: theme.colors.success }}>
                 ✅ Товар успішно створено! Перенаправляємо...
               </p>
             </div>
@@ -555,12 +693,18 @@ export default function CreateProductPage() {
               !mainImageUrl ||
               !zipFileUrl
             }
-            className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-500/50"
+            className="w-full py-4 font-bold transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              background: `linear-gradient(to right, ${theme.colors.purple}, ${theme.colors.pink})`,
+              color: '#FFFFFF',
+              borderRadius: theme.radius.lg,
+              boxShadow: theme.shadows.lg
+            }}
           >
             {submitting ? 'Створення...' : '➕ Створити товар (чернетка)'}
           </button>
 
-          <div className="text-center text-slate-400 text-sm">
+          <div className="text-center text-sm" style={{ color: theme.colors.textSecondary }}>
             Товар буде створено як чернетка. Ви зможете відправити його на модерацію пізніше.
           </div>
         </form>

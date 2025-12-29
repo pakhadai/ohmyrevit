@@ -2,8 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { creatorsAPI } from '@/lib/api';
 import { MARKETPLACE_ENABLED } from '@/lib/features';
+import { useTheme } from '@/lib/theme';
+import {
+  DollarSign, Package, TrendingUp, Eye, Download,
+  Clock, CheckCircle, XCircle, FileText, ArrowRight,
+  Wallet, BarChart3, Plus, AlertCircle
+} from 'lucide-react';
 
 interface CreatorBalance {
   balance_coins: number;
@@ -21,6 +28,10 @@ interface ProductStats {
   rejected_products: number;
   total_sales: number;
   total_revenue_coins: number;
+  total_views: number;
+  total_downloads: number;
+  top_products_by_views: Array<{ id: number; views: number }>;
+  top_products_by_downloads: Array<{ id: number; downloads: number }>;
 }
 
 interface Transaction {
@@ -33,6 +44,8 @@ interface Transaction {
 
 export default function CreatorDashboardPage() {
   const router = useRouter();
+  const { theme, isDark } = useTheme();
+
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState<CreatorBalance | null>(null);
   const [stats, setStats] = useState<ProductStats | null>(null);
@@ -60,7 +73,6 @@ export default function CreatorDashboardPage() {
       setTransactions(transactionsData);
     } catch (err: any) {
       if (err.response?.status === 403) {
-        // Не є креатором
         router.push('/become-creator');
       } else {
         setError('Не вдалося завантажити дані');
@@ -72,220 +84,413 @@ export default function CreatorDashboardPage() {
 
   if (!MARKETPLACE_ENABLED || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Завантаження...</div>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: theme.colors.bgGradient }}>
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: theme.colors.purpleLight }}>
+            <div className="animate-spin w-8 h-8 border-4 border-current rounded-full"
+              style={{ borderTopColor: 'transparent', color: theme.colors.purple }} />
+          </div>
+          <p style={{ color: theme.colors.text }}>Завантаження...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-6 text-center">
-            <p className="text-red-400">{error}</p>
+      <div className="min-h-screen p-6" style={{ background: theme.colors.bgGradient }}>
+        <div className="max-w-4xl mx-auto pt-20">
+          <div className="p-6 rounded-[24px] text-center"
+            style={{
+              backgroundColor: theme.colors.errorLight,
+              border: `1px solid ${theme.colors.error}`,
+            }}>
+            <AlertCircle size={48} style={{ color: theme.colors.error }} className="mx-auto mb-4" />
+            <p style={{ color: theme.colors.error }}>{error}</p>
           </div>
         </div>
       </div>
     );
   }
 
-  const formatCoins = (coins: number) => {
-    return coins.toLocaleString('uk-UA');
-  };
+  const formatCoins = (coins: number) => coins.toLocaleString('uk-UA');
 
-  const getTransactionColor = (type: string) => {
-    switch (type) {
-      case 'sale':
-        return 'text-green-400';
-      case 'commission':
-        return 'text-orange-400';
-      case 'payout':
-        return 'text-blue-400';
-      case 'payout_refund':
-        return 'text-yellow-400';
-      default:
-        return 'text-slate-400';
-    }
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('uk-UA', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
-      case 'sale':
-        return '💰';
-      case 'commission':
-        return '📊';
-      case 'payout':
-        return '💸';
-      case 'payout_refund':
-        return '↩️';
-      default:
-        return '•';
+      case 'sale': return <TrendingUp size={16} style={{ color: theme.colors.success }} />;
+      case 'payout': return <Wallet size={16} style={{ color: theme.colors.info }} />;
+      case 'commission': return <DollarSign size={16} style={{ color: theme.colors.warning }} />;
+      default: return <DollarSign size={16} style={{ color: theme.colors.textMuted }} />;
+    }
+  };
+
+  const getTransactionColor = (type: string) => {
+    switch (type) {
+      case 'sale': return theme.colors.success;
+      case 'payout': return theme.colors.info;
+      case 'commission': return theme.colors.warning;
+      default: return theme.colors.text;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 p-6 pb-28">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen p-6" style={{ background: theme.colors.bgGradient }}>
+      <div className="max-w-7xl mx-auto pt-8 pb-24">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Дашборд креатора
+          <h1 className="text-4xl font-bold mb-2" style={{ color: theme.colors.text }}>
+            Кабінет креатора
           </h1>
-          <p className="text-slate-400">Статистика продажів та баланс</p>
+          <p style={{ color: theme.colors.textSecondary }}>
+            Керуйте своїми товарами та переглядайте статистику
+          </p>
         </div>
 
-        {/* Balance Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-purple-900/50 to-slate-800/50 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-6">
-            <div className="text-slate-400 mb-2">Доступний баланс</div>
-            <div className="text-3xl font-bold text-white mb-1">
-              {formatCoins(balance?.balance_coins || 0)} 💎
-            </div>
-            <div className="text-lg text-slate-300">
-              ${balance?.balance_usd.toFixed(2)}
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-green-900/50 to-slate-800/50 backdrop-blur-sm border border-green-500/20 rounded-2xl p-6">
-            <div className="text-slate-400 mb-2">Усього заробленo</div>
-            <div className="text-3xl font-bold text-white mb-1">
-              {formatCoins(balance?.total_earned_coins || 0)} 💎
-            </div>
-            <div className="text-lg text-slate-300">
-              {balance?.total_sales || 0} продажів
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-blue-900/50 to-slate-800/50 backdrop-blur-sm border border-blue-500/20 rounded-2xl p-6">
-            <div className="text-slate-400 mb-2">Очікується</div>
-            <div className="text-3xl font-bold text-white mb-1">
-              {formatCoins(balance?.pending_coins || 0)} 💎
-            </div>
-            <div className="text-sm text-slate-400">
-              Товари на модерації
-            </div>
-          </div>
-        </div>
-
-        {/* Product Stats */}
-        <div className="bg-slate-800/50 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-6 mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6">Товари</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-white mb-1">
-                {stats?.total_products || 0}
+        {/* Balance Card */}
+        <div
+          className="rounded-[32px] p-8 mb-8 relative overflow-hidden"
+          style={{
+            background: `linear-gradient(135deg, ${theme.colors.purple} 0%, ${theme.colors.pink} 100%)`,
+            boxShadow: theme.shadows.xl,
+          }}
+        >
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                <Wallet size={28} color="#FFFFFF" />
               </div>
-              <div className="text-slate-400 text-sm">Усього</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-400 mb-1">
-                {stats?.approved_products || 0}
-              </div>
-              <div className="text-slate-400 text-sm">Схвалено</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-yellow-400 mb-1">
-                {stats?.pending_products || 0}
-              </div>
-              <div className="text-slate-400 text-sm">На модерації</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-slate-500 mb-1">
-                {stats?.draft_products || 0}
-              </div>
-              <div className="text-slate-400 text-sm">Чернетки</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-red-400 mb-1">
-                {stats?.rejected_products || 0}
-              </div>
-              <div className="text-slate-400 text-sm">Відхилено</div>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-6 border-t border-slate-700">
-            <div className="flex justify-between items-center">
               <div>
-                <div className="text-slate-400 text-sm">Дохід з товарів</div>
-                <div className="text-2xl font-bold text-white">
-                  {formatCoins(stats?.total_revenue_coins || 0)} 💎
+                <p className="text-white/80 text-sm font-medium">Ваш баланс</p>
+                <p className="text-white text-3xl font-bold">
+                  {formatCoins(balance?.balance_coins || 0)} OMR
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="p-4 rounded-[20px]" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
+                <p className="text-white/70 text-xs mb-1">В доларах</p>
+                <p className="text-white text-xl font-bold">
+                  ${(balance?.balance_usd || 0).toFixed(2)}
+                </p>
+              </div>
+              <div className="p-4 rounded-[20px]" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
+                <p className="text-white/70 text-xs mb-1">Продажів</p>
+                <p className="text-white text-xl font-bold">
+                  {balance?.total_sales || 0}
+                </p>
+              </div>
+              <div className="p-4 rounded-[20px] col-span-2 md:col-span-1" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
+                <p className="text-white/70 text-xs mb-1">Заробіток</p>
+                <p className="text-white text-xl font-bold">
+                  {formatCoins(balance?.total_earned_coins || 0)} OMR
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <Link
+                href="/creator/payout"
+                className="flex-1 py-3 px-6 rounded-full font-semibold text-center transition-all hover:scale-105"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  color: theme.colors.purple,
+                }}
+              >
+                Вивести кошти
+              </Link>
+              <Link
+                href="/creator/transactions"
+                className="flex-1 py-3 px-6 rounded-full font-semibold text-center transition-all hover:scale-105"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  color: '#FFFFFF',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                }}
+              >
+                Історія
+              </Link>
+            </div>
+          </div>
+
+          {/* Background decoration */}
+          <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-20"
+            style={{
+              background: 'radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%)',
+              transform: 'translate(30%, -30%)',
+            }} />
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid md:grid-cols-3 gap-4 mb-8">
+          <Link
+            href="/creator/products"
+            className="p-6 rounded-[24px] transition-all hover:scale-105"
+            style={{
+              backgroundColor: theme.colors.card,
+              border: `1px solid ${theme.colors.border}`,
+              boxShadow: theme.shadows.md,
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-[16px] flex items-center justify-center"
+                style={{ backgroundColor: theme.colors.blueLight }}>
+                <Package size={24} style={{ color: theme.colors.blue }} />
+              </div>
+              <ArrowRight size={20} style={{ color: theme.colors.textMuted }} />
+            </div>
+            <p className="font-bold text-lg mb-1" style={{ color: theme.colors.text }}>
+              Мої товари
+            </p>
+            <p className="text-sm" style={{ color: theme.colors.textSecondary }}>
+              {stats?.total_products || 0} товарів
+            </p>
+          </Link>
+
+          <Link
+            href="/creator/products?action=create"
+            className="p-6 rounded-[24px] transition-all hover:scale-105"
+            style={{
+              backgroundColor: theme.colors.card,
+              border: `1px solid ${theme.colors.border}`,
+              boxShadow: theme.shadows.md,
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-[16px] flex items-center justify-center"
+                style={{ backgroundColor: theme.colors.successLight }}>
+                <Plus size={24} style={{ color: theme.colors.success }} />
+              </div>
+              <ArrowRight size={20} style={{ color: theme.colors.textMuted }} />
+            </div>
+            <p className="font-bold text-lg mb-1" style={{ color: theme.colors.text }}>
+              Новий товар
+            </p>
+            <p className="text-sm" style={{ color: theme.colors.textSecondary }}>
+              Завантажити плагін
+            </p>
+          </Link>
+
+          <div
+            className="p-6 rounded-[24px]"
+            style={{
+              backgroundColor: theme.colors.card,
+              border: `1px solid ${theme.colors.border}`,
+              boxShadow: theme.shadows.md,
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-[16px] flex items-center justify-center"
+                style={{ backgroundColor: theme.colors.purpleLight }}>
+                <BarChart3 size={24} style={{ color: theme.colors.purple }} />
+              </div>
+            </div>
+            <p className="font-bold text-lg mb-1" style={{ color: theme.colors.text }}>
+              Статистика
+            </p>
+            <div className="flex items-center gap-4 text-sm" style={{ color: theme.colors.textSecondary }}>
+              <span className="flex items-center gap-1">
+                <Eye size={14} /> {stats?.total_views || 0}
+              </span>
+              <span className="flex items-center gap-1">
+                <Download size={14} /> {stats?.total_downloads || 0}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-5 gap-8">
+          {/* Product Stats */}
+          <div className="lg:col-span-3">
+            <h2 className="text-2xl font-bold mb-4" style={{ color: theme.colors.text }}>
+              Статус товарів
+            </h2>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div
+                className="p-5 rounded-[24px]"
+                style={{
+                  backgroundColor: theme.colors.card,
+                  border: `1px solid ${theme.colors.border}`,
+                }}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <FileText size={20} style={{ color: theme.colors.textMuted }} />
+                  <p className="text-sm font-semibold" style={{ color: theme.colors.textSecondary }}>
+                    Чернетки
+                  </p>
+                </div>
+                <p className="text-3xl font-bold" style={{ color: theme.colors.text }}>
+                  {stats?.draft_products || 0}
+                </p>
+              </div>
+
+              <div
+                className="p-5 rounded-[24px]"
+                style={{
+                  backgroundColor: theme.colors.card,
+                  border: `1px solid ${theme.colors.border}`,
+                }}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <Clock size={20} style={{ color: theme.colors.warning }} />
+                  <p className="text-sm font-semibold" style={{ color: theme.colors.textSecondary }}>
+                    На модерації
+                  </p>
+                </div>
+                <p className="text-3xl font-bold" style={{ color: theme.colors.text }}>
+                  {stats?.pending_products || 0}
+                </p>
+              </div>
+
+              <div
+                className="p-5 rounded-[24px]"
+                style={{
+                  backgroundColor: theme.colors.card,
+                  border: `1px solid ${theme.colors.border}`,
+                }}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <CheckCircle size={20} style={{ color: theme.colors.success }} />
+                  <p className="text-sm font-semibold" style={{ color: theme.colors.textSecondary }}>
+                    Опубліковано
+                  </p>
+                </div>
+                <p className="text-3xl font-bold" style={{ color: theme.colors.text }}>
+                  {stats?.approved_products || 0}
+                </p>
+              </div>
+
+              <div
+                className="p-5 rounded-[24px]"
+                style={{
+                  backgroundColor: theme.colors.card,
+                  border: `1px solid ${theme.colors.border}`,
+                }}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <XCircle size={20} style={{ color: theme.colors.error }} />
+                  <p className="text-sm font-semibold" style={{ color: theme.colors.textSecondary }}>
+                    Відхилено
+                  </p>
+                </div>
+                <p className="text-3xl font-bold" style={{ color: theme.colors.text }}>
+                  {stats?.rejected_products || 0}
+                </p>
+              </div>
+            </div>
+
+            {/* Revenue Stats */}
+            <div
+              className="p-6 rounded-[24px]"
+              style={{
+                backgroundColor: theme.colors.card,
+                border: `1px solid ${theme.colors.border}`,
+              }}
+            >
+              <h3 className="text-lg font-bold mb-4" style={{ color: theme.colors.text }}>
+                Дохід
+              </h3>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <p className="text-sm mb-2" style={{ color: theme.colors.textSecondary }}>
+                    Всього продажів
+                  </p>
+                  <p className="text-2xl font-bold" style={{ color: theme.colors.success }}>
+                    {stats?.total_sales || 0}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm mb-2" style={{ color: theme.colors.textSecondary }}>
+                    Заробіток
+                  </p>
+                  <p className="text-2xl font-bold" style={{ color: theme.colors.purple }}>
+                    {formatCoins(stats?.total_revenue_coins || 0)} OMR
+                  </p>
                 </div>
               </div>
-              <button
-                onClick={() => router.push('/creator/products')}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all"
-              >
-                Мої товари
-              </button>
             </div>
           </div>
-        </div>
 
-        {/* Recent Transactions */}
-        <div className="bg-slate-800/50 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-6">
-          <h2 className="text-2xl font-bold text-white mb-6">Останні транзакції</h2>
+          {/* Recent Transactions */}
+          <div className="lg:col-span-2">
+            <h2 className="text-2xl font-bold mb-4" style={{ color: theme.colors.text }}>
+              Останні транзакції
+            </h2>
 
-          {transactions.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              <div className="text-6xl mb-4">📊</div>
-              <p>Поки що немає транзакцій</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {transactions.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center justify-between p-4 bg-slate-900/50 rounded-lg border border-slate-700"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="text-2xl">{getTransactionIcon(tx.transaction_type)}</div>
-                    <div>
-                      <div className="text-white font-medium">{tx.description}</div>
-                      <div className="text-slate-500 text-sm">
-                        {new Date(tx.created_at).toLocaleDateString('uk-UA')}
+            <div
+              className="rounded-[24px] p-4 space-y-2"
+              style={{
+                backgroundColor: theme.colors.card,
+                border: `1px solid ${theme.colors.border}`,
+              }}
+            >
+              {transactions.length === 0 ? (
+                <div className="text-center py-8">
+                  <p style={{ color: theme.colors.textMuted }}>
+                    Поки немає транзакцій
+                  </p>
+                </div>
+              ) : (
+                transactions.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="p-4 rounded-[16px] transition-all"
+                    style={{
+                      backgroundColor: theme.colors.surface,
+                      border: `1px solid ${theme.colors.border}`,
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="mt-1">
+                          {getTransactionIcon(tx.transaction_type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate" style={{ color: theme.colors.text }}>
+                            {tx.description}
+                          </p>
+                          <p className="text-xs mt-1" style={{ color: theme.colors.textMuted }}>
+                            {formatDate(tx.created_at)}
+                          </p>
+                        </div>
                       </div>
+                      <p
+                        className="font-bold text-sm whitespace-nowrap"
+                        style={{ color: getTransactionColor(tx.transaction_type) }}
+                      >
+                        {tx.amount_coins >= 0 ? '+' : ''}{formatCoins(tx.amount_coins)}
+                      </p>
                     </div>
                   </div>
-                  <div className={`text-lg font-bold ${getTransactionColor(tx.transaction_type)}`}>
-                    {tx.amount_coins > 0 ? '+' : ''}{formatCoins(tx.amount_coins)} 💎
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
+
+              {transactions.length > 0 && (
+                <Link
+                  href="/creator/transactions"
+                  className="block text-center py-3 mt-4 rounded-[16px] font-medium transition-all hover:scale-105"
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    color: theme.colors.purple,
+                  }}
+                >
+                  Переглянути всі
+                </Link>
+              )}
             </div>
-          )}
-
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => router.push('/creator/transactions')}
-              className="text-purple-400 hover:text-purple-300 transition-colors"
-            >
-              Переглянути всі транзакції →
-            </button>
           </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="mt-8 grid md:grid-cols-2 gap-4">
-          <button
-            onClick={() => router.push('/creator/payout')}
-            className="py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg"
-            disabled={(balance?.balance_coins || 0) < 3000}
-          >
-            💸 Запитати виплату
-            {(balance?.balance_coins || 0) < 3000 && (
-              <span className="block text-sm mt-1 opacity-80">
-                (Мінімум: 3000 монет / $30)
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => router.push('/creator/products/new')}
-            className="py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg"
-          >
-            ➕ Додати новий товар
-          </button>
         </div>
       </div>
     </div>
