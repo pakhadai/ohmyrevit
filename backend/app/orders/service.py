@@ -199,14 +199,12 @@ class OrderService:
             if promo:
                 promo.current_uses += 1
 
+        # КРИТИЧНО: Нараховуємо комісії креаторам ДО commit
+        # Якщо це впаде - вся транзакція скасується
+        await self._process_creator_commissions(products, order.id, final_coins)
+
         await self.db.commit()
         await self.db.refresh(order)
-
-        # Обробляємо комісії креаторів (якщо товари від креаторів)
-        try:
-            await self._process_creator_commissions(products, order.id, final_coins)
-        except Exception as e:
-            logger.error(f"Failed to process creator commissions: {e}")
 
         try:
             await self._process_referral_bonus(user, final_coins, order.id, language_code)

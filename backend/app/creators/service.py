@@ -336,8 +336,12 @@ class CreatorService:
         )
         self.db.add(platform_transaction)
 
-        await self.db.commit()
-        await self.db.refresh(transaction)
+        # КРИТИЧНО: НЕ робимо commit тут!
+        # Це має бути частиною транзакції замовлення в OrderService
+        # Якщо тут зробити commit, а далі щось впаде - креатор отримає гроші,
+        # але замовлення не завершиться
+        # await self.db.commit()
+        # await self.db.refresh(transaction)
 
         logger.info(
             f"Creator sale processed: creator={product.author_id}, "

@@ -1,4 +1,5 @@
 import aiofiles
+import magic
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from pathlib import Path
 import logging
@@ -17,6 +18,54 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
 ALLOWED_ARCHIVE_TYPES = ["application/zip", "application/x-rar-compressed", "application/x-7z-compressed"]
 
+# MIME-типи для реальної перевірки файлів
+ALLOWED_IMAGE_MIME = ["image/jpeg", "image/png", "image/webp"]
+ALLOWED_ARCHIVE_MIME = [
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/x-rar",
+    "application/x-rar-compressed",
+    "application/x-7z-compressed",
+    "application/octet-stream"  # ZIP файли іноді визначаються як octet-stream
+]
+
+
+def validate_file_type(content: bytes, allowed_types: list[str], file_name: str) -> str:
+    """
+    Перевіряє реальний тип файлу за його вмістом (magic bytes).
+
+    Args:
+        content: Вміст файлу в байтах
+        allowed_types: Список дозволених MIME-типів
+        file_name: Ім'я файлу (для логування)
+
+    Returns:
+        Реальний MIME-тип файлу
+
+    Raises:
+        HTTPException: Якщо файл не відповідає дозволеним типам
+    """
+    try:
+        # Отримуємо реальний MIME-тип за вмістом файлу
+        real_mime = magic.from_buffer(content, mime=True)
+
+        if real_mime not in allowed_types:
+            logger.warning(f"File {file_name} has fake extension. Real type: {real_mime}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Підроблений тип файлу! Реальний тип: {real_mime}. Дозволені: {', '.join(allowed_types)}"
+            )
+
+        return real_mime
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        logger.error(f"Error validating file type for {file_name}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Помилка перевірки типу файлу"
+        )
+
 
 @router.post("/upload/image", response_model=dict)
 async def upload_image(
@@ -25,18 +74,24 @@ async def upload_image(
 ):
     lang = admin.language_code or "uk"
 
+    # Читаємо файл
+    content = await file.read()
+
+    # Перевірка 1: Content-Type header (швидка, але ненадійна)
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=get_text("admin_upload_error_invalid_type", lang, allowed=', '.join(ALLOWED_IMAGE_TYPES))
         )
 
+    # Перевірка 2: Реальний вміст файлу через magic bytes (надійна)
+    validate_file_type(content, ALLOWED_IMAGE_MIME, file.filename)
+
     file_path = UPLOAD_DIR / "images" / file.filename
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         async with aiofiles.open(file_path, 'wb') as out_file:
-            content = await file.read()
             await out_file.write(content)
     except Exception as e:
         logger.error(f"Error saving image {file.filename}: {e}")
@@ -55,18 +110,24 @@ async def upload_archive(
 ):
     lang = admin.language_code or "uk"
 
+    # Читаємо файл
+    content = await file.read()
+
+    # Перевірка 1: Content-Type header (швидка, але ненадійна)
     if file.content_type not in ALLOWED_ARCHIVE_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=get_text("admin_upload_error_invalid_type", lang, allowed=', '.join(ALLOWED_ARCHIVE_TYPES))
         )
 
+    # Перевірка 2: Реальний вміст файлу через magic bytes (надійна)
+    validate_file_type(content, ALLOWED_ARCHIVE_MIME, file.filename)
+
     file_path = UPLOAD_DIR / "archives" / file.filename
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         async with aiofiles.open(file_path, 'wb') as out_file:
-            content = await file.read()
             await out_file.write(content)
     except Exception as e:
         logger.error(f"Error saving archive {file.filename}: {e}")
