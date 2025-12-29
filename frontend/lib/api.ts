@@ -523,6 +523,47 @@ export const creatorsAPI = {
   getProductStats: async () => {
     return getData(await api.get('/creators/stats/products'));
   },
+
+  // Creator products management
+  createProduct: async (data: {
+    title_uk: string;
+    description_uk: string;
+    price: number;
+    category_ids: number[];
+    main_image_url: string;
+    gallery_image_urls: string[];
+    zip_file_path: string;
+    file_size_mb: number;
+    compatibility?: string;
+  }) => {
+    return getData(await api.post('/creators/products', data));
+  },
+
+  getMyProducts: async (params?: { limit?: number; offset?: number }) => {
+    return getData(await api.get('/creators/products', { params }));
+  },
+
+  updateProduct: async (productId: number, data: {
+    title_uk?: string;
+    description_uk?: string;
+    price?: number;
+    category_ids?: number[];
+    main_image_url?: string;
+    gallery_image_urls?: string[];
+    zip_file_path?: string;
+    file_size_mb?: number;
+    compatibility?: string;
+  }) => {
+    return getData(await api.put(`/creators/products/${productId}`, data));
+  },
+
+  submitProductForModeration: async (productId: number) => {
+    return getData(await api.post(`/creators/products/${productId}/submit`));
+  },
+
+  deleteProduct: async (productId: number) => {
+    return getData(await api.delete(`/creators/products/${productId}`));
+  },
 };
 
 // ============ Admin Creators API ============

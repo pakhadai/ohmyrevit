@@ -91,6 +91,56 @@ class CreatorTransactionResponse(BaseModel):
 
 # ============ Creator Product Schemas ============
 
+class CreatorProductCreate(BaseModel):
+    """Схема створення товару креатором"""
+    title_uk: str = Field(..., min_length=1, max_length=200)
+    description_uk: str = Field(..., min_length=10)
+    price: float = Field(..., ge=2.0, description="Ціна в USD (мінімум $2)")
+    category_ids: list[int] = Field(default=[], description="ID категорій")
+    main_image_url: str = Field(..., max_length=500)
+    gallery_image_urls: list[str] = Field(default=[], max_items=5)
+    zip_file_path: str = Field(..., max_length=500)
+    file_size_mb: float = Field(..., ge=0, le=10, description="Розмір файлу (макс 10 MB)")
+    compatibility: Optional[str] = Field(None, max_length=200, description="Сумісність з Revit")
+    product_type: str = Field(default="premium", description="Тип товару (завжди premium для креаторів)")
+
+
+class CreatorProductUpdate(BaseModel):
+    """Схема оновлення товару креатором"""
+    title_uk: Optional[str] = Field(None, min_length=1, max_length=200)
+    description_uk: Optional[str] = Field(None, min_length=10)
+    price: Optional[float] = Field(None, ge=2.0)
+    category_ids: Optional[list[int]] = None
+    main_image_url: Optional[str] = Field(None, max_length=500)
+    gallery_image_urls: Optional[list[str]] = Field(None, max_items=5)
+    zip_file_path: Optional[str] = Field(None, max_length=500)
+    file_size_mb: Optional[float] = Field(None, ge=0, le=10)
+    compatibility: Optional[str] = Field(None, max_length=200)
+
+
+class CreatorProductResponse(BaseModel):
+    """Відповідь товару креатора"""
+    id: int
+    title: str
+    description: str
+    price: float
+    author_id: int
+    moderation_status: str
+    rejection_reason: Optional[str]
+    main_image_url: str
+    gallery_image_urls: list[str]
+    zip_file_path: str
+    file_size_mb: float
+    compatibility: Optional[str]
+    views_count: int
+    downloads_count: int
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
 class CreatorProductStats(BaseModel):
     """Статистика товару креатора"""
     total_products: int = 0

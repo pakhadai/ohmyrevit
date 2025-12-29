@@ -308,3 +308,184 @@ class CreatorService:
         )
 
         return transaction
+
+    # ============ Creator Product Management ============
+
+    async def create_creator_product(
+        self,
+        creator_id: int,
+        product_data: dict
+    ):
+        """Створює новий товар креатора зі статусом DRAFT"""
+        from app.products.models import Product, ModerationStatus, ProductType, ProductTranslation
+        from decimal import Decimal
+
+        # Перевірка чи користувач є креатором
+        creator = await self.db.get(User, creator_id)
+        if not creator or not creator.is_creator:
+            raise ValueError("User is not a creator")
+
+        # Валідація ціни
+        if product_data.get("price", 0) < 2.0:
+            raise ValueError(f"Minimum price is ${settings.MIN_PRODUCT_PRICE_USD}")
+
+        # Створюємо товар
+        product = Product(
+            author_id=creator_id,
+            moderation_status=ModerationStatus.DRAFT,
+            product_type=ProductType.PREMIUM,
+            price=Decimal(str(product_data["price"])),
+            main_image_url=product_data["main_image_url"],
+            gallery_image_urls=product_data.get("gallery_image_urls", []),
+            zip_file_path=product_data["zip_file_path"],
+            file_size_mb=Decimal(str(product_data["file_size_mb"])),
+            compatibility=product_data.get("compatibility"),
+            is_on_sale=False,
+        )
+
+        self.db.add(product)
+        await self.db.flush()
+
+        # Додаємо переклад (поки тільки українська)
+        translation = ProductTranslation(
+            product_id=product.id,
+            language_code="uk",
+            title=product_data["title_uk"],
+            description=product_data["description_uk"]
+        )
+        self.db.add(translation)
+
+        # Додаємо категорії
+        if product_data.get("category_ids"):
+            from app.products.models import Category
+            for cat_id in product_data["category_ids"]:
+                category = await self.db.get(Category, cat_id)
+                if category:
+                    product.categories.append(category)
+
+        await self.db.commit()
+        await self.db.refresh(product)
+
+        logger.info(f"Creator product created: id={product.id}, creator={creator_id}")
+        return product
+
+    async def submit_product_for_moderation(self, product_id: int, creator_id: int):
+        """Відправляє товар на модерацію"""
+        from app.products.models import Product, ModerationStatus
+
+        product = await self.db.get(Product, product_id)
+        if not product:
+            raise ValueError("Product not found")
+
+        if product.author_id != creator_id:
+            raise ValueError("You don't own this product")
+
+        if product.moderation_status not in [ModerationStatus.DRAFT, ModerationStatus.REJECTED]:
+            raise ValueError("Product is not in draft or rejected status")
+
+        product.moderation_status = ModerationStatus.PENDING
+        product.rejection_reason = None
+        await self.db.commit()
+
+        logger.info(f"Product submitted for moderation: id={product_id}")
+        return product
+
+    async def get_creator_products(self, creator_id: int, limit: int = 50, offset: int = 0):
+        """Отримує список товарів креатора"""
+        from app.products.models import Product
+        from sqlalchemy.orm import selectinload
+
+        result = await self.db.execute(
+            select(Product)
+            .where(Product.author_id == creator_id)
+            .options(selectinload(Product.translations))
+            .order_by(Product.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return result.scalars().all()
+
+    async def update_creator_product(
+        self,
+        product_id: int,
+        creator_id: int,
+        update_data: dict
+    ):
+        """Оновлює товар креатора (тільки якщо DRAFT або REJECTED)"""
+        from app.products.models import Product, ModerationStatus, ProductTranslation
+        from decimal import Decimal
+
+        product = await self.db.get(Product, product_id)
+        if not product:
+            raise ValueError("Product not found")
+
+        if product.author_id != creator_id:
+            raise ValueError("You don't own this product")
+
+        if product.moderation_status not in [ModerationStatus.DRAFT, ModerationStatus.REJECTED]:
+            raise ValueError("Cannot edit product that is pending or approved")
+
+        # Оновлюємо поля товару
+        if "price" in update_data:
+            if update_data["price"] < 2.0:
+                raise ValueError(f"Minimum price is ${settings.MIN_PRODUCT_PRICE_USD}")
+            product.price = Decimal(str(update_data["price"]))
+
+        if "main_image_url" in update_data:
+            product.main_image_url = update_data["main_image_url"]
+
+        if "gallery_image_urls" in update_data:
+            product.gallery_image_urls = update_data["gallery_image_urls"]
+
+        if "zip_file_path" in update_data:
+            product.zip_file_path = update_data["zip_file_path"]
+
+        if "file_size_mb" in update_data:
+            product.file_size_mb = Decimal(str(update_data["file_size_mb"]))
+
+        if "compatibility" in update_data:
+            product.compatibility = update_data["compatibility"]
+
+        # Оновлюємо переклад
+        if "title_uk" in update_data or "description_uk" in update_data:
+            translation = next((t for t in product.translations if t.language_code == "uk"), None)
+            if translation:
+                if "title_uk" in update_data:
+                    translation.title = update_data["title_uk"]
+                if "description_uk" in update_data:
+                    translation.description = update_data["description_uk"]
+
+        # Оновлюємо категорії
+        if "category_ids" in update_data:
+            from app.products.models import Category
+            product.categories.clear()
+            for cat_id in update_data["category_ids"]:
+                category = await self.db.get(Category, cat_id)
+                if category:
+                    product.categories.append(category)
+
+        await self.db.commit()
+        await self.db.refresh(product)
+
+        logger.info(f"Creator product updated: id={product_id}")
+        return product
+
+    async def delete_creator_product(self, product_id: int, creator_id: int):
+        """Видаляє товар креатора (тільки DRAFT)"""
+        from app.products.models import Product, ModerationStatus
+
+        product = await self.db.get(Product, product_id)
+        if not product:
+            raise ValueError("Product not found")
+
+        if product.author_id != creator_id:
+            raise ValueError("You don't own this product")
+
+        if product.moderation_status != ModerationStatus.DRAFT:
+            raise ValueError("Can only delete draft products")
+
+        await self.db.delete(product)
+        await self.db.commit()
+
+        logger.info(f"Creator product deleted: id={product_id}")
+        return True
