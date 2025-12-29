@@ -8,6 +8,11 @@ from app.users.models import User
 from app.core.config import settings
 from app.creators.service import CreatorService
 from app.creators import schemas
+from app.core.email import email_service
+from app.core.telegram_service import telegram_service
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/creators", tags=["Creators"])
@@ -24,7 +29,11 @@ def check_marketplace_enabled():
 
 # ============ Creator Application Endpoints ============
 
-@router.post("/apply", response_model=schemas.CreatorApplicationResponse, dependencies=[Depends(check_marketplace_enabled)])
+@router.post(
+    "/apply",
+    response_model=schemas.CreatorApplicationResponse,
+    dependencies=[Depends(check_marketplace_enabled)]
+)
 async def apply_to_become_creator(
     data: schemas.CreatorApplicationCreate,
     current_user: User = Depends(get_current_user),
@@ -43,6 +52,29 @@ async def apply_to_become_creator(
             portfolio_url=data.portfolio_url,
             motivation=data.motivation
         )
+
+        # Відправити нотифікацію адміну про нову заявку
+        if settings.ADMIN_EMAIL:
+            try:
+                await email_service.send_admin_new_application(
+                    admin_email=settings.ADMIN_EMAIL,
+                    user_id=current_user.id,
+                    username=current_user.username or f"user_{current_user.id}",
+                    language_code="uk"
+                )
+            except Exception as e:
+                logger.error(f"Failed to send admin email: {e}")
+
+        if settings.ADMIN_TELEGRAM_ID and current_user.telegram_id:
+            try:
+                await telegram_service.notify_admin_new_application(
+                    chat_id=settings.ADMIN_TELEGRAM_ID,
+                    user_id=current_user.id,
+                    username=current_user.username or f"user_{current_user.id}"
+                )
+            except Exception as e:
+                logger.error(f"Failed to send admin Telegram: {e}")
+
         return application
     except ValueError as e:
         raise HTTPException(
@@ -266,7 +298,10 @@ async def update_product(
         )
 
 
-@router.post("/products/{product_id}/submit", dependencies=[Depends(check_marketplace_enabled)])
+@router.post(
+    "/products/{product_id}/submit",
+    dependencies=[Depends(check_marketplace_enabled)]
+)
 async def submit_product_for_moderation(
     product_id: int,
     current_user: User = Depends(get_current_user),
@@ -276,7 +311,38 @@ async def submit_product_for_moderation(
     service = CreatorService(db)
 
     try:
-        product = await service.submit_product_for_moderation(product_id, current_user.id)
+        product = await service.submit_product_for_moderation(
+            product_id, current_user.id
+        )
+
+        # Отримати переклад товару для нотифікації
+        translation = product.get_translation("uk")
+        product_title = translation.title if translation else "Untitled"
+
+        # Відправити нотифікацію адміну про новий товар на модерації
+        if settings.ADMIN_EMAIL:
+            try:
+                await email_service.send_admin_new_product_moderation(
+                    admin_email=settings.ADMIN_EMAIL,
+                    product_title=product_title,
+                    author_username=current_user.username or f"user_{current_user.id}",
+                    product_id=product.id,
+                    language_code="uk"
+                )
+            except Exception as e:
+                logger.error(f"Failed to send admin email: {e}")
+
+        if settings.ADMIN_TELEGRAM_ID:
+            try:
+                await telegram_service.notify_admin_new_product_moderation(
+                    chat_id=settings.ADMIN_TELEGRAM_ID,
+                    product_title=product_title,
+                    author_username=current_user.username or f"user_{current_user.id}",
+                    product_id=product.id
+                )
+            except Exception as e:
+                logger.error(f"Failed to send admin Telegram: {e}")
+
         return {
             "message": "Product submitted for moderation",
             "product_id": product.id,

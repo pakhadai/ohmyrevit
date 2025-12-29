@@ -7,6 +7,11 @@ from app.core.auth import require_admin
 from app.users.models import User
 from app.creators.admin_service import CreatorAdminService
 from app.creators import admin_schemas
+from app.core.email import email_service
+from app.core.telegram_service import telegram_service
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/creators", tags=["Admin Creators"])
@@ -63,6 +68,30 @@ async def review_application(
     try:
         if data.action == "approve":
             application = await service.approve_application(application_id, admin.id)
+
+            # Отримати дані користувача для нотифікацій
+            user = await db.get(User, application.user_id)
+            if user:
+                # Email нотифікація
+                if user.email:
+                    try:
+                        await email_service.send_creator_application_approved(
+                            user_email=user.email,
+                            language_code=user.language_code or "uk"
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to send email to user {user.id}: {e}")
+
+                # Telegram нотифікація
+                if user.telegram_id:
+                    try:
+                        await telegram_service.notify_creator_application_approved(
+                            chat_id=user.telegram_id,
+                            username=user.username or f"user_{user.id}"
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to send Telegram to user {user.id}: {e}")
+
             return {
                 "message": "Application approved successfully",
                 "application_id": application.id,
@@ -150,6 +179,37 @@ async def moderate_product(
     try:
         if data.action == "approve":
             product = await service.approve_product(product_id, admin.id)
+
+            # Отримати дані автора для нотифікацій
+            if product.author_id:
+                author = await db.get(User, product.author_id)
+                translation = product.get_translation("uk")
+                product_title = translation.title if translation else "Untitled"
+
+                if author:
+                    # Email нотифікація
+                    if author.email:
+                        try:
+                            await email_service.send_product_approved(
+                                user_email=author.email,
+                                product_title=product_title,
+                                product_id=product.id,
+                                language_code=author.language_code or "uk"
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to send email to author {author.id}: {e}")
+
+                    # Telegram нотифікація
+                    if author.telegram_id:
+                        try:
+                            await telegram_service.notify_product_approved(
+                                chat_id=author.telegram_id,
+                                product_title=product_title,
+                                product_id=product.id
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to send Telegram to author {author.id}: {e}")
+
             return {
                 "message": "Product approved successfully",
                 "product_id": product.id
@@ -161,6 +221,39 @@ async def moderate_product(
                     detail="Rejection reason is required"
                 )
             product = await service.reject_product(product_id, admin.id, data.rejection_reason)
+
+            # Отримати дані автора для нотифікацій
+            if product.author_id:
+                author = await db.get(User, product.author_id)
+                translation = product.get_translation("uk")
+                product_title = translation.title if translation else "Untitled"
+
+                if author:
+                    # Email нотифікація
+                    if author.email:
+                        try:
+                            await email_service.send_product_rejected(
+                                user_email=author.email,
+                                product_title=product_title,
+                                rejection_reason=data.rejection_reason,
+                                product_id=product.id,
+                                language_code=author.language_code or "uk"
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to send email to author {author.id}: {e}")
+
+                    # Telegram нотифікація
+                    if author.telegram_id:
+                        try:
+                            await telegram_service.notify_product_rejected(
+                                chat_id=author.telegram_id,
+                                product_title=product_title,
+                                rejection_reason=data.rejection_reason,
+                                product_id=product.id
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to send Telegram to author {author.id}: {e}")
+
             return {
                 "message": "Product rejected",
                 "product_id": product.id,
@@ -242,6 +335,33 @@ async def approve_payout(
 
     try:
         payout = await service.approve_payout(payout_id, data.transaction_hash)
+
+        # Отримати дані креатора для нотифікацій
+        creator = await db.get(User, payout.creator_id)
+        if creator:
+            # Email нотифікація
+            if creator.email:
+                try:
+                    await email_service.send_payout_processed(
+                        user_email=creator.email,
+                        amount=payout.amount_usd,
+                        method=f"USDT ({payout.usdt_network})",
+                        language_code=creator.language_code or "uk"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send email to creator {creator.id}: {e}")
+
+            # Telegram нотифікація
+            if creator.telegram_id:
+                try:
+                    await telegram_service.notify_payout_processed(
+                        chat_id=creator.telegram_id,
+                        amount=payout.amount_usd,
+                        method=f"USDT ({payout.usdt_network})"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send Telegram to creator {creator.id}: {e}")
+
         return {
             "message": "Payout approved successfully",
             "payout_id": payout.id,

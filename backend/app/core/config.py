@@ -67,6 +67,10 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_MB_MARKETPLACE: int = 10  # Максимум 10MB для файлів креаторів
     CREATOR_MAX_PENDING_PRODUCTS: int = 3  # Максимум товарів в модерації одночасно
 
+    # Admin notification settings
+    ADMIN_EMAIL: str = ""  # Email для отримання адмін-нотифікацій
+    ADMIN_TELEGRAM_ID: Optional[int] = None  # Telegram ID для отримання адмін-нотифікацій
+
     # --- Email Settings (SMTP) ---
     MAIL_USERNAME: str = ""
     MAIL_PASSWORD: str = ""

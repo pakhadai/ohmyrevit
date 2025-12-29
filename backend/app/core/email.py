@@ -906,5 +906,65 @@ class EmailService:
         html_content = get_email_template(content, language_code)
         return await self.send_email(to=admin_email, subject=subject, html_content=html_content)
 
+    async def send_admin_new_product_moderation(
+            self,
+            admin_email: str,
+            product_title: str,
+            author_username: str,
+            product_id: int,
+            language_code: str = "uk"
+    ) -> bool:
+        """Новий товар на модерації для адміна"""
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = f"OhMyRevit – Новий товар на модерації: {product_title}"
+
+        content = f"""
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="9" y1="9" x2="15" y2="9"></line>
+                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                </svg>
+            </div>
+        </div>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            Новий товар на модерації 📦
+        </h2>
+
+        <p style="margin: 0 0 32px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            Креатор відправив товар на модерацію та очікує перевірки.
+        </p>
+
+        <div style="margin: 32px 0; padding: 24px; background-color: #f5f5f7; border-radius: 16px;">
+            <table role="presentation" style="width: 100%;">
+                <tr>
+                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e7;">
+                        <p style="margin: 0; font-size: 13px; color: #86868b;">Товар</p>
+                        <p style="margin: 4px 0 0 0; font-size: 15px; color: #1d1d1f; font-weight: 600;">{product_title}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e7;">
+                        <p style="margin: 0; font-size: 13px; color: #86868b;">Автор</p>
+                        <p style="margin: 4px 0 0 0; font-size: 15px; color: #1d1d1f; font-weight: 600;">@{author_username}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px 0;">
+                        <p style="margin: 0; font-size: 13px; color: #86868b;">Product ID</p>
+                        <p style="margin: 4px 0 0 0; font-size: 15px; color: #1d1d1f; font-weight: 600;">{product_id}</p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        {get_button_html("Перейти до модерації", f"{settings.FRONTEND_URL}/admin/creators/products", "#F59E0B")}
+        """
+
+        html_content = get_email_template(content, language_code)
+        return await self.send_email(to=admin_email, subject=subject, html_content=html_content)
+
 
 email_service = EmailService()
