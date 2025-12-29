@@ -31,12 +31,16 @@ export default function MarketplacePage() {
 
   const [sortBy, setSortBy] = useState('newest');
   const [searchQuery, setSearchQuery] = useState('');
+  const [autocompleteResults, setAutocompleteResults] = useState<any[]>([]);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [productType, setProductType] = useState<'all' | 'premium' | 'free'>('all');
   const [onlySale, setOnlySale] = useState(false);
   const [creatorsOnly, setCreatorsOnly] = useState(false);
+  const [minRating, setMinRating] = useState<number | null>(null);
+  const [selectedAuthor, setSelectedAuthor] = useState<number | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation();
@@ -77,6 +81,9 @@ export default function MarketplacePage() {
       if (creatorsOnly) params.creator_only = true;
       if (priceRange.min) params.min_price = Number(priceRange.min);
       if (priceRange.max) params.max_price = Number(priceRange.max);
+      if (minRating) params.min_rating = minRating;
+      if (selectedAuthor) params.author_id = selectedAuthor;
+      if (searchQuery) params.search = searchQuery;
 
       const data = await productsAPI.getProducts(params);
       const newProducts = data.products || [];
@@ -101,7 +108,7 @@ export default function MarketplacePage() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [sortBy, selectedCategory, productType, onlySale, creatorsOnly, priceRange, isAuthenticated, fetchAccessStatus, t]);
+  }, [sortBy, selectedCategory, productType, onlySale, creatorsOnly, priceRange, minRating, selectedAuthor, searchQuery, isAuthenticated, fetchAccessStatus, t]);
 
   const applyFilters = () => {
     setOffset(0);
@@ -116,6 +123,9 @@ export default function MarketplacePage() {
     setProductType('all');
     setOnlySale(false);
     setCreatorsOnly(false);
+    setMinRating(null);
+    setSelectedAuthor(null);
+    setSearchQuery('');
 
     setTimeout(() => {
       setOffset(0);
@@ -143,14 +153,26 @@ export default function MarketplacePage() {
     }
   }, [isSearchOpen]);
 
-  const filteredProducts = useMemo(() => {
-    if (!searchQuery) return products;
-    const lowerQuery = searchQuery.toLowerCase();
-    return products.filter(p =>
-      p.title.toLowerCase().includes(lowerQuery) ||
-      p.description.toLowerCase().includes(lowerQuery)
-    );
-  }, [products, searchQuery]);
+  useEffect(() => {
+    const fetchAutocomplete = async () => {
+      if (searchQuery.length >= 2) {
+        try {
+          const results = await productsAPI.autocompleteSearch(searchQuery);
+          setAutocompleteResults(results || []);
+          setShowAutocomplete(true);
+        } catch (error) {
+          console.error('Autocomplete error:', error);
+          setAutocompleteResults([]);
+        }
+      } else {
+        setAutocompleteResults([]);
+        setShowAutocomplete(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(fetchAutocomplete, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
 
   const sortOptions = [
     { value: 'newest', label: t('marketplace.sort.newest') },
@@ -159,7 +181,7 @@ export default function MarketplacePage() {
     { value: 'popular', label: t('marketplace.sort.popular') },
   ];
 
-  const hasActiveFilters = selectedCategory || onlySale || creatorsOnly || productType !== 'all' || priceRange.min || priceRange.max;
+  const hasActiveFilters = selectedCategory || onlySale || creatorsOnly || productType !== 'all' || priceRange.min || priceRange.max || minRating || selectedAuthor;
 
   return (
     <div className="min-h-screen" style={{ background: theme.colors.bgGradient }}>
@@ -200,13 +222,25 @@ export default function MarketplacePage() {
           <div className={`relative transition-all duration-300 ${isSearchOpen ? 'flex-grow' : ''}`}>
             {isSearchOpen ? (
               <div className="relative w-full">
-                <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: theme.colors.textMuted }} />
+                <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 z-10" style={{ color: theme.colors.textMuted }} />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onBlur={() => !searchQuery && setIsSearchOpen(false)}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      setShowAutocomplete(false);
+                      if (!searchQuery) setIsSearchOpen(false);
+                    }, 200);
+                  }}
+                  onFocus={() => searchQuery.length >= 2 && setShowAutocomplete(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setShowAutocomplete(false);
+                      applyFilters();
+                    }
+                  }}
                   placeholder={t('search.placeholder')}
                   className="w-full pl-10 pr-10 py-2.5 outline-none text-sm"
                   style={{
@@ -218,13 +252,61 @@ export default function MarketplacePage() {
                 <button
                   onClick={() => {
                     setSearchQuery('');
+                    setAutocompleteResults([]);
+                    setShowAutocomplete(false);
                     setIsSearchOpen(false);
                   }}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 z-10"
                   style={{ color: theme.colors.textMuted }}
                 >
                   <X size={16} />
                 </button>
+
+                {showAutocomplete && autocompleteResults.length > 0 && (
+                  <div
+                    className="absolute top-full left-0 right-0 mt-2 py-2 max-h-80 overflow-y-auto z-50"
+                    style={{
+                      backgroundColor: theme.colors.card,
+                      border: `1px solid ${theme.colors.border}`,
+                      borderRadius: theme.radius.xl,
+                      boxShadow: theme.shadows.lg,
+                    }}
+                  >
+                    {autocompleteResults.map((result) => (
+                      <button
+                        key={result.id}
+                        onClick={() => {
+                          window.location.href = `/product/${result.id}`;
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-opacity-50 transition-colors text-left"
+                        style={{
+                          backgroundColor: 'transparent',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = theme.colors.surface;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <img
+                          src={result.main_image_url}
+                          alt={result.title}
+                          className="w-12 h-12 object-cover flex-shrink-0"
+                          style={{ borderRadius: theme.radius.md }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate" style={{ color: theme.colors.text }}>
+                            {result.title}
+                          </p>
+                          <p className="text-xs" style={{ color: theme.colors.textMuted }}>
+                            ${result.price}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <button
@@ -481,6 +563,31 @@ export default function MarketplacePage() {
                   </label>
                 </div>
 
+                <div>
+                  <label
+                    className="text-xs font-bold uppercase tracking-wider mb-2 block"
+                    style={{ color: theme.colors.textMuted }}
+                  >
+                    Мінімальний рейтинг
+                  </label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((rating) => (
+                      <button
+                        key={rating}
+                        onClick={() => setMinRating(minRating === rating ? null : rating)}
+                        className="flex-1 py-2 text-sm font-medium transition-all"
+                        style={{
+                          backgroundColor: minRating === rating ? theme.colors.primaryLight : theme.colors.surface,
+                          color: minRating === rating ? theme.colors.primary : theme.colors.text,
+                          borderRadius: theme.radius.md,
+                        }}
+                      >
+                        ⭐ {rating}+
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div
                   className="flex gap-3 pt-4"
                   style={{ borderTop: `1px solid ${theme.colors.border}` }}
@@ -518,7 +625,7 @@ export default function MarketplacePage() {
             ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
             : 'grid-cols-1'
         }`}>
-          {filteredProducts.map((product) => (
+          {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
 
@@ -546,7 +653,7 @@ export default function MarketplacePage() {
           </div>
         )}
 
-        {!loading && filteredProducts.length === 0 && (
+        {!loading && products.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div
               className="w-16 h-16 flex items-center justify-center mb-4"

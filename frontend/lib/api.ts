@@ -244,6 +244,8 @@ export const productsAPI = {
     is_on_sale?: boolean;
     min_price?: number;
     max_price?: number;
+    min_rating?: number;
+    author_id?: number;
   }) => {
     return getData(await api.get('/products', { params }));
   },
@@ -253,6 +255,11 @@ export const productsAPI = {
   },
   getCategories: async () => {
     return getData(await api.get('/products/categories'));
+  },
+  autocompleteSearch: async (query: string, limit: number = 10) => {
+    return getData(await api.get('/products/autocomplete/search', {
+      params: { query, limit }
+    }));
   },
 };
 
