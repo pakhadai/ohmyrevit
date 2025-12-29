@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
-  Users, Package, ShoppingCart, TrendingUp, Tag, Menu, ArrowLeft, Plus, LayoutList, Coins, Store
+  Users, Package, ShoppingCart, TrendingUp, Tag, Menu, ArrowLeft, Plus, LayoutList, Coins, Store,
+  ChevronDown, ChevronUp, UserCheck, PackageCheck, BarChart3, DollarSign
 } from 'lucide-react';
 import { MARKETPLACE_ENABLED } from '@/lib/features';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +14,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [creatorsMenuOpen, setCreatorsMenuOpen] = useState(pathname.startsWith('/admin/creators'));
   const { t } = useTranslation();
 
   const baseMenuItems = [
@@ -25,11 +27,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { id: 'promo-codes', label: t('admin.sidebar.promoCodes'), icon: Tag, href: '/admin/promo-codes' },
   ];
 
-  const creatorsMenuItem = MARKETPLACE_ENABLED ? [
-    { id: 'creators', label: 'Креатори', icon: Store, href: '/admin/creators/stats' },
+  const creatorsSubMenu = MARKETPLACE_ENABLED ? [
+    { id: 'creators-applications', label: 'Заявки креаторів', icon: UserCheck, href: '/admin/creators/applications' },
+    { id: 'creators-products', label: 'Модерація товарів', icon: PackageCheck, href: '/admin/creators/products' },
+    { id: 'creators-payouts', label: 'Виплати', icon: DollarSign, href: '/admin/creators/payouts' },
+    { id: 'creators-stats', label: 'Статистика', icon: BarChart3, href: '/admin/creators/stats' },
   ] : [];
 
-  const menuItems = [...baseMenuItems, ...creatorsMenuItem];
+  const menuItems = baseMenuItems;
 
   const isActive = (href: string) => {
     if (href === '/admin') return pathname === href;
@@ -107,6 +112,62 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         </button>
                     );
                 })}
+
+                {/* Creators Submenu */}
+                {MARKETPLACE_ENABLED && creatorsSubMenu.length > 0 && (
+                    <div className="space-y-1">
+                        <button
+                            onClick={() => setCreatorsMenuOpen(!creatorsMenuOpen)}
+                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${
+                                pathname.startsWith('/admin/creators')
+                                ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <Store size={20} />
+                                <span>Креатори</span>
+                            </div>
+                            {creatorsMenuOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </button>
+
+                        <AnimatePresence>
+                            {creatorsMenuOpen && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="ml-4 space-y-1 pt-1">
+                                        {creatorsSubMenu.map((subItem) => {
+                                            const SubIcon = subItem.icon;
+                                            const subActive = isActive(subItem.href);
+                                            return (
+                                                <button
+                                                    key={subItem.id}
+                                                    onClick={() => {
+                                                        router.push(subItem.href);
+                                                        setSidebarOpen(false);
+                                                    }}
+                                                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium ${
+                                                        subActive
+                                                        ? 'bg-primary/10 text-primary'
+                                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                                    }`}
+                                                >
+                                                    <SubIcon size={16} />
+                                                    <span>{subItem.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                )}
             </nav>
 
             <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/50">
