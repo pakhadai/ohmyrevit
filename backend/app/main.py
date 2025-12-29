@@ -29,6 +29,8 @@ from fastapi.responses import JSONResponse
 from app.wallet.router import router as wallet_router
 from app.wallet.router import admin_router as wallet_admin_router
 from app.wallet.router import webhook_router as gumroad_webhook_router
+from app.creators.router import router as creators_router
+from app.creators.admin_router import router as creators_admin_router
 
 logging.basicConfig(
     level=logging.INFO if not settings.DEBUG else logging.DEBUG,
@@ -148,6 +150,9 @@ api_v1_router.include_router(collections_router, prefix="/profile")
 # NEW: Wallet router
 api_v1_router.include_router(wallet_router, prefix="/wallet")
 
+# NEW: Creators router (marketplace)
+api_v1_router.include_router(creators_router)
+
 
 # ============ Admin Router ============
 admin_router_v1 = APIRouter()
@@ -156,6 +161,9 @@ admin_router_v1.include_router(products_admin_router, prefix="/products")
 
 # NEW: Wallet admin router
 admin_router_v1.include_router(wallet_admin_router, prefix="/wallet")
+
+# NEW: Creators admin router (marketplace moderation)
+admin_router_v1.include_router(creators_admin_router)
 
 
 # ============ Include All Routers ============

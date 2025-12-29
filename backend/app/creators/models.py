@@ -11,6 +11,15 @@ class CreatorApplicationStatus(str, enum.Enum):
     REJECTED = "rejected"  # Відхилено
 
 
+class PayoutStatus(str, enum.Enum):
+    """Статуси виплати"""
+    PENDING = "pending"  # На розгляді
+    PROCESSING = "processing"  # В процесі
+    COMPLETED = "completed"  # Виплачено
+    REJECTED = "rejected"  # Відхилено
+    FAILED = "failed"  # Помилка
+
+
 class CreatorApplication(Base):
     """Заявка на статус креатора"""
     __tablename__ = "creator_applications"
@@ -30,6 +39,7 @@ class CreatorApplication(Base):
     reviewed_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
 
+    applied_at = Column(DateTime(timezone=True), server_default=func.now())  # Час подачі заявки
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -57,7 +67,7 @@ class CreatorPayout(Base):
     usdt_network = Column(String(50), nullable=False)  # TRC20, ERC20, BEP20
 
     # Статус виплати
-    status = Column(String(50), default="pending")  # pending, processing, completed, failed
+    status = Column(SQLEnum(PayoutStatus), default=PayoutStatus.PENDING)
     transaction_hash = Column(String(100), nullable=True)  # Hash транзакції в блокчейні
 
     # Примітки
@@ -67,6 +77,7 @@ class CreatorPayout(Base):
     processed_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     processed_at = Column(DateTime(timezone=True), nullable=True)
 
+    requested_at = Column(DateTime(timezone=True), server_default=func.now())  # Час запиту
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
