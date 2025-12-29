@@ -130,6 +130,10 @@ class Product(Base):
     views_count = Column(Integer, default=0)
     downloads_count = Column(Integer, default=0)
 
+    # Рейтинги
+    average_rating = Column(Numeric(3, 2), nullable=True)  # 1.00 - 5.00
+    ratings_count = Column(Integer, default=0)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -156,6 +160,7 @@ class Product(Base):
     # Marketplace relationships
     author = relationship("User", foreign_keys=[author_id], backref="created_products")
     moderated_by = relationship("User", foreign_keys=[moderated_by_id])
+    ratings = relationship("ProductRating", back_populates="product", cascade="all, delete-orphan")
 
 
     def get_translation(self, language_code: str = 'uk'):

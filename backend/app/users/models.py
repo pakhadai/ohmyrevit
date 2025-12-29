@@ -50,6 +50,8 @@ class User(Base):
 
     collections: Mapped[List["Collection"]] = relationship("Collection", back_populates="user",
                                                            cascade="all, delete-orphan")
+    ratings: Mapped[List["ProductRating"]] = relationship("ProductRating", back_populates="user",
+                                                           cascade="all, delete-orphan")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

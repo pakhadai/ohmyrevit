@@ -36,6 +36,8 @@ export interface Product {
   categories: Category[];
   views_count: number;
   downloads_count: number;
+  average_rating?: number;
+  ratings_count: number;
   created_at?: string;
 }
 
@@ -626,5 +628,24 @@ export const adminCreatorsAPI = {
     rejection_reason?: string;
   }) => {
     return getData(await api.post(`/admin/creators/products/${productId}/moderate`, data));
+  },
+};
+
+// ============ Ratings API ============
+
+export const ratingsAPI = {
+  // Create or update rating
+  createOrUpdateRating: async (productId: number, rating: number) => {
+    return getData(await api.post('/ratings', { product_id: productId, rating }));
+  },
+
+  // Get product rating stats
+  getProductRatingStats: async (productId: number) => {
+    return getData(await api.get(`/ratings/product/${productId}`));
+  },
+
+  // Delete rating
+  deleteRating: async (productId: number) => {
+    return getData(await api.delete(`/ratings/product/${productId}`));
   },
 };

@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import { useState } from 'react';
 import AddToCollectionModal from '@/components/collections/AddToCollectionModal';
 import { useTheme } from '@/lib/theme';
+import StarRating from '@/components/ui/StarRating';
 
 interface ProductCardProps {
   product: Product;
@@ -173,14 +174,24 @@ export default function ProductCard({ product }: ProductCardProps) {
             <Link
               href={`/creator/${product.author_id}`}
               onClick={(e) => e.stopPropagation()}
-              className="text-[11px] mb-2 hover:underline"
+              className="text-[11px] mb-1 hover:underline"
               style={{ color: theme.colors.textMuted }}
             >
               {product.author_name}
             </Link>
           )}
 
-          {!product.author_id && <div className="mb-2" />}
+          {!product.author_id && <div className="mb-1" />}
+
+          {/* Rating Display */}
+          {product.ratings_count > 0 && (
+            <div className="flex items-center gap-1 mb-2">
+              <StarRating rating={product.average_rating || 0} readonly size={14} />
+              <span className="text-[10px]" style={{ color: theme.colors.textMuted }}>
+                ({product.ratings_count})
+              </span>
+            </div>
+          )}
 
           <div className="flex-grow" />
 

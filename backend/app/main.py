@@ -31,6 +31,7 @@ from app.wallet.router import admin_router as wallet_admin_router
 from app.wallet.router import webhook_router as gumroad_webhook_router
 from app.creators.router import router as creators_router
 from app.creators.admin_router import router as creators_admin_router
+from app.ratings.router import router as ratings_router
 
 logging.basicConfig(
     level=logging.INFO if not settings.DEBUG else logging.DEBUG,
@@ -152,6 +153,9 @@ api_v1_router.include_router(wallet_router, prefix="/wallet")
 
 # NEW: Creators router (marketplace)
 api_v1_router.include_router(creators_router)
+
+# NEW: Ratings router
+api_v1_router.include_router(ratings_router, prefix="/ratings")
 
 
 # ============ Admin Router ============

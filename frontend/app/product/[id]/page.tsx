@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { productsAPI } from '@/lib/api';
+import { productsAPI, ratingsAPI } from '@/lib/api';
 import { Product } from '@/types';
 import { ArrowLeft, ShoppingCart, CheckCircle2, Info, Loader, Download, Heart, Share2, User } from 'lucide-react';
 import Image from 'next/image';
@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import AddToCollectionModal from '@/components/collections/AddToCollectionModal';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { useTheme } from '@/lib/theme';
+import StarRating from '@/components/ui/StarRating';
 
 export default function ProductDetailPage() {
   const { theme } = useTheme();
@@ -30,6 +31,8 @@ export default function ProductDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [userRating, setUserRating] = useState<number | null>(null);
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
   const addItemToCart = useCartStore((state) => state.addItem);
   const { isAuthenticated, token } = useAuthStore();
@@ -45,10 +48,20 @@ export default function ProductDetailPage() {
           const promises: Promise<any>[] = [productsAPI.getProductById(productId)];
           if (isAuthenticated) {
             promises.push(fetchAccessStatus([Number(productId)]));
+            promises.push(ratingsAPI.getProductRatingStats(Number(productId)));
           }
-          const [productData] = await Promise.all(promises);
+          const results = await Promise.all(promises);
+          const productData = results[0];
           setProduct(productData);
           setSelectedImage(productData.main_image_url);
+
+          // Load user rating if authenticated
+          if (isAuthenticated && results.length > 2) {
+            const ratingStats = results[2];
+            if (ratingStats && ratingStats.user_rating) {
+              setUserRating(ratingStats.user_rating);
+            }
+          }
         } catch (err) {
           setError(t('productPage.loadError'));
           toast.error(t('toasts.productLoadError'));
@@ -94,6 +107,41 @@ export default function ProductDetailPage() {
     } else {
       navigator.clipboard.writeText(window.location.href);
       toast.success(t('toasts.linkCopied'));
+    }
+  };
+
+  const handleRatingChange = async (rating: number) => {
+    if (!product || !isAuthenticated) {
+      toast.error('Увійдіть щоб залишити оцінку');
+      return;
+    }
+
+    if (!hasAccess) {
+      toast.error('Ви можете ставити оцінку тільки після покупки товару');
+      return;
+    }
+
+    try {
+      setIsSubmittingRating(true);
+      await ratingsAPI.createOrUpdateRating(product.id, rating);
+      setUserRating(rating);
+
+      // Update product stats locally
+      const stats = await ratingsAPI.getProductRatingStats(product.id);
+      if (stats) {
+        setProduct(prev => prev ? {
+          ...prev,
+          average_rating: stats.average_rating,
+          ratings_count: stats.ratings_count
+        } : null);
+      }
+
+      toast.success('Дякуємо за вашу оцінку!');
+    } catch (error: any) {
+      console.error('Rating submission error:', error);
+      toast.error(error.response?.data?.detail || 'Не вдалося зберегти оцінку');
+    } finally {
+      setIsSubmittingRating(false);
     }
   };
 
@@ -362,6 +410,59 @@ export default function ProductDetailPage() {
               </Link>
             </div>
           )}
+
+          {/* Rating Section */}
+          <div
+            className="p-6"
+            style={{
+              backgroundColor: theme.colors.card,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.radius['2xl'],
+              boxShadow: theme.shadows.md,
+            }}
+          >
+            <h3 className="text-sm font-semibold mb-4" style={{ color: theme.colors.text }}>
+              Рейтинг товару
+            </h3>
+
+            {/* Average Rating Display */}
+            {product.ratings_count > 0 && (
+              <div className="flex items-center gap-3 mb-4">
+                <StarRating rating={product.average_rating || 0} readonly showNumber size={24} />
+                <span className="text-sm" style={{ color: theme.colors.textMuted }}>
+                  ({product.ratings_count} {product.ratings_count === 1 ? 'оцінка' : 'оцінок'})
+                </span>
+              </div>
+            )}
+
+            {/* User Rating Input */}
+            {hasAccess ? (
+              <div>
+                <p className="text-xs mb-2" style={{ color: theme.colors.textMuted }}>
+                  {userRating ? 'Ваша оцінка:' : 'Оцініть цей товар:'}
+                </p>
+                <StarRating
+                  rating={userRating || 0}
+                  onChange={handleRatingChange}
+                  size={28}
+                />
+              </div>
+            ) : product.ratings_count === 0 ? (
+              <p className="text-sm" style={{ color: theme.colors.textMuted }}>
+                Цей товар ще не має оцінок
+              </p>
+            ) : null}
+
+            {!hasAccess && isAuthenticated && (
+              <p className="text-xs mt-3 p-3" style={{
+                backgroundColor: theme.colors.surface,
+                color: theme.colors.textMuted,
+                borderRadius: theme.radius.md,
+              }}>
+                💡 Ви зможете оцінити товар після покупки
+              </p>
+            )}
+          </div>
 
           <div className="fixed bottom-24 left-0 right-0 px-5 z-20 pointer-events-none">
             <div
