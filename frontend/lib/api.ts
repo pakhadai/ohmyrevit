@@ -564,6 +564,11 @@ export const creatorsAPI = {
   deleteProduct: async (productId: number) => {
     return getData(await api.delete(`/creators/products/${productId}`));
   },
+
+  // Get public creator profile
+  getCreatorPublicProfile: async (creatorId: number) => {
+    return getData(await api.get(`/creators/${creatorId}/profile`));
+  },
 };
 
 // ============ Admin Creators API ============

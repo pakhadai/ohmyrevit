@@ -322,3 +322,77 @@ async def get_creator_product_stats(
     """
     service = CreatorService(db)
     return await service.get_creator_product_stats(current_user.id)
+
+
+# ============ Public Creator Profile ============
+
+@router.get("/{creator_id}/profile", dependencies=[Depends(check_marketplace_enabled)])
+async def get_creator_public_profile(
+    creator_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Отримати публічний профіль креатора.
+
+    Показує інформацію про креатора та його товари.
+    Доступно для всіх користувачів (не потрібна авторизація).
+    """
+    from sqlalchemy import select, func
+    from app.products.models import Product, ProductModerationStatus
+
+    # Отримуємо користувача
+    result = await db.execute(select(User).where(User.id == creator_id))
+    creator = result.scalar_one_or_none()
+
+    if not creator:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Creator not found"
+        )
+
+    if not creator.is_creator:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User is not a creator"
+        )
+
+    # Отримуємо схвалені товари креатора
+    products_query = select(Product).where(
+        Product.author_id == creator_id,
+        Product.moderation_status == ProductModerationStatus.APPROVED
+    )
+    products_result = await db.execute(products_query)
+    products = products_result.scalars().all()
+
+    # Підраховуємо статистику
+    total_products = len(products)
+    total_views = sum(p.views_count for p in products)
+    total_downloads = sum(p.downloads_count for p in products)
+
+    # Формуємо список товарів
+    products_list = []
+    for product in products:
+        translation = product.get_translation("uk")
+        products_list.append({
+            "id": product.id,
+            "title": translation.title if translation else "Untitled",
+            "description": translation.description[:200] + "..." if translation else "",
+            "price": float(product.price),
+            "main_image_url": product.main_image_url,
+            "views_count": product.views_count,
+            "downloads_count": product.downloads_count,
+            "file_size_mb": float(product.file_size_mb),
+            "compatibility": product.compatibility,
+            "created_at": product.created_at.isoformat() if product.created_at else None
+        })
+
+    return {
+        "creator_id": creator.id,
+        "username": creator.username or f"user_{creator.id}",
+        "full_name": creator.full_name,
+        "created_at": creator.created_at.isoformat() if creator.created_at else None,
+        "total_products": total_products,
+        "total_views": total_views,
+        "total_downloads": total_downloads,
+        "products": products_list
+    }
