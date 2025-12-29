@@ -90,6 +90,7 @@ class ProductFilter(BaseModel):
     min_price: Optional[Decimal] = None
     max_price: Optional[Decimal] = None
     sort_by: Optional[SortByEnum] = SortByEnum.NEWEST
+    creator_only: Optional[bool] = None  # Фільтр для товарів тільки від креаторів
 
 
 class ProductTranslationResponse(BaseModel):

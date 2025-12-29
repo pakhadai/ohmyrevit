@@ -240,6 +240,8 @@ class ProductService:
                 query = query.where(Product.price >= filters.min_price)
             if filters.max_price is not None:
                 query = query.where(Product.price <= filters.max_price)
+            if filters.creator_only is True:
+                query = query.where(Product.author_id.isnot(None))
 
         if filters and filters.sort_by:
             if filters.sort_by == "price_asc":
@@ -293,6 +295,8 @@ class ProductService:
                 count_query = count_query.where(Product.price >= filters.min_price)
             if filters.max_price is not None:
                 count_query = count_query.where(Product.price <= filters.max_price)
+            if filters.creator_only is True:
+                count_query = count_query.where(Product.author_id.isnot(None))
 
         total_result = await db.execute(count_query)
         total_count = total_result.scalar() or 0

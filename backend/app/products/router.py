@@ -44,6 +44,7 @@ async def get_products(
         min_price: Optional[float] = Query(None, ge=0),
         max_price: Optional[float] = Query(None, ge=0),
         sort_by: Optional[str] = Query("newest"),
+        creator_only: Optional[bool] = Query(None, description="Показувати тільки товари креаторів"),
         limit: int = Query(20, ge=1, le=100),
         offset: int = Query(0, ge=0),
         db: AsyncSession = Depends(get_db)
@@ -51,7 +52,7 @@ async def get_products(
     language_code = _parse_language_header(accept_language)
     filters = ProductFilter(
         category_id=category_id, product_type=product_type, is_on_sale=is_on_sale,
-        min_price=min_price, max_price=max_price, sort_by=sort_by
+        min_price=min_price, max_price=max_price, sort_by=sort_by, creator_only=creator_only
     )
     return await product_service.get_products_list(
         language_code=language_code, db=db, filters=filters, limit=limit, offset=offset

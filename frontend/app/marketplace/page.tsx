@@ -36,6 +36,7 @@ export default function MarketplacePage() {
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [productType, setProductType] = useState<'all' | 'premium' | 'free'>('all');
   const [onlySale, setOnlySale] = useState(false);
+  const [creatorsOnly, setCreatorsOnly] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation();
@@ -73,6 +74,7 @@ export default function MarketplacePage() {
       if (selectedCategory) params.category_id = selectedCategory;
       if (productType !== 'all') params.product_type = productType;
       if (onlySale) params.is_on_sale = true;
+      if (creatorsOnly) params.creator_only = true;
       if (priceRange.min) params.min_price = Number(priceRange.min);
       if (priceRange.max) params.max_price = Number(priceRange.max);
 
@@ -99,7 +101,7 @@ export default function MarketplacePage() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [sortBy, selectedCategory, productType, onlySale, priceRange, isAuthenticated, fetchAccessStatus, t]);
+  }, [sortBy, selectedCategory, productType, onlySale, creatorsOnly, priceRange, isAuthenticated, fetchAccessStatus, t]);
 
   const applyFilters = () => {
     setOffset(0);
@@ -113,6 +115,7 @@ export default function MarketplacePage() {
     setPriceRange({ min: '', max: '' });
     setProductType('all');
     setOnlySale(false);
+    setCreatorsOnly(false);
 
     setTimeout(() => {
       setOffset(0);
@@ -156,7 +159,7 @@ export default function MarketplacePage() {
     { value: 'popular', label: t('marketplace.sort.popular') },
   ];
 
-  const hasActiveFilters = selectedCategory || onlySale || productType !== 'all' || priceRange.min || priceRange.max;
+  const hasActiveFilters = selectedCategory || onlySale || creatorsOnly || productType !== 'all' || priceRange.min || priceRange.max;
 
   return (
     <div className="min-h-screen" style={{ background: theme.colors.bgGradient }}>
@@ -445,6 +448,37 @@ export default function MarketplacePage() {
                       </span>
                     </label>
                   </div>
+                </div>
+
+                <div>
+                  <label
+                    className="flex items-center gap-3 w-full p-3 cursor-pointer transition-colors"
+                    style={{
+                      backgroundColor: theme.colors.surface,
+                      borderRadius: theme.radius.lg,
+                    }}
+                  >
+                    <div
+                      className="w-5 h-5 flex items-center justify-center transition-colors"
+                      style={{
+                        backgroundColor: creatorsOnly ? theme.colors.primary : theme.colors.card,
+                        border: creatorsOnly ? 'none' : `1px solid ${theme.colors.border}`,
+                        borderRadius: theme.radius.sm,
+                        color: '#FFF',
+                      }}
+                    >
+                      {creatorsOnly && <Check size={14} />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={creatorsOnly}
+                      onChange={(e) => setCreatorsOnly(e.target.checked)}
+                      className="hidden"
+                    />
+                    <span className="text-sm font-medium" style={{ color: theme.colors.text }}>
+                      Тільки товари креаторів
+                    </span>
+                  </label>
                 </div>
 
                 <div
