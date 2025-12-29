@@ -486,3 +486,41 @@ export const adminAPI = {
     return getData(await api.patch(`/admin/orders/${id}/status`, formData));
   },
 };
+
+// ============ Creators API ============
+
+export const creatorsAPI = {
+  // Submit creator application
+  applyToBeCreator: async (data: { portfolio_url?: string; motivation?: string }) => {
+    return getData(await api.post('/creators/apply', data));
+  },
+
+  // Get creator status
+  getStatus: async () => {
+    return getData(await api.get('/creators/status'));
+  },
+
+  // Get creator balance and stats
+  getBalance: async () => {
+    return getData(await api.get('/creators/balance'));
+  },
+
+  // Request payout
+  requestPayout: async (data: {
+    amount_coins: number;
+    usdt_address: string;
+    usdt_network: 'TRC20' | 'ERC20' | 'BEP20';
+  }) => {
+    return getData(await api.post('/creators/payouts/request', data));
+  },
+
+  // Get transaction history
+  getTransactions: async (params?: { limit?: number; offset?: number }) => {
+    return getData(await api.get('/creators/transactions', { params }));
+  },
+
+  // Get product stats
+  getProductStats: async () => {
+    return getData(await api.get('/creators/stats/products'));
+  },
+};
