@@ -15,6 +15,7 @@ from app.referrals.models import ReferralLog, ReferralBonusType
 from app.wallet.models import Transaction, TransactionType
 from app.core.telegram_service import telegram_service
 from app.core.translations import get_text
+from app.creators.service import CreatorService
 
 logger = logging.getLogger(__name__)
 
@@ -201,6 +202,12 @@ class OrderService:
         await self.db.commit()
         await self.db.refresh(order)
 
+        # Обробляємо комісії креаторів (якщо товари від креаторів)
+        try:
+            await self._process_creator_commissions(products, order.id, final_coins)
+        except Exception as e:
+            logger.error(f"Failed to process creator commissions: {e}")
+
         try:
             await self._process_referral_bonus(user, final_coins, order.id, language_code)
         except Exception as e:
@@ -300,6 +307,50 @@ class OrderService:
             )
         except Exception as e:
             logger.error(f"Failed to notify referrer: {e}")
+
+    async def _process_creator_commissions(
+            self,
+            products: List[Product],
+            order_id: int,
+            total_coins_spent: int
+    ):
+        """Нараховує комісії креаторам за продані товари"""
+        if not products:
+            return
+
+        creator_service = CreatorService(self.db)
+
+        # Якщо один товар - вся сума йде на нього
+        if len(products) == 1:
+            product = products[0]
+            if product.author_id:  # Товар креатора
+                await creator_service.process_creator_sale(
+                    product_id=product.id,
+                    order_id=order_id,
+                    sale_coins=total_coins_spent
+                )
+            return
+
+        # Якщо кілька товарів - розподіляємо пропорційно ціні
+        total_price_usd = sum(p.get_actual_price() for p in products)
+        if total_price_usd == 0:
+            return
+
+        for product in products:
+            if not product.author_id:  # Пропускаємо адмін товари
+                continue
+
+            # Розраховуємо частку монет для цього товару
+            product_price_usd = product.get_actual_price()
+            product_share = float(product_price_usd / total_price_usd)
+            product_coins = int(total_coins_spent * product_share)
+
+            if product_coins > 0:
+                await creator_service.process_creator_sale(
+                    product_id=product.id,
+                    order_id=order_id,
+                    sale_coins=product_coins
+                )
 
     async def _send_purchase_notification(
             self,

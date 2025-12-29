@@ -308,3 +308,17 @@ async def get_moderation_stats(
     """
     service = CreatorAdminService(db)
     return await service.get_moderation_stats()
+
+
+@router.get("/stats/commissions")
+async def get_commission_stats(
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Статистика комісій платформи від продажів креаторів.
+
+    Показує загальну суму комісій, продажів та середню комісію з продажу.
+    """
+    service = CreatorAdminService(db)
+    return await service.get_commission_stats()

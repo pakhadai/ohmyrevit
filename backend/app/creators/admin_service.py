@@ -292,3 +292,48 @@ class CreatorAdminService:
             "total_pending_payout_coins": total_pending_amount,
             "total_pending_payout_usd": total_pending_amount / 100  # 100 coins = $1
         }
+
+    async def get_commission_stats(self):
+        """Статистика комісій платформи від продажів креаторів"""
+        # Загальна сума комісій (негативні транзакції типу commission)
+        total_commissions_query = select(
+            func.sum(CreatorTransaction.amount_coins)
+        ).where(
+            CreatorTransaction.transaction_type == "commission"
+        )
+        total_commissions_result = await self.db.execute(total_commissions_query)
+        total_commissions = total_commissions_result.scalar() or 0
+        # Перетворюємо на позитивне число (бо в БД зберігається як негативне)
+        total_commissions = abs(total_commissions)
+
+        # Загальна сума продажів креаторів
+        total_sales_query = select(
+            func.sum(CreatorTransaction.amount_coins)
+        ).where(
+            CreatorTransaction.transaction_type == "sale"
+        )
+        total_sales_result = await self.db.execute(total_sales_query)
+        total_sales = total_sales_result.scalar() or 0
+
+        # Кількість продажів
+        sales_count_query = select(
+            func.count(CreatorTransaction.id)
+        ).where(
+            CreatorTransaction.transaction_type == "sale"
+        )
+        sales_count_result = await self.db.execute(sales_count_query)
+        total_sales_count = sales_count_result.scalar() or 0
+
+        # Середня комісія з продажу
+        avg_commission = int(total_commissions / total_sales_count) if total_sales_count > 0 else 0
+
+        return {
+            "total_commissions_coins": total_commissions,
+            "total_commissions_usd": total_commissions / 100,  # 100 coins = $1
+            "total_creator_sales_coins": total_sales,
+            "total_creator_sales_usd": total_sales / 100,
+            "total_sales_count": total_sales_count,
+            "avg_commission_per_sale_coins": avg_commission,
+            "avg_commission_per_sale_usd": avg_commission / 100,
+            "commission_percent": settings.MARKETPLACE_COMMISSION_PERCENT
+        }

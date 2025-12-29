@@ -7,7 +7,11 @@ from datetime import datetime
 from app.creators.models import CreatorApplication, CreatorApplicationStatus, CreatorPayout, CreatorTransaction
 from app.users.models import User
 from app.products.models import Product, ModerationStatus
+from app.orders.models import Order
 from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class CreatorService:
@@ -223,3 +227,84 @@ class CreatorService:
             "total_sales": total_sales or 0,
             "total_revenue_coins": total_revenue or 0
         }
+
+    # ============ Sales Commission System ============
+
+    async def process_creator_sale(
+        self,
+        product_id: int,
+        order_id: int,
+        sale_coins: int
+    ) -> Optional[CreatorTransaction]:
+        """
+        Нараховує комісію креатору за продаж товару.
+
+        Args:
+            product_id: ID проданого товару
+            order_id: ID замовлення
+            sale_coins: Сума продажу в монетах
+
+        Returns:
+            CreatorTransaction якщо це був товар креатора, None якщо адмін товар
+        """
+        # Отримуємо товар з автором
+        product = await self.db.get(Product, product_id)
+        if not product or not product.author_id:
+            # Це адмін товар або товар не знайдено
+            logger.info(f"Product {product_id} has no author - admin product")
+            return None
+
+        # Перевіряємо чи автор є креатором
+        author = await self.db.get(User, product.author_id)
+        if not author or not author.is_creator:
+            logger.warning(f"Product {product_id} author {product.author_id} is not a creator")
+            return None
+
+        # Розраховуємо комісію платформи та дохід креатора
+        commission_percent = settings.MARKETPLACE_COMMISSION_PERCENT  # 15%
+        platform_commission = int(sale_coins * commission_percent / 100)
+        creator_earnings = sale_coins - platform_commission
+
+        # Нараховуємо монети креатору з блокуванням
+        query = select(User).where(User.id == product.author_id).with_for_update()
+        result = await self.db.execute(query)
+        creator = result.scalar_one_or_none()
+
+        if not creator:
+            logger.error(f"Creator {product.author_id} not found during sale")
+            return None
+
+        creator.creator_balance += creator_earnings
+
+        # Створюємо транзакцію для креатора
+        transaction = CreatorTransaction(
+            creator_id=product.author_id,
+            transaction_type="sale",
+            amount_coins=creator_earnings,
+            description=f"Продаж товару: {product.title_uk or product.title_en or f'Product #{product.id}'} (Комісія {commission_percent}%)",
+            order_id=order_id,
+            product_id=product_id
+        )
+        self.db.add(transaction)
+
+        # Створюємо транзакцію для платформи (комісія)
+        platform_transaction = CreatorTransaction(
+            creator_id=product.author_id,  # Зберігаємо зв'язок з креатором
+            transaction_type="commission",
+            amount_coins=-platform_commission,  # Негативна сума = комісія
+            description=f"Комісія платформи {commission_percent}% від продажу",
+            order_id=order_id,
+            product_id=product_id
+        )
+        self.db.add(platform_transaction)
+
+        await self.db.commit()
+        await self.db.refresh(transaction)
+
+        logger.info(
+            f"Creator sale processed: creator={product.author_id}, "
+            f"product={product_id}, sale={sale_coins}, "
+            f"earnings={creator_earnings}, commission={platform_commission}"
+        )
+
+        return transaction
