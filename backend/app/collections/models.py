@@ -6,7 +6,7 @@ from sqlalchemy.sql import func
 from typing import List
 from app.core.database import Base
 
-# Асоціативна таблиця для зв'язку "багато-до-багатьох" між колекціями та товарами
+# Асоціативна таблиця для зв'язку "багато-до-багатьох" між списками бажань (wishlists) та товарами
 collection_products = Table(
     'collection_products',
     Base.metadata,
@@ -16,12 +16,16 @@ collection_products = Table(
 )
 
 class Collection(Base):
+    """
+    Wishlist (Список бажань) - користувач може створити кілька списків
+    для організації улюблених товарів
+    """
     __tablename__ = "collections"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
-    name = Column(String(100), nullable=False)
-    color = Column(String(20), default="default")
+    name = Column(String(100), nullable=False)  # Назва wishlist (напр. "Wedding", "Work Ideas")
+    color = Column(String(20), default="default")  # Колір для візуалізації
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Зв'язки
@@ -37,4 +41,4 @@ class Collection(Base):
     )
 
     def __repr__(self):
-        return f"<Collection(id={self.id}, name='{self.name}', user_id={self.user_id})>"
+        return f"<Wishlist(id={self.id}, name='{self.name}', user_id={self.user_id})>"
