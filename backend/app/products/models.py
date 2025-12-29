@@ -14,6 +14,15 @@ class ProductType(str, enum.Enum):
     PREMIUM = "premium"
 
 
+class ModerationStatus(str, enum.Enum):
+    """Статуси модерації товару креатора"""
+    DRAFT = "draft"  # Чернетка (створено, але не надіслано)
+    PENDING = "pending"  # На модерації
+    APPROVED = "approved"  # Схвалено (публічний)
+    REJECTED = "rejected"  # Відхилено
+    HIDDEN = "hidden"  # Прихований (автором або адміном)
+
+
 # Таблиця для зв'язку Many-to-Many між товарами та категоріями
 product_categories = Table(
     'product_categories',
@@ -91,6 +100,17 @@ class Product(Base):
         default=ProductType.PREMIUM
     )
 
+    # Marketplace: автор товару (NULL = адмін/платформа)
+    author_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+
+    # Marketplace: статус модерації (NULL або APPROVED = старі товари, автоматично публічні)
+    moderation_status = Column(Enum(ModerationStatus), nullable=True, default=None)
+    rejection_reason = Column(Text, nullable=True)  # Причина відмови
+
+    # Модератор хто перевірив
+    moderated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    moderated_at = Column(DateTime(timezone=True), nullable=True)
+
     # Медіа
     main_image_url = Column(String(500), nullable=False)
     gallery_image_urls = Column(ARRAY(String), default=list)
@@ -132,6 +152,10 @@ class Product(Base):
         secondary="collection_products",
         back_populates="products"
     )
+
+    # Marketplace relationships
+    author = relationship("User", foreign_keys=[author_id], backref="created_products")
+    moderated_by = relationship("User", foreign_keys=[moderated_by_id])
 
 
     def get_translation(self, language_code: str = 'uk'):

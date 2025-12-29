@@ -29,6 +29,9 @@ from app.referrals.models import ReferralLog
 # NEW: Імпорт моделей гаманця
 from app.wallet.models import CoinPack, Transaction
 
+# NEW: Імпорт моделей маркетплейсу креаторів
+from app.creators.models import CreatorApplication, CreatorPayout, CreatorTransaction
+
 
 # this is the Alembic Config object
 config = context.config

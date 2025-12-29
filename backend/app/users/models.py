@@ -33,6 +33,10 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True, server_default='true')
 
+    # Marketplace creator статус
+    is_creator = Column(Boolean, default=False)  # Чи користувач є креатором
+    creator_balance = Column(Integer, default=0)  # Баланс креатора (окремо від покупок)
+
     balance = Column(Integer, default=0)
 
     bonus_streak = Column(Integer, default=0)
