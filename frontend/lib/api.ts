@@ -610,4 +610,16 @@ export const adminCreatorsAPI = {
   getCreatorsList: async (params?: { limit?: number; offset?: number }) => {
     return getData(await api.get('/admin/creators/list', { params }));
   },
+
+  // Products moderation
+  getPendingProducts: async (params?: { limit?: number; offset?: number }) => {
+    return getData(await api.get('/admin/creators/products/pending', { params }));
+  },
+
+  moderateProduct: async (productId: number, data: {
+    action: 'approve' | 'reject' | 'hide';
+    rejection_reason?: string;
+  }) => {
+    return getData(await api.post(`/admin/creators/products/${productId}/moderate`, data));
+  },
 };
