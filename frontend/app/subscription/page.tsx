@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
 import { useTheme } from '@/lib/theme';
 import EmailRequiredModal from '@/components/EmailRequiredModal';
+import { SUBSCRIPTION_ENABLED } from '@/lib/features';
 
 const COINS_PER_USD = 100;
 
@@ -64,8 +65,13 @@ export default function SubscriptionPage() {
   }, [t]);
 
   useEffect(() => {
+    // Редірект якщо підписка вимкнена
+    if (!SUBSCRIPTION_ENABLED) {
+      router.push('/');
+      return;
+    }
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, router]);
 
   const handlePurchase = async () => {
     // Перевірка email та його підтвердження

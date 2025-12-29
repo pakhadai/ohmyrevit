@@ -8,8 +8,18 @@ from app.users.dependencies import get_current_user
 from app.users.models import User
 from app.subscriptions.service import SubscriptionService, SUBSCRIPTION_PRICE_COINS
 from app.core.translations import get_text
+from app.core.config import settings
 
 router = APIRouter(tags=["Subscriptions"])
+
+
+# Dependency для перевірки чи підписка увімкнена
+def check_subscription_enabled():
+    if not settings.SUBSCRIPTION_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Subscription feature is currently disabled"
+        )
 
 
 # ============ Response Schemas ============
@@ -43,7 +53,7 @@ class SubscriptionPriceResponse(BaseModel):
 
 # ============ Endpoints ============
 
-@router.get("/price", response_model=SubscriptionPriceResponse)
+@router.get("/price", response_model=SubscriptionPriceResponse, dependencies=[Depends(check_subscription_enabled)])
 async def get_subscription_price(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
@@ -62,7 +72,7 @@ async def get_subscription_price(
     )
 
 
-@router.post("/checkout", response_model=SubscriptionCheckoutResponse)
+@router.post("/checkout", response_model=SubscriptionCheckoutResponse, dependencies=[Depends(check_subscription_enabled)])
 async def purchase_subscription(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)
@@ -119,7 +129,7 @@ async def purchase_subscription(
         )
 
 
-@router.delete("/cancel")
+@router.delete("/cancel", dependencies=[Depends(check_subscription_enabled)])
 async def cancel_subscription(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)
@@ -145,7 +155,7 @@ async def cancel_subscription(
     }
 
 
-@router.post("/auto-renewal/enable")
+@router.post("/auto-renewal/enable", dependencies=[Depends(check_subscription_enabled)])
 async def enable_auto_renewal(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)

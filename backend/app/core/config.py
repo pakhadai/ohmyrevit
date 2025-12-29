@@ -56,6 +56,17 @@ class Settings(BaseSettings):
     COINS_PER_USD: int = 100  # 100 монет = $1
     SUBSCRIPTION_PRICE_COINS: int = 500  # Ціна підписки в монетах (= $5)
 
+    # Функціональність підписки (можна відключити)
+    SUBSCRIPTION_ENABLED: bool = True
+
+    # Marketplace налаштування
+    MARKETPLACE_ENABLED: bool = False
+    MARKETPLACE_COMMISSION_PERCENT: int = 15  # Комісія платформи
+    MIN_PRODUCT_PRICE_COINS: int = 200  # Мінімум $2
+    MIN_PAYOUT_AMOUNT_USD: int = 30  # Мінімум $30 для виплати
+    MAX_FILE_SIZE_MB_MARKETPLACE: int = 10  # Максимум 10MB для файлів креаторів
+    CREATOR_MAX_PENDING_PRODUCTS: int = 3  # Максимум товарів в модерації одночасно
+
     # --- Email Settings (SMTP) ---
     MAIL_USERNAME: str = ""
     MAIL_PASSWORD: str = ""

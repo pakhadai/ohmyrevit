@@ -11,6 +11,7 @@ import { Product } from '@/types';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { useTheme } from '@/lib/theme';
+import { SUBSCRIPTION_ENABLED } from '@/lib/features';
 
 export default function HomePage() {
   const router = useRouter();
@@ -30,7 +31,8 @@ export default function HomePage() {
         const [productsData, bonusData, subData] = await Promise.all([
           productsAPI.getProducts({ sort_by: 'newest', limit: 6 }),
           isAuthenticated ? profileAPI.getBonusInfo() : Promise.resolve(null),
-          isAuthenticated ? subscriptionsAPI.getStatus() : Promise.resolve(null)
+          // Не робимо запит підписки якщо вона вимкнена
+          (isAuthenticated && SUBSCRIPTION_ENABLED) ? subscriptionsAPI.getStatus() : Promise.resolve(null)
         ]);
         setProducts(productsData.products || []);
         setBonusInfo(bonusData);
@@ -164,6 +166,8 @@ export default function HomePage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 mb-8 sm:mb-10">
 
+          {/* Premium підписка - показуємо тільки якщо feature увімкнений */}
+          {SUBSCRIPTION_ENABLED && (
           <div
             onClick={() => router.push('/subscription')}
             className="lg:col-span-2 cursor-pointer transition-all duration-300 hover:translate-y-[-2px]"
@@ -292,8 +296,9 @@ export default function HomePage() {
               )}
             </div>
           </div>
+          )}
 
-          <div className="grid grid-cols-3 lg:grid-cols-1 gap-3 sm:gap-4">
+          <div className={`grid grid-cols-3 ${SUBSCRIPTION_ENABLED ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-3 sm:gap-4`}>
             {isAuthenticated && (
               <button
                 onClick={handleClaimBonus}
