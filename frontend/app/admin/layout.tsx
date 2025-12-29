@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
-  Users, Package, ShoppingCart, TrendingUp, Tag, Menu, ArrowLeft, Plus, LayoutList, Coins
+  Users, Package, ShoppingCart, TrendingUp, Tag, Menu, ArrowLeft, Plus, LayoutList, Coins, Store
 } from 'lucide-react';
+import { MARKETPLACE_ENABLED } from '@/lib/features';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -14,7 +15,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { t } = useTranslation();
 
-  const menuItems = [
+  const baseMenuItems = [
     { id: 'dashboard', label: t('admin.sidebar.dashboard'), icon: TrendingUp, href: '/admin' },
     { id: 'users', label: t('admin.sidebar.users'), icon: Users, href: '/admin/users' },
     { id: 'products', label: t('admin.sidebar.products'), icon: Package, href: '/admin/products' },
@@ -23,6 +24,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { id: 'coin-packs', label: t('admin.sidebar.coinPacks', 'Пакети монет'), icon: Coins, href: '/admin/coin-packs' },
     { id: 'promo-codes', label: t('admin.sidebar.promoCodes'), icon: Tag, href: '/admin/promo-codes' },
   ];
+
+  const creatorsMenuItem = MARKETPLACE_ENABLED ? [
+    { id: 'creators', label: 'Креатори', icon: Store, href: '/admin/creators/stats' },
+  ] : [];
+
+  const menuItems = [...baseMenuItems, ...creatorsMenuItem];
 
   const isActive = (href: string) => {
     if (href === '/admin') return pathname === href;

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import {
   Settings, LogOut, Download, Heart, Gift, Users, HelpCircle, FileText,
-  ChevronRight, Wallet, Shield, User as UserIcon, Copy, Sparkles
+  ChevronRight, Wallet, Shield, User as UserIcon, Copy, Sparkles, Briefcase, Store
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +12,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useTheme } from '@/lib/theme';
+import { MARKETPLACE_ENABLED } from '@/lib/features';
 
 // --- ТИПИ ---
 interface MenuItem {
@@ -286,6 +287,16 @@ export default function ProfilePage() {
       iconBg: theme.colors.pinkLight,
     },
   ];
+
+  const groupCreators: MenuItem[] = MARKETPLACE_ENABLED ? [
+    {
+      href: user?.is_creator ? '/creator/dashboard' : '/become-creator',
+      label: user?.is_creator ? 'Кабінет креатора' : 'Стати креатором',
+      icon: user?.is_creator ? Store : Briefcase,
+      iconColor: theme.colors.purple,
+      iconBg: theme.colors.purpleLight,
+    },
+  ] : [];
 
   const groupGeneral: MenuItem[] = [
     {
@@ -596,6 +607,33 @@ export default function ProfilePage() {
                   ))}
                 </div>
               </div>
+
+              {/* МАРКЕТПЛЕЙС КРЕАТОРІВ */}
+              {MARKETPLACE_ENABLED && groupCreators.length > 0 && (
+                <div>
+                  <h3
+                    className="text-xs font-bold uppercase tracking-wider mb-3 ml-4"
+                    style={{ color: theme.colors.textMuted }}
+                  >
+                    Маркетплейс
+                  </h3>
+                  <div
+                    className="rounded-[28px] p-2 shadow-sm overflow-hidden"
+                    style={{
+                      backgroundColor: theme.colors.card,
+                      border: `1px solid ${theme.colors.border}`,
+                    }}
+                  >
+                    {groupCreators.map((item, index) => (
+                      <MenuItemComponent
+                        key={item.href}
+                        item={item}
+                        isLast={index === groupCreators.length - 1}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* ІНШЕ */}
               <div>
