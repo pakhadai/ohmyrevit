@@ -43,8 +43,11 @@ async def get_products(
         is_on_sale: Optional[bool] = Query(None),
         min_price: Optional[float] = Query(None, ge=0),
         max_price: Optional[float] = Query(None, ge=0),
+        min_rating: Optional[float] = Query(None, ge=1, le=5, description="Мінімальний рейтинг"),
         sort_by: Optional[str] = Query("newest"),
         creator_only: Optional[bool] = Query(None, description="Показувати тільки товари креаторів"),
+        author_id: Optional[int] = Query(None, description="Фільтр по автору"),
+        search: Optional[str] = Query(None, min_length=2, max_length=100, description="Пошук по назві/опису"),
         limit: int = Query(20, ge=1, le=100),
         offset: int = Query(0, ge=0),
         db: AsyncSession = Depends(get_db)
@@ -52,7 +55,8 @@ async def get_products(
     language_code = _parse_language_header(accept_language)
     filters = ProductFilter(
         category_id=category_id, product_type=product_type, is_on_sale=is_on_sale,
-        min_price=min_price, max_price=max_price, sort_by=sort_by, creator_only=creator_only
+        min_price=min_price, max_price=max_price, min_rating=min_rating,
+        sort_by=sort_by, creator_only=creator_only, author_id=author_id, search=search
     )
     return await product_service.get_products_list(
         language_code=language_code, db=db, filters=filters, limit=limit, offset=offset
@@ -86,6 +90,44 @@ async def get_categories(
                 "name": translation.name
             })
     return response_data
+
+
+@router.get("/autocomplete/search", response_model=List[dict])
+async def autocomplete_search(
+        query: str = Query(..., min_length=2, max_length=100, description="Пошуковий запит"),
+        limit: int = Query(10, ge=1, le=20, description="Кількість результатів"),
+        accept_language: Optional[str] = Header(default="uk"),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Autocomplete для пошуку товарів.
+    Повертає список підказок з назвами товарів та їх ID.
+    """
+    language_code = _parse_language_header(accept_language)
+
+    from app.products.models import ProductTranslation, Product
+
+    search_pattern = f"%{query}%"
+    result = await db.execute(
+        select(Product, ProductTranslation)
+        .join(Product.translations)
+        .where(
+            (ProductTranslation.language_code == language_code) &
+            (ProductTranslation.title.ilike(search_pattern))
+        )
+        .limit(limit)
+    )
+
+    suggestions = []
+    for product, translation in result:
+        suggestions.append({
+            "id": product.id,
+            "title": translation.title,
+            "price": float(product.price),
+            "main_image_url": product.main_image_url
+        })
+
+    return suggestions
 
 
 @router.get("/{product_id}", response_model=ProductResponse)

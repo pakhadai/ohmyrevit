@@ -257,8 +257,20 @@ class ProductService:
                 query = query.where(Product.price >= filters.min_price)
             if filters.max_price is not None:
                 query = query.where(Product.price <= filters.max_price)
+            if filters.min_rating is not None:
+                query = query.where(Product.average_rating >= filters.min_rating)
             if filters.creator_only is True:
                 query = query.where(Product.author_id.isnot(None))
+            if filters.author_id is not None:
+                query = query.where(Product.author_id == filters.author_id)
+            if filters.search:
+                # Пошук по назві та опису в перекладах (ILIKE для case-insensitive)
+                search_pattern = f"%{filters.search}%"
+                from app.products.models import ProductTranslation
+                query = query.join(Product.translations).where(
+                    (ProductTranslation.title.ilike(search_pattern)) |
+                    (ProductTranslation.description.ilike(search_pattern))
+                )
 
         if filters and filters.sort_by:
             if filters.sort_by == "price_asc":
@@ -323,8 +335,19 @@ class ProductService:
                 count_query = count_query.where(Product.price >= filters.min_price)
             if filters.max_price is not None:
                 count_query = count_query.where(Product.price <= filters.max_price)
+            if filters.min_rating is not None:
+                count_query = count_query.where(Product.average_rating >= filters.min_rating)
             if filters.creator_only is True:
                 count_query = count_query.where(Product.author_id.isnot(None))
+            if filters.author_id is not None:
+                count_query = count_query.where(Product.author_id == filters.author_id)
+            if filters.search:
+                search_pattern = f"%{filters.search}%"
+                from app.products.models import ProductTranslation
+                count_query = count_query.join(Product.translations).where(
+                    (ProductTranslation.title.ilike(search_pattern)) |
+                    (ProductTranslation.description.ilike(search_pattern))
+                )
 
         total_result = await db.execute(count_query)
         total_count = total_result.scalar() or 0

@@ -89,8 +89,11 @@ class ProductFilter(BaseModel):
     is_on_sale: Optional[bool] = None
     min_price: Optional[Decimal] = None
     max_price: Optional[Decimal] = None
+    min_rating: Optional[Decimal] = Field(None, ge=1, le=5, description="Мінімальний рейтинг (1-5)")
     sort_by: Optional[SortByEnum] = SortByEnum.NEWEST
     creator_only: Optional[bool] = None  # Фільтр для товарів тільки від креаторів
+    author_id: Optional[int] = Field(None, description="Фільтр по конкретному автору (креатору)")
+    search: Optional[str] = Field(None, min_length=2, max_length=100, description="Пошук по назві/опису")
 
 
 class ProductTranslationResponse(BaseModel):
