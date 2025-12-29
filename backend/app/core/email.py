@@ -643,4 +643,268 @@ class EmailService:
         return await self.send_email(to=user_email, subject=subject, html_content=html_content)
 
 
+    async def send_creator_application_approved(
+            self,
+            user_email: str,
+            language_code: str = "uk"
+    ) -> bool:
+        """Схвалення заявки креатора"""
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = "OhMyRevit – Вашу заявку креатора схвалено! 🎉"
+
+        content = """
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+        </div>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            Вітаємо! Ви стали креатором 🎨
+        </h2>
+
+        <p style="margin: 0 0 24px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            Ваша заявка на статус креатора була розглянута та схвалена. Тепер ви можете продавати свої плагіни на маркетплейсі OhMyRevit!
+        </p>
+
+        <div style="margin: 32px 0; padding: 24px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 16px;">
+            <p style="margin: 0 0 16px 0; font-size: 15px; color: #065f46; font-weight: 700; text-align: center;">
+                Що ви можете робити:
+            </p>
+            <div style="text-align: left; max-width: 400px; margin: 0 auto;">
+                <p style="margin: 8px 0; font-size: 15px; color: #047857;">✅ Додавати свої товари</p>
+                <p style="margin: 8px 0; font-size: 15px; color: #047857;">✅ Встановлювати ціни (мін. $2)</p>
+                <p style="margin: 8px 0; font-size: 15px; color: #047857;">✅ Отримувати 85% від продажів</p>
+                <p style="margin: 8px 0; font-size: 15px; color: #047857;">✅ Переглядати статистику</p>
+                <p style="margin: 8px 0; font-size: 15px; color: #047857;">✅ Запитувати виплати</p>
+            </div>
+        </div>
+
+        """ + get_button_html("Перейти до кабінету креатора", f"{settings.FRONTEND_URL}/creator/dashboard", "#10B981") + """
+
+        <div style="margin-top: 32px; padding: 20px; background-color: #DBEAFE; border-left: 4px solid #3B82F6; border-radius: 8px;">
+            <p style="margin: 0; font-size: 14px; color: #1E40AF; line-height: 1.6;">
+                💡 <strong>Порада:</strong><br>
+                Перший товар пройде модерацію швидше, якщо ви додасте детальний опис та якісні скріншоти.
+            </p>
+        </div>
+        """
+
+        html_content = get_email_template(content, language_code)
+        return await self.send_email(to=user_email, subject=subject, html_content=html_content)
+
+    async def send_product_approved(
+            self,
+            user_email: str,
+            product_title: str,
+            product_id: int,
+            language_code: str = "uk"
+    ) -> bool:
+        """Схвалення товару креатора"""
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = f"OhMyRevit – Товар \"{product_title}\" схвалено!"
+
+        content = f"""
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+        </div>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            Товар схвалено! ✅
+        </h2>
+
+        <p style="margin: 0 0 24px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            Ваш товар <strong style="color: #1d1d1f;">"{product_title}"</strong> пройшов модерацію та опублікований на маркетплейсі!
+        </p>
+
+        <div style="margin: 32px 0; padding: 24px; background-color: #f5f5f7; border-radius: 16px;">
+            <p style="margin: 0; font-size: 15px; color: #6e6e73; text-align: center;">
+                Тепер користувачі можуть знайти та придбати ваш плагін. Ви отримаєте 85% від кожного продажу.
+            </p>
+        </div>
+
+        {get_button_html("Переглянути товар", f"{settings.FRONTEND_URL}/product/{product_id}", "#10B981")}
+
+        <div style="margin-top: 32px; padding: 20px; background-color: #DBEAFE; border-left: 4px solid #3B82F6; border-radius: 8px;">
+            <p style="margin: 0; font-size: 14px; color: #1E40AF; line-height: 1.6;">
+                💡 <strong>Поради для успішних продажів:</strong><br>
+                • Оновлюйте опис товару зі зворотнім зв'язком<br>
+                • Додавайте більше скріншотів<br>
+                • Відповідайте на питання користувачів
+            </p>
+        </div>
+        """
+
+        html_content = get_email_template(content, language_code)
+        return await self.send_email(to=user_email, subject=subject, html_content=html_content)
+
+    async def send_product_rejected(
+            self,
+            user_email: str,
+            product_title: str,
+            rejection_reason: str,
+            product_id: int,
+            language_code: str = "uk"
+    ) -> bool:
+        """Відхилення товару креатора"""
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = f"OhMyRevit – Товар \"{product_title}\" потребує доопрацювання"
+
+        content = f"""
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+            </div>
+        </div>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            Товар потребує доопрацювання
+        </h2>
+
+        <p style="margin: 0 0 24px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            Ваш товар <strong style="color: #1d1d1f;">"{product_title}"</strong> на жаль не пройшов модерацію.
+        </p>
+
+        <div style="margin: 32px 0; padding: 24px; background-color: #FEF3C7; border: 2px solid #F59E0B; border-radius: 16px;">
+            <p style="margin: 0 0 12px 0; font-size: 14px; color: #92400E; font-weight: 700;">
+                Причина відхилення:
+            </p>
+            <p style="margin: 0; font-size: 15px; color: #78350F; line-height: 1.6;">
+                {rejection_reason}
+            </p>
+        </div>
+
+        <p style="margin: 24px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            Будь ласка, виправте зазначені проблеми та відправте товар на модерацію знову.
+        </p>
+
+        {get_button_html("Редагувати товар", f"{settings.FRONTEND_URL}/creator/products/{product_id}/edit", "#F59E0B")}
+        """
+
+        html_content = get_email_template(content, language_code)
+        return await self.send_email(to=user_email, subject=subject, html_content=html_content)
+
+    async def send_payout_processed(
+            self,
+            user_email: str,
+            amount: float,
+            method: str,
+            language_code: str = "uk"
+    ) -> bool:
+        """Виплата оброблена"""
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = f"OhMyRevit – Виплата ${amount} оброблена"
+
+        content = f"""
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+            </div>
+        </div>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            Виплата успішно оброблена! 💰
+        </h2>
+
+        <p style="margin: 0 0 32px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            Ваш запит на виплату був оброблений адміністрацією.
+        </p>
+
+        <div style="margin: 32px 0; padding: 24px; background-color: #f5f5f7; border-radius: 16px;">
+            <table role="presentation" style="width: 100%;">
+                <tr>
+                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e7;">
+                        <p style="margin: 0; font-size: 13px; color: #86868b;">Сума</p>
+                        <p style="margin: 4px 0 0 0; font-size: 24px; color: #10B981; font-weight: 700;">${amount}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px 0;">
+                        <p style="margin: 0; font-size: 13px; color: #86868b;">Метод</p>
+                        <p style="margin: 4px 0 0 0; font-size: 15px; color: #1d1d1f; font-weight: 600;">{method}</p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="margin-top: 32px; padding: 20px; background-color: #DBEAFE; border-left: 4px solid #3B82F6; border-radius: 8px;">
+            <p style="margin: 0; font-size: 14px; color: #1E40AF; line-height: 1.6;">
+                ℹ️ <strong>Інформація:</strong><br>
+                Кошти надійдуть протягом 1-3 робочих днів залежно від обраного способу виплати.
+            </p>
+        </div>
+
+        {get_button_html("Переглянути статистику", f"{settings.FRONTEND_URL}/creator/dashboard", "#10B981")}
+        """
+
+        html_content = get_email_template(content, language_code)
+        return await self.send_email(to=user_email, subject=subject, html_content=html_content)
+
+    async def send_admin_new_application(
+            self,
+            admin_email: str,
+            user_id: int,
+            username: str,
+            language_code: str = "uk"
+    ) -> bool:
+        """Нова заявка на модерацію для адміна"""
+        t = lambda k, **kwargs: get_text(k, language_code, **kwargs)
+        subject = f"OhMyRevit – Нова заявка креатора від @{username}"
+
+        content = f"""
+        <div style="text-align: center; margin-bottom: 32px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%); padding: 16px; border-radius: 16px; margin-bottom: 24px;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="8.5" cy="7" r="4"></circle>
+                    <polyline points="17 11 19 13 23 9"></polyline>
+                </svg>
+            </div>
+        </div>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: #1d1d1f; text-align: center; letter-spacing: -0.5px;">
+            Нова заявка креатора
+        </h2>
+
+        <p style="margin: 0 0 32px 0; font-size: 16px; color: #6e6e73; line-height: 1.6; text-align: center;">
+            Користувач подав заявку на статус креатора та очікує модерації.
+        </p>
+
+        <div style="margin: 32px 0; padding: 24px; background-color: #f5f5f7; border-radius: 16px;">
+            <table role="presentation" style="width: 100%;">
+                <tr>
+                    <td style="padding: 12px 0; border-bottom: 1px solid #e5e5e7;">
+                        <p style="margin: 0; font-size: 13px; color: #86868b;">Username</p>
+                        <p style="margin: 4px 0 0 0; font-size: 15px; color: #1d1d1f; font-weight: 600;">@{username}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px 0;">
+                        <p style="margin: 0; font-size: 13px; color: #86868b;">User ID</p>
+                        <p style="margin: 4px 0 0 0; font-size: 15px; color: #1d1d1f; font-weight: 600;">{user_id}</p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        {get_button_html("Переглянути заявку", f"{settings.FRONTEND_URL}/admin/creators/applications", "#8B5CF6")}
+        """
+
+        html_content = get_email_template(content, language_code)
+        return await self.send_email(to=admin_email, subject=subject, html_content=html_content)
+
+
 email_service = EmailService()
