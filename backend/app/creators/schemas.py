@@ -136,6 +136,7 @@ class CreatorProductResponse(BaseModel):
     downloads_count: int
     created_at: datetime
     updated_at: Optional[datetime]
+    category_ids: list[int] = []
 
     class Config:
         from_attributes = True

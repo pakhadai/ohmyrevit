@@ -160,10 +160,13 @@ class ProductService:
         if cached_data:
             return json.loads(cached_data)
 
+        from app.users.models import User
+
         result = await db.execute(
             select(Product)
             .options(selectinload(Product.translations))
             .options(selectinload(Product.categories).selectinload(Category.translations))
+            .options(selectinload(Product.author))
             .where(Product.id == product_id)
         )
         product = result.scalar_one_or_none()
@@ -176,6 +179,15 @@ class ProductService:
             translation = product.get_translation('uk')
             if not translation:
                 return None
+
+        author_name = None
+        if product.author:
+            if product.author.full_name:
+                author_name = product.author.full_name
+            elif product.author.username:
+                author_name = product.author.username
+            else:
+                author_name = f"{product.author.first_name or ''} {product.author.last_name or ''}".strip()
 
         response = {
             "id": product.id,
@@ -199,7 +211,9 @@ class ProductService:
             ],
             "views_count": product.views_count,
             "downloads_count": product.downloads_count,
-            "created_at": product.created_at.isoformat() if product.created_at else None
+            "created_at": product.created_at.isoformat() if product.created_at else None,
+            "author_id": product.author_id,
+            "author_name": author_name
         }
 
         await cache.set(cache_key, json.dumps(response), ttl=300)
@@ -222,9 +236,12 @@ class ProductService:
         if cached_data:
             return json.loads(cached_data)
 
+        from app.users.models import User
+
         query = select(Product).options(
             selectinload(Product.translations),
-            selectinload(Product.categories).selectinload(Category.translations)
+            selectinload(Product.categories).selectinload(Category.translations),
+            selectinload(Product.author)
         )
 
         if filters:
@@ -263,6 +280,15 @@ class ProductService:
         for product in products:
             translation = product.get_translation(language_code)
             if translation:
+                author_name = None
+                if product.author:
+                    if product.author.full_name:
+                        author_name = product.author.full_name
+                    elif product.author.username:
+                        author_name = product.author.username
+                    else:
+                        author_name = f"{product.author.first_name or ''} {product.author.last_name or ''}".strip()
+
                 products_list.append({
                     "id": product.id,
                     "title": translation.title,
@@ -277,7 +303,9 @@ class ProductService:
                         cat.get_translation(language_code).name if cat.get_translation(language_code) else cat.slug for
                         cat in product.categories],
                     "views_count": product.views_count,
-                    "file_size_mb": float(product.file_size_mb)
+                    "file_size_mb": float(product.file_size_mb),
+                    "author_id": product.author_id,
+                    "author_name": author_name
                 })
 
         count_query = select(func.count(Product.id))

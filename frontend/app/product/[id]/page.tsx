@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { productsAPI } from '@/lib/api';
 import { Product } from '@/types';
-import { ArrowLeft, ShoppingCart, CheckCircle2, Info, Loader, Download, Heart, Share2 } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, CheckCircle2, Info, Loader, Download, Heart, Share2, User } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCartStore } from '@/store/cartStore';
 import toast from 'react-hot-toast';
@@ -310,6 +311,43 @@ export default function ProductDetailPage() {
               {product.description}
             </p>
           </div>
+
+          {product.author_id && product.author_name && (
+            <div
+              className="p-6"
+              style={{
+                backgroundColor: theme.colors.card,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius['2xl'],
+                boxShadow: theme.shadows.md,
+              }}
+            >
+              <h3 className="text-sm font-semibold mb-3" style={{ color: theme.colors.text }}>
+                {t('productPage.author') || 'Автор'}
+              </h3>
+              <Link
+                href={`/creator/${product.author_id}`}
+                className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+              >
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.secondary} 100%)`,
+                  }}
+                >
+                  <User size={24} color="#FFF" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-sm" style={{ color: theme.colors.text }}>
+                    {product.author_name}
+                  </p>
+                  <p className="text-xs" style={{ color: theme.colors.textMuted }}>
+                    {t('productPage.viewProfile') || 'Переглянути профіль'}
+                  </p>
+                </div>
+              </Link>
+            </div>
+          )}
 
           <div className="fixed bottom-24 left-0 right-0 px-5 z-20 pointer-events-none">
             <div

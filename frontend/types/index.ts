@@ -40,6 +40,8 @@ export interface Product {
   categories: Category[];
   views_count?: number;
   downloads_count?: number;
+  author_id?: number;
+  author_name?: string;
 }
 
 export interface CartItem {

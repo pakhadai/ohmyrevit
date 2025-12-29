@@ -119,6 +119,8 @@ class ProductResponse(BaseModel):
     views_count: int
     downloads_count: int
     created_at: Optional[datetime]
+    author_id: Optional[int] = None
+    author_name: Optional[str] = None
 
 
 class ProductListResponse(BaseModel):
@@ -134,6 +136,8 @@ class ProductListResponse(BaseModel):
     categories: List[str]
     views_count: int
     file_size_mb: float
+    author_id: Optional[int] = None
+    author_name: Optional[str] = None
 
 
 class PaginatedProductsResponse(BaseModel):

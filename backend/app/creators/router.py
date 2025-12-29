@@ -203,7 +203,8 @@ async def create_product(
             views_count=product.views_count,
             downloads_count=product.downloads_count,
             created_at=product.created_at,
-            updated_at=product.updated_at
+            updated_at=product.updated_at,
+            category_ids=[cat.id for cat in product.categories]
         )
     except ValueError as e:
         raise HTTPException(
@@ -244,7 +245,8 @@ async def get_my_products(
                 views_count=product.views_count,
                 downloads_count=product.downloads_count,
                 created_at=product.created_at,
-                updated_at=product.updated_at
+                updated_at=product.updated_at,
+                category_ids=[cat.id for cat in product.categories]
             ))
 
         return result
@@ -289,7 +291,8 @@ async def update_product(
             views_count=product.views_count,
             downloads_count=product.downloads_count,
             created_at=product.created_at,
-            updated_at=product.updated_at
+            updated_at=product.updated_at,
+            category_ids=[cat.id for cat in product.categories]
         )
     except ValueError as e:
         raise HTTPException(

@@ -163,11 +163,24 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         <div className="p-3 flex flex-col flex-grow">
           <h3
-            className="font-semibold text-sm leading-tight mb-2 line-clamp-2"
+            className="font-semibold text-sm leading-tight mb-1 line-clamp-2"
             style={{ color: theme.colors.text }}
           >
             {product.title}
           </h3>
+
+          {product.author_id && product.author_name && (
+            <Link
+              href={`/creator/${product.author_id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-[11px] mb-2 hover:underline"
+              style={{ color: theme.colors.textMuted }}
+            >
+              {product.author_name}
+            </Link>
+          )}
+
+          {!product.author_id && <div className="mb-2" />}
 
           <div className="flex-grow" />
 
