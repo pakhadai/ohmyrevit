@@ -28,30 +28,40 @@ export default function WalletReturnPage() {
       // Якщо є параметри від Gumroad, вважаємо, що покупка успішна
       setStatus('success');
       
-      // Запускаємо таймер для оновлення балансу та перенаправлення
-      const timer = setInterval(async () => {
+      // Відразу показуємо лоадер та почекаємо 2 секунди перед оновленням
+      // (даємо час webhook'у обробитись на сервері)
+      setTimeout(async () => {
+        try {
+          // Оновлюємо дані користувача
+          await refreshUser();
+
+          // Отримуємо актуальний баланс
+          const info = await walletAPI.getInfo();
+          updateBalance(info.balance);
+
+          // Показуємо успішне повідомлення
+          toast.success(
+            t('wallet.paymentSuccess') || 'Оплата успішна! Баланс оновлено.',
+            { duration: 3000 }
+          );
+        } catch (error) {
+          console.error('Failed to update balance:', error);
+          // Якщо не вдалося оновити баланс, показуємо повідомлення
+          toast.error(
+            t('wallet.balanceUpdateError') || 'Не вдалося оновити баланс. Спробуйте пізніше.',
+            { duration: 3000 }
+          );
+        } finally {
+          // Перенаправляємо на сторінку гаманця
+          router.push('/profile/wallet');
+        }
+      }, 3000);
+
+      // Запускаємо таймер зворотного відліку
+      const timer = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(timer);
-            // Оновлюємо дані користувача та баланс
-            refreshUser().then(() => {
-              // Отримуємо актуальний баланс
-              walletAPI.getInfo().then((info) => {
-                updateBalance(info.balance);
-                toast.success(
-                  t('wallet.paymentSuccess') || 'Оплата успішна! Баланс оновлено.',
-                  { duration: 3000 }
-                );
-              }).catch(() => {
-                // Якщо не вдалося отримати баланс, все одно перенаправляємо
-              });
-              
-              // Перенаправляємо на сторінку гаманця
-              router.push('/profile/wallet');
-            }).catch(() => {
-              // Якщо не вдалося оновити користувача, все одно перенаправляємо
-              router.push('/profile/wallet');
-            });
             return 0;
           }
           return prev - 1;
