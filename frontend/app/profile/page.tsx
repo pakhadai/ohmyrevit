@@ -155,7 +155,7 @@ const ConfirmModal = ({
 
 // --- ГОЛОВНИЙ КОМПОНЕНТ ---
 export default function ProfilePage() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, refreshUser } = useAuthStore();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -197,13 +197,18 @@ export default function ProfilePage() {
     }
   }, [router]);
 
-  // Симуляція завантаження даних
+  // Оновлення даних користувача та симуляція завантаження
   useEffect(() => {
     if (isHydrated) {
+      // Оновлюємо дані користувача для актуального статусу креатора
+      refreshUser().catch(err => {
+        console.error('Failed to refresh user:', err);
+      });
+      
       const timer = setTimeout(() => setIsLoading(false), 500);
       return () => clearTimeout(timer);
     }
-  }, [isHydrated]);
+  }, [isHydrated, refreshUser]);
 
   const { theme, isDark } = useTheme();
 
@@ -241,15 +246,29 @@ export default function ProfilePage() {
   // --- МЕНЮ ГРУПИ (з консистентними стилями) ---
 
   // Креатори - ВГОРІ для зручності
-  const groupCreators: MenuItem[] = MARKETPLACE_ENABLED ? [
-    {
-      href: user?.is_creator ? '/creator/dashboard' : '/become-creator',
-      label: user?.is_creator ? 'Кабінет креатора' : 'Стати креатором',
-      icon: user?.is_creator ? Store : Briefcase,
-      iconColor: theme.colors.purple,
-      iconBg: theme.colors.purpleLight,
-    },
-  ] : [];
+  // Показуємо "Стати креатором" тільки для не-креаторів
+  // Показуємо "Кабінет креатора" тільки для креаторів
+  const groupCreators: MenuItem[] = MARKETPLACE_ENABLED ? (
+    user?.is_creator 
+      ? [
+          {
+            href: '/creator/dashboard',
+            label: 'Кабінет креатора',
+            icon: Store,
+            iconColor: theme.colors.purple,
+            iconBg: theme.colors.purpleLight,
+          },
+        ]
+      : [
+          {
+            href: '/become-creator',
+            label: 'Стати креатором',
+            icon: Briefcase,
+            iconColor: theme.colors.purple,
+            iconBg: theme.colors.purpleLight,
+          },
+        ]
+  ) : [];
 
   const groupMain: MenuItem[] = [
     {

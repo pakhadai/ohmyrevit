@@ -332,7 +332,7 @@ async def gumroad_webhook(
             raise
 
         if sale_id:
-            await cache.setex(idempotency_key, 86400, "1")
+            await cache.set(idempotency_key, "1", ttl=86400)
 
         try:
             user = await db.get(User, user_id)

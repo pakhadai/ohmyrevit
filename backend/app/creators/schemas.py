@@ -169,7 +169,7 @@ class CreatorProductResponse(BaseModel):
 class TopProductItem(BaseModel):
     """Топ товар"""
     id: int
-    title: str
+    title: Optional[str] = None
     views: Optional[int] = 0
     downloads: Optional[int] = 0
 

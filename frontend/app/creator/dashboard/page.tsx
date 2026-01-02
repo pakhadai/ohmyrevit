@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { creatorsAPI } from '@/lib/api';
 import { MARKETPLACE_ENABLED } from '@/lib/features';
 import { useTheme } from '@/lib/theme';
+import { useAuthStore } from '@/store/authStore';
 import {
   DollarSign, Package, TrendingUp, Eye, Download,
   Clock, CheckCircle, XCircle, FileText, ArrowRight,
@@ -45,6 +46,7 @@ interface Transaction {
 export default function CreatorDashboardPage() {
   const router = useRouter();
   const { theme, isDark } = useTheme();
+  const { user, refreshUser } = useAuthStore();
 
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState<CreatorBalance | null>(null);
@@ -57,7 +59,41 @@ export default function CreatorDashboardPage() {
       router.push('/');
       return;
     }
-    loadData();
+    
+    // Оновлюємо дані користувача перед завантаженням дашборду
+    const checkAndLoad = async () => {
+      try {
+        // Оновлюємо дані користувача для актуального статусу креатора
+        await refreshUser();
+        
+        // Перевіряємо статус креатора
+        const status = await creatorsAPI.getStatus();
+        if (!status.is_creator) {
+          setError('У вас немає доступу до кабінету креатора. Будь ласка, подайте заявку на статус креатора.');
+          setTimeout(() => {
+            router.push('/become-creator');
+          }, 2000);
+          setLoading(false);
+          return;
+        }
+        
+        // Завантажуємо дані дашборду
+        await loadData();
+      } catch (err: any) {
+        console.error('Error checking creator status:', err);
+        if (err.response?.status === 403) {
+          setError('У вас немає доступу до кабінету креатора. Будь ласка, подайте заявку на статус креатора.');
+          setTimeout(() => {
+            router.push('/become-creator');
+          }, 2000);
+        } else {
+          setError('Не вдалося перевірити статус креатора');
+        }
+        setLoading(false);
+      }
+    };
+    
+    checkAndLoad();
   }, []);
 
   const loadData = async () => {
@@ -72,10 +108,21 @@ export default function CreatorDashboardPage() {
       setStats(statsData);
       setTransactions(transactionsData);
     } catch (err: any) {
+      console.error('Error loading creator dashboard data:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
+      
       if (err.response?.status === 403) {
-        router.push('/become-creator');
+        setError('У вас немає доступу до кабінету креатора. Будь ласка, подайте заявку на статус креатора.');
+        setTimeout(() => {
+          router.push('/become-creator');
+        }, 2000);
       } else {
-        setError('Не вдалося завантажити дані');
+        const errorMessage = err.response?.data?.detail || err.message || 'Не вдалося завантажити дані';
+        setError(errorMessage);
       }
     } finally {
       setLoading(false);

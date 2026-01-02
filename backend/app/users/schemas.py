@@ -51,6 +51,7 @@ class UserChangePassword(BaseModel):
 class UserResponse(UserBase):
     id: int
     is_admin: bool
+    is_creator: bool = False
     is_email_verified: bool
     balance: int
     bonus_streak: int

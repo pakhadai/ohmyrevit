@@ -81,7 +81,11 @@ class CreatorService:
     async def get_creator_balance_info(self, user_id: int) -> dict:
         """Отримати детальну інформацію про баланс креатора"""
         user = await self.db.get(User, user_id)
-        if not user or not user.is_creator:
+        if not user:
+            logger.error(f"User {user_id} not found")
+            raise ValueError("User not found")
+        if not user.is_creator:
+            logger.warning(f"User {user_id} is not a creator (is_creator={user.is_creator})")
             raise ValueError("User is not a creator")
 
         # Підрахунок продажів

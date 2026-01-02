@@ -69,7 +69,31 @@ export default function WalletPage() {
 
   useEffect(() => {
     fetchWalletInfo();
-  }, [fetchWalletInfo]);
+    
+    // Перевіряємо, чи користувач повернувся з Gumroad
+    const urlParams = new URLSearchParams(window.location.search);
+    const saleId = urlParams.get('sale_id');
+    const permalink = urlParams.get('permalink');
+    
+    if (saleId || permalink) {
+      // Якщо є параметри від Gumroad, оновлюємо баланс через 3 секунди
+      setTimeout(async () => {
+        try {
+          const info = await walletAPI.getInfo();
+          setBalance(info.balance);
+          updateBalance(info.balance);
+          toast.success(
+            t('wallet.paymentSuccess') || 'Оплата успішна! Баланс оновлено.',
+            { duration: 4000 }
+          );
+          // Очищаємо URL параметри
+          window.history.replaceState({}, '', '/profile/wallet');
+        } catch (error) {
+          console.error('Failed to update balance:', error);
+        }
+      }, 3000);
+    }
+  }, [fetchWalletInfo, updateBalance, t]);
 
   const getTransactionIcon = (type: TransactionType) => {
     switch (type) {
@@ -112,9 +136,12 @@ export default function WalletPage() {
     }
 
     // URL для повернення після успішної оплати
-    const returnUrl = typeof window !== 'undefined' ? window.location.origin + '/profile/wallet' : '';
+    const returnUrl = typeof window !== 'undefined' 
+      ? `${window.location.origin}/profile/wallet/return` 
+      : '';
 
     const separator = pack.gumroad_url.includes('?') ? '&' : '?';
+    // Використовуємо параметр 'wanted' для автоматичного перенаправлення після оплати
     const url = `${pack.gumroad_url}${separator}custom_fields%5Buser_id%5D=${user?.id}&wanted=true&redirect_url=${encodeURIComponent(returnUrl)}`;
 
     // Відкриваємо в тому ж вікні для зручності в Telegram WebApp
