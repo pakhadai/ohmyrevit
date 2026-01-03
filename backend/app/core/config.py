@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     # Stripe Integration
     STRIPE_SECRET_KEY: str = ""  # Stripe secret key (sk_live_... or sk_test_...)
+    STRIPE_PUBLISHABLE_KEY: str = ""  # Stripe publishable key (pk_live_... or pk_test_...)
     STRIPE_WEBHOOK_SECRET: str = ""  # Stripe webhook signing secret (whsec_...)
 
     RESEND_API_KEY: str = ""

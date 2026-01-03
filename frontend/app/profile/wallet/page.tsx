@@ -5,9 +5,9 @@ import { useAuthStore } from '@/store/authStore';
 import { walletAPI } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Wallet, Coins, ArrowUpRight, ArrowDownLeft, Gift, CreditCard,
+  Wallet, Coins, ArrowDownLeft, Gift, CreditCard,
   ShoppingCart, Crown, RefreshCw, History, Sparkles, ChevronRight,
-  ExternalLink, TrendingUp, Clock, CheckCircle2, ArrowLeft
+  TrendingUp, Clock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -16,7 +16,7 @@ import Image from 'next/image';
 import { CoinPack, Transaction, TransactionType } from '@/types';
 import { useTheme } from '@/lib/theme';
 import EmailRequiredModal from '@/components/EmailRequiredModal';
-import { useUtils } from '@telegram-apps/sdk-react';
+import StripePaymentModal from '@/components/StripePaymentModal';
 
 export default function WalletPage() {
   const { theme } = useTheme();
@@ -30,17 +30,11 @@ export default function WalletPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [showEmailRequiredModal, setShowEmailRequiredModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showStripeModal, setShowStripeModal] = useState(false);
+  const [selectedPack, setSelectedPack] = useState<CoinPack | null>(null);
   const { t } = useTranslation();
   const router = useRouter();
 
-  // Telegram utils for opening links
-  let telegramUtils: ReturnType<typeof useUtils> | null = null;
-  try {
-    telegramUtils = useUtils();
-  } catch {
-    // Not in Telegram context
-  }
 
   const fetchWalletInfo = useCallback(async () => {
     try {
@@ -114,62 +108,25 @@ export default function WalletPage() {
     });
   };
 
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const handleBuyPack = async (pack: CoinPack) => {
+  const handleBuyPack = (pack: CoinPack) => {
     // Перевірка email та його підтвердження перед покупкою
     if (!user?.email || !user?.isEmailVerified) {
       setShowEmailRequiredModal(true);
       return;
     }
 
-    if (isProcessing) return;
-
-    setIsProcessing(true);
-    try {
-      // Call backend to create Stripe Checkout Session
-      const response = await walletAPI.createCheckoutSession(pack.id);
-
-      // Redirect to Stripe Checkout
-      const url = response.checkout_url;
-
-      // Check if we're in Telegram WebApp
-      const isTelegramWebApp = typeof window !== 'undefined' &&
-        (window as any).Telegram?.WebApp;
-
-      if (isTelegramWebApp && telegramUtils) {
-        // Open in external browser via Telegram
-        try {
-          telegramUtils.openLink(url, { tryInstantView: false });
-          // Show modal telling user to return after payment
-          setShowPaymentModal(true);
-        } catch {
-          // Fallback: open in new tab
-          window.open(url, '_blank');
-          setShowPaymentModal(true);
-        }
-      } else {
-        // Regular browser - redirect directly
-        window.location.href = url;
-      }
-    } catch (error: any) {
-      console.error('Failed to create checkout session:', error);
-      toast.error(
-        error.response?.data?.detail ||
-        t('wallet.checkoutError') ||
-        'Помилка створення сесії оплати'
-      );
-    } finally {
-      setIsProcessing(false);
-    }
+    // Always use embedded checkout (both Telegram and web)
+    setSelectedPack(pack);
+    setShowStripeModal(true);
   };
 
-  const handlePaymentReturn = async () => {
-    setShowPaymentModal(false);
-    // Refresh wallet info to check for new balance
+  const handleStripePaymentSuccess = () => {
+    setShowStripeModal(false);
+    setSelectedPack(null);
+    // Refresh wallet info
     setLoading(true);
-    await fetchWalletInfo();
-    toast.success(t('wallet.balanceUpdated') || 'Баланс оновлено!');
+    fetchWalletInfo();
+    toast.success(t('wallet.paymentSuccess') || 'Оплата успішна! Монети зараховано.');
   };
 
   if (loading) {
@@ -190,68 +147,16 @@ export default function WalletPage() {
         )}
       </AnimatePresence>
 
-      {/* Payment in Progress Modal */}
-      <AnimatePresence>
-        {showPaymentModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-sm p-6 text-center"
-              style={{
-                backgroundColor: theme.colors.card,
-                borderRadius: theme.radius['2xl'],
-                boxShadow: theme.shadows.xl
-              }}
-            >
-              <div
-                className="w-16 h-16 mx-auto mb-4 flex items-center justify-center"
-                style={{
-                  backgroundColor: theme.colors.primaryLight,
-                  borderRadius: theme.radius.xl
-                }}
-              >
-                <ExternalLink size={32} style={{ color: theme.colors.primary }} />
-              </div>
-
-              <h3 className="text-xl font-bold mb-2" style={{ color: theme.colors.text }}>
-                {t('wallet.paymentOpened') || 'Оплата відкрита'}
-              </h3>
-
-              <p className="text-sm mb-6" style={{ color: theme.colors.textSecondary }}>
-                {t('wallet.paymentInstructions') || 'Оплата відкрита у зовнішньому браузері. Після завершення оплати натисніть кнопку нижче, щоб оновити баланс.'}
-              </p>
-
-              <button
-                onClick={handlePaymentReturn}
-                className="w-full flex items-center justify-center gap-2 px-6 py-4 text-white font-bold transition-all hover:scale-105"
-                style={{
-                  backgroundColor: theme.colors.primary,
-                  borderRadius: theme.radius.xl
-                }}
-              >
-                <ArrowLeft size={20} />
-                {t('wallet.iCompletedPayment') || 'Я завершив оплату'}
-              </button>
-
-              <button
-                onClick={() => setShowPaymentModal(false)}
-                className="mt-3 text-sm font-medium"
-                style={{ color: theme.colors.textMuted }}
-              >
-                {t('common.cancel') || 'Скасувати'}
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Stripe Embedded Checkout Modal */}
+      <StripePaymentModal
+        isOpen={showStripeModal}
+        onClose={() => {
+          setShowStripeModal(false);
+          setSelectedPack(null);
+        }}
+        coinPack={selectedPack}
+        onSuccess={handleStripePaymentSuccess}
+      />
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -374,7 +279,7 @@ export default function WalletPage() {
                 <span className="text-xl font-bold" style={{ color: theme.colors.primary }}>
                   ${pack.price_usd}
                 </span>
-                <ExternalLink
+                <CreditCard
                   size={16}
                   className="transition-colors"
                   style={{ color: theme.colors.textMuted }}

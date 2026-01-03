@@ -11,7 +11,9 @@ import {
   SubscriptionPriceInfo,
   SubscriptionStatus,
   AuthResponse,
-  StripeCheckoutResponse
+  StripeCheckoutResponse,
+  StripePaymentIntentResponse,
+  StripeConfigResponse
 } from '@/types';
 
 export interface Category {
@@ -313,8 +315,16 @@ export const walletAPI = {
   }): Promise<TransactionListResponse> => {
     return getData(await api.get('/wallet/transactions', { params }));
   },
+  // Stripe Checkout (for web browser - redirect flow)
   createCheckoutSession: async (packId: number): Promise<StripeCheckoutResponse> => {
     return getData(await api.post(`/wallet/create-checkout-session/${packId}`));
+  },
+  // Stripe Embedded Checkout (for Telegram Mini App - in-app payment)
+  getStripeConfig: async (): Promise<StripeConfigResponse> => {
+    return getData(await api.get('/wallet/stripe/config'));
+  },
+  createPaymentIntent: async (packId: number): Promise<StripePaymentIntentResponse> => {
+    return getData(await api.post(`/wallet/create-payment-intent/${packId}`));
   },
 };
 

@@ -99,6 +99,19 @@ class StripeCheckoutResponse(BaseModel):
     session_id: str
 
 
+class StripePaymentIntentResponse(BaseModel):
+    """Response for Stripe Payment Intent creation (embedded checkout)"""
+    client_secret: str
+    payment_intent_id: str
+    amount: int  # Amount in cents
+    currency: str = "usd"
+
+
+class StripeConfigResponse(BaseModel):
+    """Response with Stripe publishable key for frontend"""
+    publishable_key: str
+
+
 class StripeWebhookResponse(BaseModel):
     """Response for Stripe webhook processing"""
     success: bool

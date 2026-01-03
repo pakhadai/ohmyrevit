@@ -93,6 +93,17 @@ export interface StripeCheckoutResponse {
   session_id: string;
 }
 
+export interface StripePaymentIntentResponse {
+  client_secret: string;
+  payment_intent_id: string;
+  amount: number;
+  currency: string;
+}
+
+export interface StripeConfigResponse {
+  publishable_key: string;
+}
+
 export type TransactionType = 'deposit' | 'purchase' | 'subscription' | 'bonus' | 'refund' | 'referral';
 
 export interface Transaction {

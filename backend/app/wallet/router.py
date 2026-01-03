@@ -15,6 +15,7 @@ from app.wallet.schemas import (
     TransactionResponse, TransactionListResponse,
     WalletBalanceResponse, WalletInfoResponse,
     StripeCheckoutResponse, StripeWebhookResponse,
+    StripePaymentIntentResponse, StripeConfigResponse,
     TransactionTypeEnum
 )
 from app.wallet.models import TransactionType
@@ -214,6 +215,86 @@ async def admin_add_coins_to_user(
     }
 
 
+@router.get("/stripe/config", response_model=StripeConfigResponse)
+async def get_stripe_config():
+    """
+    Returns the Stripe publishable key for frontend initialization.
+    """
+    return StripeConfigResponse(
+        publishable_key=settings.STRIPE_PUBLISHABLE_KEY
+    )
+
+
+@router.post(
+    "/create-payment-intent/{pack_id}",
+    response_model=StripePaymentIntentResponse
+)
+async def create_payment_intent(
+        pack_id: int,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Creates a Stripe Payment Intent for embedded checkout.
+    Returns the client_secret for Stripe Elements.
+    """
+    service = WalletService(db)
+
+    # Get the coin pack
+    coin_pack = await service.get_coin_pack_by_id(pack_id)
+    if not coin_pack:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Coin pack not found"
+        )
+
+    if not coin_pack.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This coin pack is not available"
+        )
+
+    try:
+        # Calculate amount in cents
+        amount_cents = int(coin_pack.price_usd * 100)
+
+        # Create Stripe Payment Intent with wallet support
+        payment_intent = stripe.PaymentIntent.create(
+            amount=amount_cents,
+            currency='usd',
+            metadata={
+                'user_id': str(current_user.id),
+                'pack_id': str(pack_id),
+                'coins_amount': str(coin_pack.get_total_coins()),
+            },
+            receipt_email=current_user.email if current_user.email else None,
+            # Enable automatic payment methods including wallets
+            automatic_payment_methods={
+                'enabled': True,
+                'allow_redirects': 'never',  # Keep user in app
+            },
+        )
+
+        logger.info(
+            f"Stripe payment intent created: user={current_user.id}, "
+            f"pack={pack_id}, intent={payment_intent.id}"
+        )
+
+        return StripePaymentIntentResponse(
+            client_secret=payment_intent.client_secret,
+            payment_intent_id=payment_intent.id,
+            amount=amount_cents,
+            currency='usd'
+        )
+
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe error creating payment intent: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create payment intent"
+        )
+
+
 @router.post(
     "/create-checkout-session/{pack_id}",
     response_model=StripeCheckoutResponse
@@ -226,6 +307,7 @@ async def create_checkout_session(
     """
     Creates a Stripe Checkout Session for purchasing a coin pack.
     Returns the checkout URL to redirect the user.
+    Used for web browser payments (fallback when not in Telegram Mini App).
     """
     service = WalletService(db)
 
@@ -311,31 +393,41 @@ async def stripe_webhook(
             detail="Invalid signature"
         )
 
-    # Handle the event
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        session_id = session['id']
+    # Handle the event - support both checkout.session.completed and payment_intent.succeeded
+    event_type = event['type']
 
-        logger.info(f"Stripe checkout completed: session={session_id}")
+    if event_type in ['checkout.session.completed', 'payment_intent.succeeded']:
+        event_object = event['data']['object']
+
+        # Determine the unique ID and amount based on event type
+        if event_type == 'checkout.session.completed':
+            event_id = event_object['id']
+            amount_cents = event_object.get('amount_total', 0)
+            idempotency_key = f"stripe:session:{event_id}"
+        else:  # payment_intent.succeeded
+            event_id = event_object['id']
+            amount_cents = event_object.get('amount', 0)
+            idempotency_key = f"stripe:intent:{event_id}"
+
+        logger.info(f"Stripe {event_type}: id={event_id}")
 
         # Check for duplicate processing
-        idempotency_key = f"stripe:session:{session_id}"
         if await cache.get(idempotency_key):
-            logger.info(f"Duplicate Stripe webhook ignored: {session_id}")
+            logger.info(f"Duplicate Stripe webhook ignored: {event_id}")
             return StripeWebhookResponse(
                 success=True,
                 message="Transaction already processed"
             )
 
         # Extract metadata
-        metadata = session.get('metadata', {})
+        metadata = event_object.get('metadata', {})
         user_id = metadata.get('user_id')
         pack_id = metadata.get('pack_id')
         coins_amount = metadata.get('coins_amount')
 
         if not user_id or not pack_id:
             logger.error(
-                f"Missing metadata in Stripe session: {session_id}"
+                f"Missing metadata in Stripe event: {event_id}"
             )
             return StripeWebhookResponse(
                 success=False,
@@ -356,16 +448,15 @@ async def stripe_webhook(
         service = WalletService(db)
 
         try:
-            amount_cents = session.get('amount_total', 0)
             transaction = await service.process_stripe_purchase(
                 user_id=user_id,
                 pack_id=pack_id,
-                session_id=session_id,
+                session_id=event_id,
                 amount_cents=amount_cents
             )
         except ValueError as e:
             if "already processed" in str(e):
-                logger.info(f"Transaction {session_id} already processed")
+                logger.info(f"Transaction {event_id} already processed")
                 return StripeWebhookResponse(
                     success=True,
                     message="Transaction already processed"
@@ -385,7 +476,7 @@ async def stripe_webhook(
             if user and user.telegram_id:
                 coin_pack = await service.get_coin_pack_by_id(pack_id)
                 pack_name = coin_pack.name if coin_pack else f"Pack #{pack_id}"
-                price_usd = (session.get('amount_total', 0) / 100)
+                price_usd = amount_cents / 100
 
                 message = (
                     f"✅ *Баланс поповнено!*\n\n"
@@ -412,8 +503,8 @@ async def stripe_webhook(
         )
 
     # For other event types, just acknowledge
-    logger.info(f"Unhandled Stripe event type: {event['type']}")
+    logger.info(f"Unhandled Stripe event type: {event_type}")
     return StripeWebhookResponse(
         success=True,
-        message=f"Event {event['type']} received"
+        message=f"Event {event_type} received"
     )
