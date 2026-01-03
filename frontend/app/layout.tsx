@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
+import SwipeNavigation from '@/components/SwipeNavigation';
 import { Toaster } from 'react-hot-toast';
 import AppProvider from '@/components/AppProvider';
 import TelegramProvider from '@/components/TelegramProvider';
@@ -41,7 +42,9 @@ export default function RootLayout({
               <div className="min-h-screen flex flex-col">
                 <Header />
                 <main className="flex-1 pb-0">
-                  {children}
+                  <SwipeNavigation>
+                    {children}
+                  </SwipeNavigation>
                 </main>
                 <BottomNav />
                 <Toaster

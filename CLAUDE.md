@@ -10,7 +10,7 @@ OhMyRevit is a Telegram Mini App marketplace for Revit plugins with subscription
 - **Backend:** FastAPI (Python 3.x) with SQLAlchemy 2.0 async, PostgreSQL, Redis
 - **Frontend:** Next.js 14 (App Router) with TypeScript, TailwindCSS, Zustand
 - **Infrastructure:** Docker Compose, Nginx, Cloudflare Tunnel
-- **External Services:** Telegram Bot API, DeepL (translations), Gumroad (payments), Resend (emails)
+- **External Services:** Telegram Bot API, DeepL (translations), Stripe (payments), Resend (emails)
 
 ## Development Commands
 
@@ -83,7 +83,7 @@ The backend follows a **modular architecture** where each functional domain is a
 - **`products/`** - Product catalog with multilingual support
 - **`orders/`** - Order processing and promo codes
 - **`subscriptions/`** - Premium subscription management
-- **`wallet/`** - OMR Coins wallet system and Gumroad integration
+- **`wallet/`** - OMR Coins wallet system and Stripe integration
 - **`bonuses/`** - Daily bonus and referral system
 - **`collections/`** - User product collections (favorites)
 - **`referrals/`** - Referral tracking and rewards
@@ -160,11 +160,11 @@ frontend/
 
 ### Payment Flow
 
-1. **Gumroad Integration** (external payment processor)
-2. Webhook: `POST /api/webhooks/gumroad` validates signature
-3. Creates `Transaction` and `Order` records
-4. Grants product access via `UserProductAccess`
-5. Sends email with download links via Resend
+1. **Stripe Integration** (external payment processor for Coin Packs)
+2. Frontend calls `POST /api/v1/wallet/create-checkout-session/{pack_id}` to create Stripe Checkout Session
+3. User is redirected to Stripe Checkout
+4. Webhook: `POST /api/webhooks/stripe` validates signature and listens for `checkout.session.completed`
+5. Creates `Transaction` record and adds coins to user wallet
 6. Notifies user via Telegram bot
 
 ### Subscription System
@@ -212,9 +212,12 @@ frontend/
 - `BACKEND_URL` - Public URL for backend API (for webhook setup)
 - `ALLOWED_ORIGINS` - CORS origins (comma-separated, e.g., `http://localhost:3000,https://t.me`)
 
+**Payments (Stripe):**
+- `STRIPE_SECRET_KEY` - Stripe secret key (sk_live_... or sk_test_...)
+- `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret (whsec_...)
+
 **Optional:**
 - `SENTRY_DSN` - Sentry error tracking (required if `ENVIRONMENT=production`)
-- `GUMROAD_WEBHOOK_SECRET` - Gumroad webhook signature validation
 
 ### Service URLs (Docker)
 

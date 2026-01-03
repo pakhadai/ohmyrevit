@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wallet, Coins, ArrowUpRight, ArrowDownLeft, Gift, CreditCard,
   ShoppingCart, Crown, RefreshCw, History, Sparkles, ChevronRight,
-  ExternalLink, TrendingUp, Clock, CheckCircle2
+  ExternalLink, TrendingUp, Clock, CheckCircle2, ArrowLeft
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import Image from 'next/image';
 import { CoinPack, Transaction, TransactionType } from '@/types';
 import { useTheme } from '@/lib/theme';
 import EmailRequiredModal from '@/components/EmailRequiredModal';
+import { useUtils } from '@telegram-apps/sdk-react';
 
 export default function WalletPage() {
   const { theme } = useTheme();
@@ -29,8 +30,17 @@ export default function WalletPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [showEmailRequiredModal, setShowEmailRequiredModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const { t } = useTranslation();
   const router = useRouter();
+
+  // Telegram utils for opening links
+  let telegramUtils: ReturnType<typeof useUtils> | null = null;
+  try {
+    telegramUtils = useUtils();
+  } catch {
+    // Not in Telegram context
+  }
 
   const fetchWalletInfo = useCallback(async () => {
     try {
@@ -69,31 +79,7 @@ export default function WalletPage() {
 
   useEffect(() => {
     fetchWalletInfo();
-    
-    // Перевіряємо, чи користувач повернувся з Gumroad
-    const urlParams = new URLSearchParams(window.location.search);
-    const saleId = urlParams.get('sale_id');
-    const permalink = urlParams.get('permalink');
-    
-    if (saleId || permalink) {
-      // Якщо є параметри від Gumroad, оновлюємо баланс через 3 секунди
-      setTimeout(async () => {
-        try {
-          const info = await walletAPI.getInfo();
-          setBalance(info.balance);
-          updateBalance(info.balance);
-          toast.success(
-            t('wallet.paymentSuccess') || 'Оплата успішна! Баланс оновлено.',
-            { duration: 4000 }
-          );
-          // Очищаємо URL параметри
-          window.history.replaceState({}, '', '/profile/wallet');
-        } catch (error) {
-          console.error('Failed to update balance:', error);
-        }
-      }, 3000);
-    }
-  }, [fetchWalletInfo, updateBalance, t]);
+  }, [fetchWalletInfo]);
 
   const getTransactionIcon = (type: TransactionType) => {
     switch (type) {
@@ -128,24 +114,62 @@ export default function WalletPage() {
     });
   };
 
-  const handleBuyPack = (pack: CoinPack) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleBuyPack = async (pack: CoinPack) => {
     // Перевірка email та його підтвердження перед покупкою
     if (!user?.email || !user?.isEmailVerified) {
       setShowEmailRequiredModal(true);
       return;
     }
 
-    // URL для повернення після успішної оплати
-    const returnUrl = typeof window !== 'undefined' 
-      ? `${window.location.origin}/profile/wallet/return` 
-      : '';
+    if (isProcessing) return;
 
-    const separator = pack.gumroad_url.includes('?') ? '&' : '?';
-    // Використовуємо параметр 'wanted' для автоматичного перенаправлення після оплати
-    const url = `${pack.gumroad_url}${separator}custom_fields%5Buser_id%5D=${user?.id}&wanted=true&redirect_url=${encodeURIComponent(returnUrl)}`;
+    setIsProcessing(true);
+    try {
+      // Call backend to create Stripe Checkout Session
+      const response = await walletAPI.createCheckoutSession(pack.id);
 
-    // Відкриваємо в тому ж вікні для зручності в Telegram WebApp
-    window.location.href = url;
+      // Redirect to Stripe Checkout
+      const url = response.checkout_url;
+
+      // Check if we're in Telegram WebApp
+      const isTelegramWebApp = typeof window !== 'undefined' &&
+        (window as any).Telegram?.WebApp;
+
+      if (isTelegramWebApp && telegramUtils) {
+        // Open in external browser via Telegram
+        try {
+          telegramUtils.openLink(url, { tryInstantView: false });
+          // Show modal telling user to return after payment
+          setShowPaymentModal(true);
+        } catch {
+          // Fallback: open in new tab
+          window.open(url, '_blank');
+          setShowPaymentModal(true);
+        }
+      } else {
+        // Regular browser - redirect directly
+        window.location.href = url;
+      }
+    } catch (error: any) {
+      console.error('Failed to create checkout session:', error);
+      toast.error(
+        error.response?.data?.detail ||
+        t('wallet.checkoutError') ||
+        'Помилка створення сесії оплати'
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePaymentReturn = async () => {
+    setShowPaymentModal(false);
+    // Refresh wallet info to check for new balance
+    setLoading(true);
+    await fetchWalletInfo();
+    toast.success(t('wallet.balanceUpdated') || 'Баланс оновлено!');
   };
 
   if (loading) {
@@ -163,6 +187,69 @@ export default function WalletPage() {
           <EmailRequiredModal
             onClose={() => setShowEmailRequiredModal(false)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Payment in Progress Modal */}
+      <AnimatePresence>
+        {showPaymentModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm p-6 text-center"
+              style={{
+                backgroundColor: theme.colors.card,
+                borderRadius: theme.radius['2xl'],
+                boxShadow: theme.shadows.xl
+              }}
+            >
+              <div
+                className="w-16 h-16 mx-auto mb-4 flex items-center justify-center"
+                style={{
+                  backgroundColor: theme.colors.primaryLight,
+                  borderRadius: theme.radius.xl
+                }}
+              >
+                <ExternalLink size={32} style={{ color: theme.colors.primary }} />
+              </div>
+
+              <h3 className="text-xl font-bold mb-2" style={{ color: theme.colors.text }}>
+                {t('wallet.paymentOpened') || 'Оплата відкрита'}
+              </h3>
+
+              <p className="text-sm mb-6" style={{ color: theme.colors.textSecondary }}>
+                {t('wallet.paymentInstructions') || 'Оплата відкрита у зовнішньому браузері. Після завершення оплати натисніть кнопку нижче, щоб оновити баланс.'}
+              </p>
+
+              <button
+                onClick={handlePaymentReturn}
+                className="w-full flex items-center justify-center gap-2 px-6 py-4 text-white font-bold transition-all hover:scale-105"
+                style={{
+                  backgroundColor: theme.colors.primary,
+                  borderRadius: theme.radius.xl
+                }}
+              >
+                <ArrowLeft size={20} />
+                {t('wallet.iCompletedPayment') || 'Я завершив оплату'}
+              </button>
+
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="mt-3 text-sm font-medium"
+                style={{ color: theme.colors.textMuted }}
+              >
+                {t('common.cancel') || 'Скасувати'}
+              </button>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -304,7 +391,7 @@ export default function WalletPage() {
         </div>
 
         <p className="text-xs text-center" style={{ color: theme.colors.textMuted }}>
-          {t('wallet.gumroadInfo') || 'Оплата через Gumroad. Монети зараховуються автоматично.'}
+          {t('wallet.stripeInfo') || 'Безпечна оплата через Stripe. Монети зараховуються автоматично.'}
         </p>
       </div>
 

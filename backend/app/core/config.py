@@ -25,9 +25,9 @@ class Settings(BaseSettings):
     DEEPL_API_FREE: bool = True
     DEEPL_TARGET_LANGUAGES: List[str] = ["EN", "RU", "DE", "ES"]
 
-    # Gumroad Integration
-    GUMROAD_WEBHOOK_SECRET: str = ""  # Для верифікації вебхуків
-    GUMROAD_STORE_URL: str = "https://ohmyrevit.gumroad.com"  # URL вашого магазину
+    # Stripe Integration
+    STRIPE_SECRET_KEY: str = ""  # Stripe secret key (sk_live_... or sk_test_...)
+    STRIPE_WEBHOOK_SECRET: str = ""  # Stripe webhook signing secret (whsec_...)
 
     RESEND_API_KEY: str = ""
     FROM_EMAIL: str = "noreply@ohmyrevit.pp.ua"

@@ -386,14 +386,14 @@ async def create_coin_pack(
         db: AsyncSession = Depends(get_db)
 ):
     """Створити новий пакет монет"""
-    # Перевіряємо унікальність permalink
+    # Перевіряємо унікальність stripe_price_id
     existing = await db.execute(
-        select(CoinPack).where(CoinPack.gumroad_permalink == data.gumroad_permalink)
+        select(CoinPack).where(CoinPack.stripe_price_id == data.stripe_price_id)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=400,
-            detail="CoinPack with this permalink already exists"
+            detail="CoinPack with this Stripe Price ID already exists"
         )
 
     pack = CoinPack(**data.model_dump())
@@ -418,18 +418,18 @@ async def update_coin_pack(
 
     update_data = data.model_dump(exclude_unset=True)
 
-    # Перевіряємо унікальність permalink якщо змінюється
-    if 'gumroad_permalink' in update_data:
+    # Перевіряємо унікальність stripe_price_id якщо змінюється
+    if 'stripe_price_id' in update_data:
         existing = await db.execute(
             select(CoinPack).where(
-                CoinPack.gumroad_permalink == update_data['gumroad_permalink'],
+                CoinPack.stripe_price_id == update_data['stripe_price_id'],
                 CoinPack.id != pack_id
             )
         )
         if existing.scalar_one_or_none():
             raise HTTPException(
                 status_code=400,
-                detail="CoinPack with this permalink already exists"
+                detail="CoinPack with this Stripe Price ID already exists"
             )
 
     for key, value in update_data.items():

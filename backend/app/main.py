@@ -28,7 +28,7 @@ from fastapi.responses import JSONResponse
 
 from app.wallet.router import router as wallet_router
 from app.wallet.router import admin_router as wallet_admin_router
-from app.wallet.router import webhook_router as gumroad_webhook_router
+from app.wallet.router import webhook_router as stripe_webhook_router
 from app.creators.router import router as creators_router
 from app.creators.admin_router import router as creators_admin_router
 from app.ratings.router import router as ratings_router
@@ -175,5 +175,5 @@ app.include_router(api_v1_router)
 app.include_router(admin_router_v1, prefix="/api/v1/admin")
 app.include_router(bot_webhook_router)
 
-# NEW: Gumroad webhook (без rate limiting та auth)
-app.include_router(gumroad_webhook_router, prefix="/api/webhooks")
+# Stripe webhook (без rate limiting та auth)
+app.include_router(stripe_webhook_router, prefix="/api/webhooks")

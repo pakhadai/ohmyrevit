@@ -18,7 +18,7 @@ export default function NewCoinPackPage() {
     price_usd: '',
     coins_amount: '',
     bonus_percent: '0',
-    gumroad_permalink: '',
+    stripe_price_id: '',
     description: '',
     is_active: true,
     is_featured: false,
@@ -42,7 +42,7 @@ export default function NewCoinPackPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.price_usd || !formData.coins_amount || !formData.gumroad_permalink) {
+    if (!formData.name || !formData.price_usd || !formData.coins_amount || !formData.stripe_price_id) {
       toast.error(t('admin.coinPacks.form.fillRequired', 'Заповніть обов\'язкові поля'));
       return;
     }
@@ -54,7 +54,7 @@ export default function NewCoinPackPage() {
         price_usd: parseFloat(formData.price_usd),
         coins_amount: parseInt(formData.coins_amount),
         bonus_percent: parseInt(formData.bonus_percent) || 0,
-        gumroad_permalink: formData.gumroad_permalink,
+        stripe_price_id: formData.stripe_price_id,
         description: formData.description || null,
         is_active: formData.is_active,
         is_featured: formData.is_featured,
@@ -192,24 +192,24 @@ export default function NewCoinPackPage() {
         <div className="card-minimal p-6 space-y-5">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Link size={20} className="text-primary" />
-            Gumroad
+            Stripe
           </h2>
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              {t('admin.coinPacks.form.permalink', 'Gumroad Permalink')} *
+              {t('admin.coinPacks.form.stripePriceId', 'Stripe Price ID')} *
             </label>
             <input
               type="text"
-              name="gumroad_permalink"
-              value={formData.gumroad_permalink}
+              name="stripe_price_id"
+              value={formData.stripe_price_id}
               onChange={handleChange}
-              placeholder="starter-pack-500"
+              placeholder="price_1234567890abcdef"
               className={inputClass}
               required
             />
             <p className="text-xs text-muted-foreground mt-1">
-              {t('admin.coinPacks.form.permalinkHint', 'Ідентифікатор продукту на Gumroad (з URL)')}
+              {t('admin.coinPacks.form.stripePriceIdHint', 'Price ID з Stripe Dashboard (починається з price_)')}
             </p>
           </div>
 

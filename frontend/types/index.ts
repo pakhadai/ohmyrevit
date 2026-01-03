@@ -81,12 +81,16 @@ export interface CoinPack {
   coins_amount: number;
   bonus_percent: number;
   total_coins: number;
-  gumroad_permalink: string;
-  gumroad_url: string;
+  stripe_price_id: string;
   description?: string;
   is_active: boolean;
   is_featured: boolean;
   sort_order: number;
+}
+
+export interface StripeCheckoutResponse {
+  checkout_url: string;
+  session_id: string;
 }
 
 export type TransactionType = 'deposit' | 'purchase' | 'subscription' | 'bonus' | 'refund' | 'referral';

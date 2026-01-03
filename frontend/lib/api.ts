@@ -10,7 +10,8 @@ import {
   SubscriptionCheckoutResponse,
   SubscriptionPriceInfo,
   SubscriptionStatus,
-  AuthResponse
+  AuthResponse,
+  StripeCheckoutResponse
 } from '@/types';
 
 export interface Category {
@@ -232,6 +233,13 @@ export const authAPI = {
 };
 
 // ============ Products API ============
+export interface PlatformStats {
+  total_downloads: number;
+  total_users: number;
+  total_products: number;
+  free_products: number;
+}
+
 export const productsAPI = {
   getProducts: async (params?: {
     category?: string;
@@ -260,6 +268,9 @@ export const productsAPI = {
     return getData(await api.get('/products/autocomplete/search', {
       params: { query, limit }
     }));
+  },
+  getPlatformStats: async (): Promise<PlatformStats> => {
+    return getData(await api.get('/products/stats/platform'));
   },
 };
 
@@ -301,6 +312,9 @@ export const walletAPI = {
     type?: string;
   }): Promise<TransactionListResponse> => {
     return getData(await api.get('/wallet/transactions', { params }));
+  },
+  createCheckoutSession: async (packId: number): Promise<StripeCheckoutResponse> => {
+    return getData(await api.post(`/wallet/create-checkout-session/${packId}`));
   },
 };
 
@@ -421,7 +435,7 @@ export const adminAPI = {
     return getData(await api.post('/admin/coin-packs', data));
   },
   updateCoinPack: async (id: number, data: any) => {
-    return getData(await api.put(`/admin/coin-packs/${id}`, data));
+    return getData(await api.patch(`/admin/coin-packs/${id}`, data));
   },
   deleteCoinPack: async (id: number, hardDelete = false) => {
     return getData(await api.delete(`/admin/coin-packs/${id}`, { params: { hard_delete: hardDelete } }));

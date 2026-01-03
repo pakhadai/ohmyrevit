@@ -16,8 +16,7 @@ interface CoinPack {
   coins_amount: number;
   bonus_percent: number;
   total_coins: number;
-  gumroad_permalink: string;
-  gumroad_url: string;
+  stripe_price_id: string;
   description?: string;
   is_active: boolean;
   is_featured: boolean;
@@ -100,7 +99,7 @@ export default function CoinPacksManagementPage() {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                      {pack.description || pack.gumroad_permalink}
+                      {pack.description || pack.stripe_price_id}
                     </p>
                   </div>
                 </div>

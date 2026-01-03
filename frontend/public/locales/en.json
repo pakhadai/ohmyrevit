@@ -169,9 +169,58 @@
   "home": {
     "welcome": "Welcome to OhMyRevit",
     "heroSubtitle": "The best Revit content marketplace",
+    "hero": {
+      "badge": "The Largest Revit Library",
+      "title": "Professional Files",
+      "titleHighlight": "for Revit",
+      "subtitle": "Families, templates, plugins and scripts. Save hours of work with ready-made solutions.",
+      "cta": "Browse Catalog",
+      "freeFiles": "free files"
+    },
+    "stats": {
+      "downloads": "Downloads",
+      "files": "Files",
+      "users": "Users"
+    },
+    "trending": {
+      "title": "Hot This Week",
+      "mostDownloaded": "Most Downloaded",
+      "viewDetails": "View Details"
+    },
+    "benefits": {
+      "title": "Why Choose Us",
+      "subtitle": "Benefits for Professionals",
+      "speed": {
+        "title": "Instant Access",
+        "desc": "Download files immediately after purchase. No waiting."
+      },
+      "quality": {
+        "title": "Verified Quality",
+        "desc": "Every file is moderated. Only quality content."
+      },
+      "updates": {
+        "title": "Regular Updates",
+        "desc": "New files every week. Always up-to-date library."
+      },
+      "community": {
+        "title": "Community",
+        "desc": "Join thousands of Revit specialists."
+      }
+    },
     "premium": {
       "clubTitle": "Premium Club",
-      "activeMember": "Active Member"
+      "activeMember": "Active Member",
+      "title": "Get Full Access",
+      "desc": "Unlimited access to all premium files, priority support and exclusive content.",
+      "feature1": "100+ files",
+      "feature2": "Weekly updates",
+      "feature3": "24/7 Support",
+      "cta": "Learn More"
+    },
+    "cta": {
+      "title": "Ready to Start?",
+      "subtitle": "Join the community of Revit professionals. Find the files you need in seconds.",
+      "button": "Open Catalog"
     },
     "goToMarket": "Go to Market",
     "subscription": {
@@ -199,7 +248,7 @@
       }
     },
     "newArrivals": "New Arrivals",
-    "allProducts": "All products →",
+    "allProducts": "All Files",
     "loadingProducts": "Loading products...",
     "telegram": {
       "title": "OhMyRevit Channel",
@@ -616,6 +665,42 @@
         }
       }
     }
+  },
+
+  "wallet": {
+    "title": "Wallet",
+    "yourBalance": "Your balance",
+    "balance": "Your balance",
+    "rate": "Rate",
+    "streak": "Streak",
+    "days": "days",
+    "buyCoins": "Buy Coins",
+    "topUp": "Top Up Balance",
+    "popular": "POPULAR",
+    "bonus": "bonus",
+    "history": "Transaction History",
+    "noTransactions": "No transactions yet",
+    "loadMore": "Load more",
+    "loadError": "Failed to load",
+    "purchaseError": "Payment error",
+    "gumroadInfo": "Payment via Gumroad. Coins credited automatically.",
+    "dailyBonus": "Daily Bonus",
+    "dailyBonusDesc": "Get coins every day",
+    "referrals": "Referrals",
+    "referralsDesc": "5% from friends purchases",
+    "transactionTypes": {
+      "deposit": "Deposit",
+      "purchase": "Purchase",
+      "subscription": "Subscription",
+      "bonus": "Bonus",
+      "refund": "Refund",
+      "referral": "Referral bonus"
+    },
+    "paymentOpened": "Payment Opened",
+    "paymentInstructions": "Payment opened in external browser. After completing payment, press the button below to refresh your balance.",
+    "iCompletedPayment": "I Completed Payment",
+    "balanceUpdated": "Balance updated!",
+    "paymentSuccess": "Payment successful! Balance updated."
   },
 
   "landing": {

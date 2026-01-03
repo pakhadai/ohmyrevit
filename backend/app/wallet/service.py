@@ -2,11 +2,9 @@ import logging
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
-from sqlalchemy.orm import selectinload
 
 from app.users.models import User
 from app.wallet.models import CoinPack, Transaction, TransactionType
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -160,9 +158,9 @@ class WalletService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_coin_pack_by_permalink(self, permalink: str) -> Optional[CoinPack]:
-        """Знаходить пакет монет за Gumroad permalink"""
-        query = select(CoinPack).where(CoinPack.gumroad_permalink == permalink)
+    async def get_coin_pack_by_stripe_price_id(self, stripe_price_id: str) -> Optional[CoinPack]:
+        """Знаходить пакет монет за Stripe Price ID"""
+        query = select(CoinPack).where(CoinPack.stripe_price_id == stripe_price_id)
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
@@ -215,33 +213,33 @@ class WalletService:
         result = await self.db.execute(query)
         return result.scalar_one_or_none() is not None
 
-    # ============ Gumroad Integration ============
+    # ============ Stripe Integration ============
 
-    async def process_gumroad_purchase(
+    async def process_stripe_purchase(
             self,
             user_id: int,
-            permalink: str,
-            sale_id: str,
+            pack_id: int,
+            session_id: str,
             amount_cents: int
     ) -> Transaction:
         """
-        Обробляє покупку пакету монет через Gumroad
+        Обробляє покупку пакету монет через Stripe
 
         Args:
             user_id: ID користувача
-            permalink: Gumroad permalink продукту
-            sale_id: Gumroad sale ID (для дедуплікації)
+            pack_id: ID пакету монет
+            session_id: Stripe session ID (для дедуплікації)
             amount_cents: Сума в центах (для логування)
         """
         # Перевіряємо на дублікат
-        if await self.check_duplicate_transaction(sale_id):
-            logger.warning(f"Duplicate Gumroad transaction: {sale_id}")
-            raise ValueError(f"Transaction {sale_id} already processed")
+        if await self.check_duplicate_transaction(session_id):
+            logger.warning(f"Duplicate Stripe transaction: {session_id}")
+            raise ValueError(f"Transaction {session_id} already processed")
 
         # Знаходимо пакет
-        coin_pack = await self.get_coin_pack_by_permalink(permalink)
+        coin_pack = await self.get_coin_pack_by_id(pack_id)
         if not coin_pack:
-            raise ValueError(f"CoinPack with permalink '{permalink}' not found")
+            raise ValueError(f"CoinPack with id '{pack_id}' not found")
 
         # Розраховуємо кількість монет з бонусом
         total_coins = coin_pack.get_total_coins()
@@ -258,12 +256,12 @@ class WalletService:
             amount=total_coins,
             transaction_type=TransactionType.DEPOSIT,
             description=description,
-            external_id=sale_id
+            external_id=session_id
         )
 
         logger.info(
-            f"Gumroad purchase processed: user={user_id}, "
-            f"pack={coin_pack.name}, coins={total_coins}, sale_id={sale_id}"
+            f"Stripe purchase processed: user={user_id}, "
+            f"pack={coin_pack.name}, coins={total_coins}, session={session_id}"
         )
 
         return transaction
@@ -279,7 +277,7 @@ class WalletAdminService(WalletService):
             name: str,
             price_usd: float,
             coins_amount: int,
-            gumroad_permalink: str,
+            stripe_price_id: str,
             bonus_percent: int = 0,
             description: Optional[str] = None,
             is_active: bool = True,
@@ -291,7 +289,7 @@ class WalletAdminService(WalletService):
             name=name,
             price_usd=price_usd,
             coins_amount=coins_amount,
-            gumroad_permalink=gumroad_permalink,
+            stripe_price_id=stripe_price_id,
             bonus_percent=bonus_percent,
             description=description,
             is_active=is_active,
@@ -335,9 +333,15 @@ class WalletAdminService(WalletService):
 
         return True
 
-    async def get_all_coin_packs(self) -> List[CoinPack]:
-        """Отримує всі пакети (включаючи неактивні) для адмін-панелі"""
-        query = select(CoinPack).order_by(CoinPack.sort_order)
+    async def get_all_coin_packs(
+            self,
+            include_inactive: bool = True
+    ) -> List[CoinPack]:
+        """Отримує пакети для адмін-панелі"""
+        query = select(CoinPack)
+        if not include_inactive:
+            query = query.where(CoinPack.is_active == True)
+        query = query.order_by(CoinPack.sort_order)
         result = await self.db.execute(query)
         return list(result.scalars().all())
 

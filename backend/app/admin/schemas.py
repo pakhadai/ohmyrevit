@@ -229,7 +229,7 @@ class CoinPackCreate(BaseModel):
     price_usd: float = Field(..., ge=0)
     coins_amount: int = Field(..., gt=0)
     bonus_percent: int = Field(0, ge=0, le=100)
-    gumroad_permalink: str = Field(..., min_length=3, max_length=100)
+    stripe_price_id: str = Field(..., min_length=3, max_length=100)
     description: Optional[str] = Field(None, max_length=255)
     is_active: bool = True
     is_featured: bool = False
@@ -243,7 +243,7 @@ class CoinPackUpdate(BaseModel):
     price_usd: Optional[float] = Field(None, ge=0)
     coins_amount: Optional[int] = Field(None, gt=0)
     bonus_percent: Optional[int] = Field(None, ge=0, le=100)
-    gumroad_permalink: Optional[str] = Field(None, min_length=3, max_length=100)
+    stripe_price_id: Optional[str] = Field(None, min_length=3, max_length=100)
     description: Optional[str] = Field(None, max_length=255)
     is_active: Optional[bool] = None
     is_featured: Optional[bool] = None
@@ -258,8 +258,7 @@ class CoinPackResponse(BaseModel):
     coins_amount: int
     bonus_percent: int
     total_coins: int
-    gumroad_permalink: str
-    gumroad_url: str
+    stripe_price_id: str
     description: Optional[str]
     is_active: bool
     is_featured: bool

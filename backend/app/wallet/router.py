@@ -1,10 +1,8 @@
 import logging
-import hashlib
-import hmac
+import stripe
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -16,7 +14,7 @@ from app.wallet.schemas import (
     CoinPackResponse, CoinPackCreate, CoinPackUpdate,
     TransactionResponse, TransactionListResponse,
     WalletBalanceResponse, WalletInfoResponse,
-    GumroadWebhookResponse,
+    StripeCheckoutResponse, StripeWebhookResponse,
     TransactionTypeEnum
 )
 from app.wallet.models import TransactionType
@@ -24,6 +22,9 @@ from app.core.telegram_service import telegram_service
 from app.wallet.utils import coin_pack_to_response
 
 logger = logging.getLogger(__name__)
+
+# Initialize Stripe
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 router = APIRouter(tags=["Wallet"])
 admin_router = APIRouter(tags=["Admin - Wallet"])
@@ -126,11 +127,12 @@ async def get_my_transactions(
 
 @admin_router.get("/coin-packs", response_model=List[CoinPackResponse])
 async def admin_get_all_coin_packs(
+        include_inactive: bool = Query(False, description="Include inactive packs"),
         admin: User = Depends(get_current_admin_user),
         db: AsyncSession = Depends(get_db)
 ):
     service = WalletAdminService(db)
-    packs = await service.get_all_coin_packs()
+    packs = await service.get_all_coin_packs(include_inactive=include_inactive)
     return [coin_pack_to_response(p) for p in packs]
 
 
@@ -212,139 +214,184 @@ async def admin_add_coins_to_user(
     }
 
 
-@webhook_router.post("/gumroad", response_model=GumroadWebhookResponse)
-async def gumroad_webhook(
+@router.post(
+    "/create-checkout-session/{pack_id}",
+    response_model=StripeCheckoutResponse
+)
+async def create_checkout_session(
+        pack_id: int,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Creates a Stripe Checkout Session for purchasing a coin pack.
+    Returns the checkout URL to redirect the user.
+    """
+    service = WalletService(db)
+
+    # Get the coin pack
+    coin_pack = await service.get_coin_pack_by_id(pack_id)
+    if not coin_pack:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Coin pack not found"
+        )
+
+    if not coin_pack.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This coin pack is not available"
+        )
+
+    try:
+        # Create Stripe Checkout Session
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price': coin_pack.stripe_price_id,
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=f"{settings.FRONTEND_URL}/profile/wallet/return"
+                        f"?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{settings.FRONTEND_URL}/profile/wallet",
+            metadata={
+                'user_id': str(current_user.id),
+                'pack_id': str(pack_id),
+                'coins_amount': str(coin_pack.get_total_coins()),
+            },
+            customer_email=current_user.email if current_user.email else None,
+        )
+
+        logger.info(
+            f"Stripe checkout session created: user={current_user.id}, "
+            f"pack={pack_id}, session={checkout_session.id}"
+        )
+
+        return StripeCheckoutResponse(
+            checkout_url=checkout_session.url,
+            session_id=checkout_session.id
+        )
+
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe error creating checkout session: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create checkout session"
+        )
+
+
+@webhook_router.post("/stripe", response_model=StripeWebhookResponse)
+async def stripe_webhook(
         request: Request,
         db: AsyncSession = Depends(get_db)
 ):
+    """
+    Handles Stripe webhook events.
+    Listens for checkout.session.completed to add coins to user.
+    """
+    payload = await request.body()
+    sig_header = request.headers.get('stripe-signature')
+
+    # Verify webhook signature
     try:
-        raw_body = await request.body()
-        form_data = await request.form()
-        data = dict(form_data)
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        logger.error(f"Invalid Stripe webhook payload: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid payload"
+        )
+    except stripe.error.SignatureVerificationError as e:
+        logger.error(f"Invalid Stripe webhook signature: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid signature"
+        )
 
-        logger.info(f"Gumroad webhook payload keys: {list(data.keys())}")
-        sale_id = data.get("sale_id")
-        logger.info(f"Gumroad webhook received: sale_id={sale_id}")
+    # Handle the event
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        session_id = session['id']
 
-        if sale_id:
-            idempotency_key = f"gumroad:sale:{sale_id}"
-            if await cache.get(idempotency_key):
-                logger.info(f"Duplicate webhook ignored: {sale_id}")
-                return GumroadWebhookResponse(
-                    success=True,
-                    message="Transaction already processed"
-                )
+        logger.info(f"Stripe checkout completed: session={session_id}")
 
-        if settings.GUMROAD_WEBHOOK_SECRET:
-            signature = request.headers.get("X-Gumroad-Signature")
-            if not verify_gumroad_signature(raw_body, signature):
-                logger.warning("Invalid Gumroad webhook signature")
-                if settings.ENVIRONMENT == "production":
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Invalid signature"
-                    )
-
-        permalink = data.get("permalink") or data.get("product_permalink")
-        price = int(data.get("price", 0))
-
-        is_refunded = str(data.get("refunded", "")).lower() == "true"
-        if is_refunded:
-            logger.info(f"Skipping refunded transaction: {sale_id}")
-            return GumroadWebhookResponse(
+        # Check for duplicate processing
+        idempotency_key = f"stripe:session:{session_id}"
+        if await cache.get(idempotency_key):
+            logger.info(f"Duplicate Stripe webhook ignored: {session_id}")
+            return StripeWebhookResponse(
                 success=True,
-                message="Refund processed"
+                message="Transaction already processed"
             )
 
-        user_id = None
-        potential_keys = [
-            "custom_fields[user_id]",
-            "url_params[user_id]",
-            "user_id"
-        ]
+        # Extract metadata
+        metadata = session.get('metadata', {})
+        user_id = metadata.get('user_id')
+        pack_id = metadata.get('pack_id')
+        coins_amount = metadata.get('coins_amount')
 
-        for key in potential_keys:
-            if key in data and data[key]:
-                logger.info(f"Found user_id in key '{key}': {data[key]}")
-                user_id = data[key]
-                break
-
-        if not user_id:
-            for json_field in ["custom_fields", "url_params"]:
-                content = data.get(json_field)
-                if content and isinstance(content, str):
-                    try:
-                        import json
-                        parsed = json.loads(content)
-                        if isinstance(parsed, dict) and "user_id" in parsed:
-                            user_id = parsed["user_id"]
-                            logger.info(f"Found user_id in parsed JSON '{json_field}': {user_id}")
-                            break
-                    except:
-                        continue
-
-        if not user_id:
-            buyer_email = data.get("email")
-            if buyer_email:
-                logger.info(f"user_id not found, trying email fallback: {buyer_email}")
-                email_query = select(User).where(User.email == buyer_email)
-                email_result = await db.execute(email_query)
-                user_by_email = email_result.scalar_one_or_none()
-
-                if user_by_email:
-                    user_id = user_by_email.id
-                    logger.info(f"Found user by email: {buyer_email} -> user_id={user_id}")
-                else:
-                    logger.warning(f"No user found with email: {buyer_email}")
-
-        if not user_id:
-            logger.error(f"No user_id found in Gumroad webhook: {sale_id}")
-            return GumroadWebhookResponse(
+        if not user_id or not pack_id:
+            logger.error(
+                f"Missing metadata in Stripe session: {session_id}"
+            )
+            return StripeWebhookResponse(
                 success=False,
-                message="Missing user_id - user not found by params or email"
+                message="Missing user_id or pack_id in metadata"
             )
 
         try:
             user_id = int(user_id)
-        except (ValueError, TypeError):
-            logger.error(f"Invalid user_id format: {user_id}")
-            return GumroadWebhookResponse(
+            pack_id = int(pack_id)
+        except (ValueError, TypeError) as e:
+            logger.error(f"Invalid metadata format: {e}")
+            return StripeWebhookResponse(
                 success=False,
-                message="Invalid user_id format"
+                message="Invalid metadata format"
             )
 
+        # Process the purchase
         service = WalletService(db)
 
         try:
-            transaction = await service.process_gumroad_purchase(
+            amount_cents = session.get('amount_total', 0)
+            transaction = await service.process_stripe_purchase(
                 user_id=user_id,
-                permalink=permalink,
-                sale_id=sale_id,
-                amount_cents=price
+                pack_id=pack_id,
+                session_id=session_id,
+                amount_cents=amount_cents
             )
         except ValueError as e:
             if "already processed" in str(e):
-                logger.info(f"Transaction {sale_id} already processed")
-                return GumroadWebhookResponse(
+                logger.info(f"Transaction {session_id} already processed")
+                return StripeWebhookResponse(
                     success=True,
                     message="Transaction already processed"
                 )
-            raise
+            logger.error(f"Error processing Stripe purchase: {e}")
+            return StripeWebhookResponse(
+                success=False,
+                message=str(e)
+            )
 
-        if sale_id:
-            await cache.set(idempotency_key, "1", ttl=86400)
+        # Mark as processed
+        await cache.set(idempotency_key, "1", ttl=86400)
 
+        # Send Telegram notification
         try:
             user = await db.get(User, user_id)
             if user and user.telegram_id:
-                coin_pack = await service.get_coin_pack_by_permalink(permalink)
-                pack_name = coin_pack.name if coin_pack else permalink
+                coin_pack = await service.get_coin_pack_by_id(pack_id)
+                pack_name = coin_pack.name if coin_pack else f"Pack #{pack_id}"
+                price_usd = (session.get('amount_total', 0) / 100)
 
                 message = (
                     f"✅ *Баланс поповнено!*\n\n"
                     f"💰 Сума: *+{transaction.amount} OMR*\n"
                     f"📦 Пакет: {pack_name}\n"
-                    f"💳 Вартість: ${price / 100:.2f}\n"
+                    f"💳 Вартість: ${price_usd:.2f}\n"
                     f"💵 Поточний баланс: *{transaction.balance_after} OMR*"
                 )
                 await telegram_service.send_message(user.telegram_id, message)
@@ -352,11 +399,11 @@ async def gumroad_webhook(
             logger.error(f"Failed to send Telegram notification: {e}")
 
         logger.info(
-            f"Gumroad purchase successful: user={user_id}, "
+            f"Stripe purchase successful: user={user_id}, "
             f"coins={transaction.amount}, balance={transaction.balance_after}"
         )
 
-        return GumroadWebhookResponse(
+        return StripeWebhookResponse(
             success=True,
             message="Coins added successfully",
             user_id=user_id,
@@ -364,29 +411,9 @@ async def gumroad_webhook(
             new_balance=transaction.balance_after
         )
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception(f"Gumroad webhook error: {e}")
-        return GumroadWebhookResponse(
-            success=False,
-            message=f"Internal error: {str(e)}"
-        )
-
-
-def verify_gumroad_signature(request_body: bytes, signature: str) -> bool:
-    if not signature or not settings.GUMROAD_WEBHOOK_SECRET:
-        if settings.ENVIRONMENT == "development":
-            return True
-        return False
-
-    try:
-        expected_signature = hmac.new(
-            settings.GUMROAD_WEBHOOK_SECRET.encode('utf-8'),
-            request_body,
-            hashlib.sha256
-        ).hexdigest()
-        return hmac.compare_digest(expected_signature, signature)
-    except Exception as e:
-        logger.error(f"Signature verification error: {e}")
-        return False
+    # For other event types, just acknowledge
+    logger.info(f"Unhandled Stripe event type: {event['type']}")
+    return StripeWebhookResponse(
+        success=True,
+        message=f"Event {event['type']} received"
+    )

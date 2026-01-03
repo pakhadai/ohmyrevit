@@ -12,12 +12,16 @@
   }
 
   html {
-    @apply antialiased;
+    @apply antialiased bg-[#FDFCFA] overscroll-none overflow-x-hidden;
     -webkit-tap-highlight-color: transparent;
   }
 
+  html.dark {
+    @apply bg-[#0D0D0D];
+  }
+
   body {
-    @apply bg-[#FDFCFA] text-[#1A1A1A] overscroll-y-none;
+    @apply bg-[#FDFCFA] text-[#1A1A1A] overscroll-none overflow-x-hidden;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 

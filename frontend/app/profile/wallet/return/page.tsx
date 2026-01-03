@@ -5,59 +5,59 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { walletAPI } from '@/lib/api';
 import { useTheme } from '@/lib/theme';
-import { CheckCircle2, Loader } from 'lucide-react';
+import { CheckCircle2, Loader, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import Image from 'next/image';
 
 export default function WalletReturnPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { theme } = useTheme();
-  const { user, updateBalance, refreshUser } = useAuthStore();
+  const { updateBalance, refreshUser } = useAuthStore();
   const { t } = useTranslation();
-  
+
   const [status, setStatus] = useState<'checking' | 'success' | 'error'>('checking');
   const [countdown, setCountdown] = useState(3);
+  const [balance, setBalance] = useState<number | null>(null);
 
   useEffect(() => {
-    // Перевіряємо, чи є параметри від Gumroad
-    const saleId = searchParams.get('sale_id');
-    const permalink = searchParams.get('permalink');
-    
-    if (saleId || permalink) {
-      // Якщо є параметри від Gumroad, вважаємо, що покупка успішна
+    // Check for Stripe session_id parameter
+    const sessionId = searchParams.get('session_id');
+
+    if (sessionId) {
+      // Stripe payment completed, wait for webhook to process
       setStatus('success');
-      
-      // Відразу показуємо лоадер та почекаємо 2 секунди перед оновленням
-      // (даємо час webhook'у обробитись на сервері)
+
+      // Wait 2 seconds for webhook to process, then update balance
       setTimeout(async () => {
         try {
-          // Оновлюємо дані користувача
+          // Refresh user data
           await refreshUser();
 
-          // Отримуємо актуальний баланс
+          // Get updated balance
           const info = await walletAPI.getInfo();
+          setBalance(info.balance);
           updateBalance(info.balance);
 
-          // Показуємо успішне повідомлення
+          // Show success message
           toast.success(
             t('wallet.paymentSuccess') || 'Оплата успішна! Баланс оновлено.',
             { duration: 3000 }
           );
         } catch (error) {
           console.error('Failed to update balance:', error);
-          // Якщо не вдалося оновити баланс, показуємо повідомлення
           toast.error(
             t('wallet.balanceUpdateError') || 'Не вдалося оновити баланс. Спробуйте пізніше.',
             { duration: 3000 }
           );
         } finally {
-          // Перенаправляємо на сторінку гаманця
+          // Redirect to wallet page
           router.push('/profile/wallet');
         }
       }, 3000);
 
-      // Запускаємо таймер зворотного відліку
+      // Start countdown timer
       const timer = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
@@ -70,8 +70,7 @@ export default function WalletReturnPage() {
 
       return () => clearInterval(timer);
     } else {
-      // Якщо немає параметрів, можливо це не повернення з Gumroad
-      // Перенаправляємо на сторінку гаманця
+      // No session_id, redirect to wallet
       setTimeout(() => {
         router.push('/profile/wallet');
       }, 2000);
@@ -89,7 +88,7 @@ export default function WalletReturnPage() {
             </h2>
           </>
         )}
-        
+
         {status === 'success' && (
           <>
             <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
@@ -102,17 +101,30 @@ export default function WalletReturnPage() {
             <p className="text-lg mb-4" style={{ color: theme.colors.textSecondary }}>
               {t('wallet.updatingBalance') || 'Оновлення балансу...'}
             </p>
+            {balance !== null && (
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Image
+                  src="/omr_coin.png"
+                  alt="OMR Coin"
+                  width={32}
+                  height={32}
+                />
+                <span className="text-2xl font-bold" style={{ color: theme.colors.primary }}>
+                  {balance.toLocaleString()} OMR
+                </span>
+              </div>
+            )}
             <p className="text-sm" style={{ color: theme.colors.textMuted }}>
               {t('wallet.redirectingIn', { seconds: countdown }) || `Перенаправлення через ${countdown} секунд...`}
             </p>
           </>
         )}
-        
+
         {status === 'error' && (
           <>
             <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
               style={{ backgroundColor: theme.colors.errorLight }}>
-              <CheckCircle2 size={32} style={{ color: theme.colors.error }} />
+              <XCircle size={32} style={{ color: theme.colors.error }} />
             </div>
             <h2 className="text-2xl font-bold mb-2" style={{ color: theme.colors.text }}>
               {t('wallet.paymentError') || 'Помилка обробки оплати'}
@@ -126,4 +138,3 @@ export default function WalletReturnPage() {
     </div>
   );
 }
-

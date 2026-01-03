@@ -8,7 +8,7 @@ import enum
 
 
 class TransactionType(str, enum.Enum):
-    DEPOSIT = "deposit"  # Поповнення через Gumroad
+    DEPOSIT = "deposit"  # Поповнення через Stripe
     PURCHASE = "purchase"  # Покупка товару
     SUBSCRIPTION = "subscription"  # Оплата підписки
     BONUS = "bonus"  # Щоденний бонус
@@ -17,7 +17,7 @@ class TransactionType(str, enum.Enum):
 
 
 class CoinPack(Base):
-    """Пакети монет для покупки через Gumroad"""
+    """Пакети монет для покупки через Stripe"""
 
     __tablename__ = "coin_packs"
 
@@ -33,8 +33,8 @@ class CoinPack(Base):
     # Бонусний відсоток (наприклад, 10 = +10% монет)
     bonus_percent = Column(Integer, default=0)
 
-    # Gumroad permalink (частина URL продукту)
-    gumroad_permalink = Column(String(100), unique=True, nullable=False)
+    # Stripe Price ID (price_xxx)
+    stripe_price_id = Column(String(100), unique=True, nullable=False)
 
     # Чи активний пакет
     is_active = Column(Boolean, default=True)
@@ -91,7 +91,7 @@ class Transaction(Base):
     # ВИПРАВЛЕНО ТУТ: user_subscriptions -> subscriptions
     subscription_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=True)
 
-    # Зовнішній ID (наприклад, Gumroad sale_id)
+    # Зовнішній ID (наприклад, Stripe session_id)
     external_id = Column(String(100), nullable=True, index=True)
 
     # Часова мітка

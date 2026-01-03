@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Header, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload, joinedload
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.auth import require_admin
@@ -17,11 +18,18 @@ from app.products.schemas import (
     CategoryCreate,
     CategoryResponse
 )
-from app.products.models import Category, CategoryTranslation
+from app.products.models import Category, CategoryTranslation, Product, ProductType
 from app.core.translations import get_text
 
 router = APIRouter()
 admin_router = APIRouter()
+
+
+class PlatformStatsResponse(BaseModel):
+    total_downloads: int
+    total_users: int
+    total_products: int
+    free_products: int
 
 
 def _parse_language_header(accept_language: str) -> str:
@@ -90,6 +98,41 @@ async def get_categories(
                 "name": translation.name
             })
     return response_data
+
+
+@router.get("/stats/platform", response_model=PlatformStatsResponse)
+async def get_platform_stats(
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Публічна статистика платформи.
+    Повертає загальну кількість завантажень, користувачів, товарів та безкоштовних товарів.
+    """
+    # Total downloads (all products)
+    total_downloads = await db.scalar(
+        select(func.coalesce(func.sum(Product.downloads_count), 0))
+    ) or 0
+
+    # Total users
+    total_users = await db.scalar(select(func.count(User.id))) or 0
+
+    # Total products
+    total_products = await db.scalar(
+        select(func.count(Product.id))
+    ) or 0
+
+    # Free products
+    free_products = await db.scalar(
+        select(func.count(Product.id))
+        .where(Product.product_type == ProductType.FREE)
+    ) or 0
+
+    return PlatformStatsResponse(
+        total_downloads=int(total_downloads),
+        total_users=total_users,
+        total_products=total_products,
+        free_products=free_products
+    )
 
 
 @router.get("/autocomplete/search", response_model=List[dict])
