@@ -188,7 +188,7 @@ export default function MarketplacePage() {
       <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-12 pt-6 pb-20">
 
         <div
-          className="flex items-center gap-3 mb-6 sticky top-14 z-30 py-3 -mx-5 px-5"
+          className="flex items-center gap-3 mb-6 sticky top-20 sm:top-0 z-30 py-2 -mx-5 px-5"
           style={{
             backgroundColor: theme.colors.bg,
             borderBottom: `1px solid ${theme.colors.border}`,

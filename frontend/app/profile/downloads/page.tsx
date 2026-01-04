@@ -35,47 +35,19 @@ const DownloadItem = forwardRef<HTMLDivElement, { product: DownloadableProduct }
       }
 
       try {
+        // Generate one-time download token
+        const { download_token } = await profileAPI.generateDownloadToken(product.id);
+
+        // Build secure download URL with one-time token
         const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
-        const downloadUrl = `${baseUrl}/api/v1/profile/download/${product.id}`;
+        const downloadUrl = `${baseUrl}/api/v1/profile/download/${product.id}?download_token=${download_token}`;
 
-        // Use fetch with Authorization header
-        const response = await fetch(downloadUrl, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Download failed');
-        }
-
-        // Get blob and create download link
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-
-        // Extract filename from Content-Disposition header or use product title
-        const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = `${product.title}.zip`;
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
-          if (filenameMatch) {
-            filename = filenameMatch[1];
-          }
-        }
-
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-
+        // Redirect to download
+        window.location.href = downloadUrl;
         toast.success(t('toasts.downloadStarted', { title: product.title }));
-      } catch (error) {
+      } catch (error: any) {
         console.error('Download error:', error);
-        toast.error(t('toasts.downloadError'));
+        toast.error(error?.response?.data?.detail || t('toasts.downloadError'));
       }
     };
 

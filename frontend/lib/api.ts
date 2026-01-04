@@ -351,8 +351,8 @@ export const profileAPI = {
   getDownloads: async () => {
     return getData(await api.get('/profile/downloads'));
   },
-  downloadProduct: async (productId: number) => {
-    return getData(await api.get(`/profile/download/${productId}`));
+  generateDownloadToken: async (productId: number): Promise<{ download_token: string; expires_in: number }> => {
+    return getData(await api.post(`/profile/download/${productId}/token`));
   },
   getCollections: async () => {
     return getData(await api.get('/profile/collections'));

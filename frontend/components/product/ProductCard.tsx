@@ -53,12 +53,19 @@ export default function ProductCard({ product }: ProductCardProps) {
     setIsModalOpen(true);
   };
 
-  const handleDownload = (e: React.MouseEvent) => {
+  const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
     const token = useAuthStore.getState().token;
     if (token) {
-      const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/profile/download/${product.id}?token=${token}`;
-      window.location.href = url;
+      try {
+        // Generate one-time download token
+        const { download_token } = await profileAPI.generateDownloadToken(product.id);
+        // Build secure download URL with one-time token
+        const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/profile/download/${product.id}?download_token=${download_token}`;
+        window.location.href = url;
+      } catch (error: any) {
+        toast.error(error?.response?.data?.detail || t('toasts.downloadError'));
+      }
     } else {
       toast.error(t('toasts.loginToDownload'));
     }
@@ -158,37 +165,41 @@ export default function ProductCard({ product }: ProductCardProps) {
                   borderRadius: theme.radius.full,
                 }}
               >
-                <Star size={10} fill="currentColor" /> Креатор
+                <Star size={10} fill="currentColor" /> Premium
               </span>
-            </div>
-          )}
-
-          {/* Author Name on Image */}
-          {product.author_id && product.author_name && (
-            <div className="absolute bottom-2 left-2">
-              <Link
-                href={`/creator/${product.author_id}`}
-                onClick={(e) => e.stopPropagation()}
-                className="px-2 py-1 text-[11px] font-medium backdrop-blur-md transition-all hover:scale-105"
-                style={{
-                  backgroundColor: 'rgba(0,0,0,0.6)',
-                  color: '#FFF',
-                  borderRadius: theme.radius.md,
-                }}
-              >
-                {product.author_name}
-              </Link>
             </div>
           )}
         </div>
 
         <div className="p-3 flex flex-col flex-grow">
           <h3
-            className="font-semibold text-sm leading-tight mb-2 line-clamp-2"
+            className="font-semibold text-sm leading-tight mb-1 line-clamp-2"
             style={{ color: theme.colors.text }}
           >
             {product.title}
           </h3>
+
+          {/* Creator/Author info */}
+          <div className="mb-2">
+            {product.author_id && product.author_name ? (
+              <Link
+                href={`/creator/${product.author_id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="text-[11px] font-medium hover:underline"
+                style={{ color: theme.colors.primary }}
+              >
+                {product.author_name}
+              </Link>
+            ) : (
+              <span
+                className="text-[11px] font-medium flex items-center gap-1"
+                style={{ color: theme.colors.accent }}
+              >
+                <Star size={10} fill="currentColor" />
+                OhMyRevit
+              </span>
+            )}
+          </div>
 
           {/* Rating Display */}
           {product.ratings_count > 0 && (
@@ -202,49 +213,35 @@ export default function ProductCard({ product }: ProductCardProps) {
 
           <div className="flex-grow" />
 
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex flex-col">
-              {product.is_on_sale && salePrice ? (
-                <>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-base font-bold" style={{ color: theme.colors.primary }}>
-                      {Math.round(salePrice * 100)} 💎
+          <div className="mb-3">
+            {product.is_on_sale && salePrice ? (
+              <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5">
+                <span className="text-base font-bold" style={{ color: theme.colors.accent }}>
+                  {Math.round(salePrice * 100)} OMR
+                </span>
+                <span className="text-xs line-through" style={{ color: theme.colors.textMuted }}>
+                  {Math.round(price * 100)}
+                </span>
+                <span className="text-[11px]" style={{ color: theme.colors.textSecondary }}>
+                  (${salePrice.toFixed(2)})
+                </span>
+              </div>
+            ) : (
+              <>
+                {price === 0 ? (
+                  <span className="text-base font-bold" style={{ color: theme.colors.success }}>FREE</span>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-bold" style={{ color: theme.colors.text }}>
+                      {Math.round(price * 100)} OMR
                     </span>
-                    <span className="text-xs line-through" style={{ color: theme.colors.textMuted }}>
-                      {Math.round(price * 100)} 💎
+                    <span className="text-[11px]" style={{ color: theme.colors.textSecondary }}>
+                      (${price.toFixed(2)})
                     </span>
                   </div>
-                  <span className="text-[10px]" style={{ color: theme.colors.textMuted }}>
-                    ${salePrice.toFixed(2)}
-                  </span>
-                </>
-              ) : (
-                <>
-                  {price === 0 ? (
-                    <span className="text-base font-bold" style={{ color: theme.colors.success }}>FREE</span>
-                  ) : (
-                    <>
-                      <span className="text-base font-bold" style={{ color: theme.colors.text }}>
-                        {Math.round(price * 100)} 💎
-                      </span>
-                      <span className="text-[10px]" style={{ color: theme.colors.textMuted }}>
-                        ${price.toFixed(2)}
-                      </span>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-            <span
-              className="text-[10px] font-medium px-1.5 py-0.5"
-              style={{
-                backgroundColor: theme.colors.surface,
-                color: theme.colors.textSecondary,
-                borderRadius: theme.radius.sm,
-              }}
-            >
-              {product.file_size_mb} MB
-            </span>
+                )}
+              </>
+            )}
           </div>
 
           {isOwnProduct ? (

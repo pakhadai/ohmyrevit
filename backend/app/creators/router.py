@@ -460,10 +460,18 @@ async def get_creator_public_profile(
         })
 
     full_name = f"{creator.first_name or ''} {creator.last_name or ''}".strip()
+
+    # Формуємо URL для фото профілю
+    photo_url = creator.photo_url
+    if photo_url and not photo_url.startswith('http'):
+        photo_url = f"{settings.BACKEND_URL}{photo_url}" if settings.BACKEND_URL else photo_url
+
     return {
         "creator_id": creator.id,
         "username": creator.username or f"user_{creator.id}",
         "full_name": full_name or creator.username or f"User {creator.id}",
+        "photo_url": photo_url,
+        "telegram_username": creator.username,  # Для кнопки "Написати"
         "created_at": creator.created_at.isoformat() if creator.created_at else None,
         "total_products": total_products,
         "total_views": total_views,

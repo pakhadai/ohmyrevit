@@ -429,7 +429,7 @@ export default function CartPage() {
                 ) : hasEnoughBalance ? (
                   <>
                     <CheckCircle2 size={18} />
-                    <span>{t('cart.payWithCoins', { amount: finalCoins.toLocaleString() }) || `Оплатити ${finalCoins.toLocaleString()} OMR`}</span>
+                    <span>Оплатити {finalCoins.toLocaleString()} OMR</span>
                   </>
                 ) : (
                   <>

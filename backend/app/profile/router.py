@@ -210,28 +210,79 @@ def get_archive_media_type(filename: str) -> str:
     return 'application/octet-stream'
 
 
-@router.get("/download/{product_id}")
-async def download_product_file(
+@router.post("/download/{product_id}/token")
+async def generate_download_token(
         product_id: int,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
+    """Генерує одноразовий токен для завантаження (діє 5 хвилин)"""
+    from app.profile.download_service import DownloadTokenService
+
     lang = current_user.language_code or "uk"
 
-    access_response = await check_product_access(product_ids=[product_id], current_user=current_user, db=db)
+    # Перевіряємо доступ
+    access_response = await check_product_access(
+        product_ids=[product_id],
+        current_user=current_user,
+        db=db
+    )
     if product_id not in access_response["accessible_product_ids"]:
         raise HTTPException(
             status_code=403,
             detail=get_text("profile_download_access_denied", lang)
         )
 
+    # Генеруємо одноразовий токен
+    token = await DownloadTokenService.generate_token(
+        user_id=current_user.id,
+        product_id=product_id
+    )
+
+    return {"download_token": token, "expires_in": 300}
+
+
+@router.get("/download/{product_id}")
+async def download_product_file(
+        product_id: int,
+        download_token: str,
+        db: AsyncSession = Depends(get_db)
+):
+    """Завантаження файлу з одноразовим токеном"""
+    from app.profile.download_service import DownloadTokenService
+
+    # Перевіряємо і споживаємо одноразовий токен (без user_id)
+    cached_data = await DownloadTokenService.get_token_data(download_token)
+
+    if not cached_data:
+        raise HTTPException(
+            status_code=403,
+            detail="Токен недійсний або вже використаний"
+        )
+
+    try:
+        user_id, token_product_id = map(int, cached_data.split(':'))
+    except (ValueError, AttributeError):
+        raise HTTPException(
+            status_code=403,
+            detail="Некоректний токен"
+        )
+
+    # Перевіряємо що product_id співпадає
+    if token_product_id != product_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Токен не відповідає товару"
+        )
+
+    # Видаляємо токен (одноразове використання)
+    await DownloadTokenService.consume_token(download_token)
+
+    # Отримуємо продукт
     product = await db.get(Product, product_id)
     if not product or not product.zip_file_path:
-        logger.error(f"DOWNLOAD ERROR: Product record for ID {product_id} found, but zip_file_path is missing.")
-        raise HTTPException(
-            status_code=404,
-            detail=get_text("profile_download_db_error", lang)
-        )
+        logger.error(f"DOWNLOAD ERROR: Product {product_id} not found")
+        raise HTTPException(status_code=404, detail="Файл не знайдено")
 
     relative_path = product.zip_file_path.removeprefix('/uploads/')
     file_path = Path(settings.UPLOAD_PATH) / relative_path
@@ -239,16 +290,17 @@ async def download_product_file(
     if not file_path.is_file():
         raise HTTPException(
             status_code=404,
-            detail=get_text("profile_download_server_error", lang)
+            detail="Файл не знайдено на сервері"
         )
 
-    # Атомарний інкремент лічильника завантажень (захист від race condition)
+    # Атомарний інкремент лічильника завантажень
     await db.execute(
         update(Product)
         .where(Product.id == product_id)
         .values(downloads_count=Product.downloads_count + 1)
     )
     await db.commit()
+
     media_type = get_archive_media_type(file_path.name)
     return FileResponse(str(file_path), filename=file_path.name, media_type=media_type)
 

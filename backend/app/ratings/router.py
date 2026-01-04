@@ -4,13 +4,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.users.dependencies import get_current_user
 from app.users.models import User
-from app.ratings.schemas import RatingCreate, RatingUpdate, RatingResponse, ProductRatingStats
+from app.ratings.schemas import (
+    RatingCreate,
+    RatingResponse,
+    ProductRatingStats
+)
 from app.ratings.service import RatingService
 
-router = APIRouter()
+router = APIRouter(tags=["ratings"])
 
 
-@router.post("/", response_model=RatingResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=RatingResponse,
+    status_code=status.HTTP_201_CREATED
+)
 async def create_or_update_rating(
     rating_data: RatingCreate,
     current_user: User = Depends(get_current_user),
