@@ -34,10 +34,12 @@ class UserBrief(BaseModel):
     first_name: str
     last_name: Optional[str] = None
     email: Optional[str] = None
-    is_admin: bool = False
+    is_admin: Optional[bool] = False
     is_active: bool = True
-    balance: int = 0
-    bonus_streak: int = 0
+    is_creator: Optional[bool] = False
+    balance: Optional[int] = 0
+    bonus_streak: Optional[int] = 0
+    creator_balance: Optional[int] = 0
     created_at: datetime
     photo_url: Optional[str] = None
 

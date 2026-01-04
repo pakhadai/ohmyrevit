@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { useAccessStore } from '@/store/accessStore';
 import { useAuthStore } from '@/store/authStore';
 import { useCollectionStore } from '@/store/collectionStore';
+import { profileAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useState } from 'react';
 import AddToCollectionModal from '@/components/collections/AddToCollectionModal';
@@ -95,7 +96,11 @@ export default function ProductCard({ product }: ProductCardProps) {
         boxShadow: theme.shadows.md,
       }}
     >
-      {isModalOpen && <AddToCollectionModal product={product} onClose={() => setIsModalOpen(false)} />}
+      <AddToCollectionModal
+        productId={product.id}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
 
       <Link href={`/product/${product.id}`} className="flex flex-col h-full">
         <div

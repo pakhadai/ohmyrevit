@@ -51,36 +51,47 @@ export default function ProductDetailPage() {
       const fetchData = async () => {
         try {
           setLoading(true);
-          const promises: Promise<any>[] = [productsAPI.getProductById(productId)];
-          if (isAuthenticated) {
-            promises.push(fetchAccessStatus([Number(productId)]));
-            promises.push(ratingsAPI.getProductRatingStats(Number(productId)));
-          }
-          const results = await Promise.all(promises);
-          const productData = results[0];
+
+          // Load product (main request - must succeed)
+          const productData = await productsAPI.getProductById(productId);
           setProduct(productData);
           setSelectedImage(productData.main_image_url);
 
-          // Load user rating if authenticated
-          if (isAuthenticated && results.length > 2) {
-            const ratingStats = results[2];
-            if (ratingStats && ratingStats.user_rating) {
-              setUserRating(ratingStats.user_rating);
+          // Load access status and rating (optional - failures won't break page)
+          if (isAuthenticated) {
+            try {
+              await fetchAccessStatus([Number(productId)]);
+            } catch (err) {
+              console.warn('Failed to fetch access status:', err);
+            }
+
+            try {
+              const ratingStats = await ratingsAPI.getProductRatingStats(Number(productId));
+              if (ratingStats && ratingStats.user_rating) {
+                setUserRating(ratingStats.user_rating);
+              }
+            } catch (err) {
+              console.warn('Failed to fetch rating stats:', err);
             }
           }
 
-          // Load similar products (same category or random)
-          if (productData.categories && productData.categories.length > 0) {
-            const similar = await productsAPI.getProducts({
-              category_id: productData.categories[0].id,
-              limit: 8,
-            });
-            setSimilarProducts(similar.filter((p: Product) => p.id !== productData.id).slice(0, 4));
-          } else {
-            const similar = await productsAPI.getProducts({ limit: 8 });
-            setSimilarProducts(similar.filter((p: Product) => p.id !== productData.id).slice(0, 4));
+          // Load similar products (optional - failures won't break page)
+          try {
+            if (productData.categories && productData.categories.length > 0) {
+              const similar = await productsAPI.getProducts({
+                category_id: productData.categories[0].id,
+                limit: 8,
+              });
+              setSimilarProducts(similar.filter((p: Product) => p.id !== productData.id).slice(0, 4));
+            } else {
+              const similar = await productsAPI.getProducts({ limit: 8 });
+              setSimilarProducts(similar.filter((p: Product) => p.id !== productData.id).slice(0, 4));
+            }
+          } catch (err) {
+            console.warn('Failed to fetch similar products:', err);
           }
         } catch (err) {
+          console.error('Failed to load product:', err);
           setError(t('productPage.loadError'));
           toast.error(t('toasts.productLoadError'));
         } finally {
@@ -376,7 +387,7 @@ export default function ProductDetailPage() {
                   size={20}
                   value={userRating}
                 />
-                {product.ratings_count > 0 && (
+                {(product.ratings_count || 0) > 0 && (
                   <span className="text-sm" style={{ color: theme.colors.textMuted }}>
                     ({product.ratings_count} {product.ratings_count === 1 ? 'оцінка' : 'оцінок'})
                   </span>
@@ -552,7 +563,7 @@ export default function ProductDetailPage() {
                 </div>
                 <div>
                   <div className="text-lg font-bold" style={{ color: theme.colors.text }}>
-                    {product.views_count.toLocaleString()}
+                    {(product.views_count || 0).toLocaleString()}
                   </div>
                   <div className="text-xs" style={{ color: theme.colors.textMuted }}>
                     Переглядів
@@ -568,7 +579,7 @@ export default function ProductDetailPage() {
                 </div>
                 <div>
                   <div className="text-lg font-bold" style={{ color: theme.colors.text }}>
-                    {product.downloads_count.toLocaleString()}
+                    {(product.downloads_count || 0).toLocaleString()}
                   </div>
                   <div className="text-xs" style={{ color: theme.colors.textMuted }}>
                     Завантажень

@@ -37,10 +37,12 @@ export interface Product {
   sale_price?: number;
   actual_price?: number;
   file_size_mb: number;
-  compatibility: string;
+  compatibility?: string;
   categories: Category[];
   views_count?: number;
   downloads_count?: number;
+  average_rating?: number;
+  ratings_count?: number;
   author_id?: number;
   author_name?: string;
 }

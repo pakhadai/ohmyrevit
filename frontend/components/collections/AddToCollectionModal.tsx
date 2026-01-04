@@ -5,51 +5,54 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, FolderPlus, Check, Loader, Heart } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useCollectionStore } from '@/store/collectionStore';
-import { Product } from '@/types';
 import toast from 'react-hot-toast';
 import { useTheme } from '@/lib/theme';
 
 interface AddToCollectionModalProps {
-  product: Product;
+  productId: number;
+  isOpen: boolean;
   onClose: () => void;
 }
 
-export default function AddToCollectionModal({ product, onClose }: AddToCollectionModalProps) {
+export default function AddToCollectionModal({ productId, isOpen, onClose }: AddToCollectionModalProps) {
   const { theme } = useTheme();
   const { t } = useTranslation();
   const {
     collections,
-    fetchCollections,
-    addToCollection,
-    removeFromCollection,
-    createCollection,
-    isLoading,
+    fetchInitialData,
+    addProductToCollection,
+    removeProductFromCollection,
+    addCollection,
   } = useCollectionStore();
 
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    fetchCollections();
-  }, [fetchCollections]);
+    if (isOpen) {
+      setIsLoading(true);
+      fetchInitialData().finally(() => setIsLoading(false));
+    }
+  }, [isOpen, fetchInitialData]);
 
   useEffect(() => {
     const initial = new Set<number>();
     collections.forEach(c => {
-      if (c.products?.some(p => p.id === product.id)) {
+      if (c.products?.some(p => p.id === productId)) {
         initial.add(c.id);
       }
     });
     setSelectedIds(initial);
-  }, [collections, product.id]);
+  }, [collections, productId]);
 
   const handleToggle = async (collectionId: number) => {
     const isSelected = selectedIds.has(collectionId);
     try {
       if (isSelected) {
-        await removeFromCollection(collectionId, product.id);
+        await removeProductFromCollection(collectionId, productId);
         setSelectedIds(prev => {
           const next = new Set(prev);
           next.delete(collectionId);
@@ -57,7 +60,7 @@ export default function AddToCollectionModal({ product, onClose }: AddToCollecti
         });
         toast.success(t('collections.removedFromCollection'));
       } else {
-        await addToCollection(collectionId, product.id);
+        await addProductToCollection(collectionId, productId);
         setSelectedIds(prev => new Set(prev).add(collectionId));
         toast.success(t('collections.addedToCollection'));
       }
@@ -70,9 +73,9 @@ export default function AddToCollectionModal({ product, onClose }: AddToCollecti
     if (!newName.trim()) return;
     setIsCreating(true);
     try {
-      const newCollection = await createCollection(newName.trim());
+      const newCollection = await addCollection(newName.trim(), '#FF6B6B');
       if (newCollection) {
-        await addToCollection(newCollection.id, product.id);
+        await addProductToCollection(newCollection.id, productId);
         setSelectedIds(prev => new Set(prev).add(newCollection.id));
         toast.success(t('collections.created'));
       }
@@ -84,6 +87,8 @@ export default function AddToCollectionModal({ product, onClose }: AddToCollecti
       setIsCreating(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <AnimatePresence>
@@ -125,9 +130,6 @@ export default function AddToCollectionModal({ product, onClose }: AddToCollecti
                 <h2 className="font-bold" style={{ color: theme.colors.text }}>
                   {t('collections.addTo')}
                 </h2>
-                <p className="text-xs truncate max-w-[180px]" style={{ color: theme.colors.textMuted }}>
-                  {product.title}
-                </p>
               </div>
             </div>
             <button
@@ -173,7 +175,7 @@ export default function AddToCollectionModal({ product, onClose }: AddToCollecti
                         {collection.name}
                       </p>
                       <p className="text-xs" style={{ color: theme.colors.textMuted }}>
-                        {collection.products?.length || 0} {t('collections.items')}
+                        {collection.products_count || 0} {t('collections.items')}
                       </p>
                     </div>
                     <div
