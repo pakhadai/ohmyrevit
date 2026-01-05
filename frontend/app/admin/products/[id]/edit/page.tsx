@@ -8,6 +8,7 @@ import { adminAPI, productsAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
+import { useTheme } from '@/lib/theme';
 
 // Хелпер для відображення повного шляху картинки
 const fullImageUrl = (path: string) => {
@@ -37,6 +38,7 @@ function FileUploader({
     label: string,
     multiple?: boolean
 }) {
+    const { theme } = useTheme();
     const [isUploading, setIsUploading] = useState(false);
 
     const handleFileUpload = async (files: FileList) => {
@@ -67,7 +69,20 @@ function FileUploader({
     };
 
     return (
-        <div className="border-2 border-dashed border-border bg-muted/20 hover:bg-muted/40 rounded-xl transition-all cursor-pointer group h-full min-h-[120px]">
+        <div
+            className="transition-all cursor-pointer group h-full min-h-[120px]"
+            style={{
+                border: `2px dashed ${theme.colors.border}`,
+                backgroundColor: `${theme.colors.surface}33`,
+                borderRadius: theme.radius.xl,
+            }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = `${theme.colors.surface}66`;
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = `${theme.colors.surface}33`;
+            }}
+        >
             <input
                 type="file"
                 accept={accept}
@@ -80,16 +95,22 @@ function FileUploader({
             <label htmlFor={label} className="cursor-pointer w-full h-full flex flex-col items-center justify-center p-6">
                 {isUploading ? (
                     <div className="flex flex-col items-center animate-pulse">
-                        <Loader className="w-8 h-8 text-primary animate-spin mb-3" />
-                        <span className="text-sm font-semibold text-muted-foreground">Завантаження...</span>
+                        <Loader className="w-8 h-8 animate-spin mb-3" style={{ color: theme.colors.primary }} />
+                        <span className="text-sm font-semibold" style={{ color: theme.colors.textMuted }}>Завантаження...</span>
                     </div>
                 ) : (
                     <div className="flex flex-col items-center text-center">
-                        <div className="w-12 h-12 bg-background rounded-full flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform border border-border">
-                            <Upload className="w-6 h-6 text-primary" />
+                        <div
+                            className="w-12 h-12 rounded-full flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform"
+                            style={{
+                                backgroundColor: theme.colors.bg,
+                                border: `1px solid ${theme.colors.border}`,
+                            }}
+                        >
+                            <Upload className="w-6 h-6" style={{ color: theme.colors.primary }} />
                         </div>
-                        <span className="text-sm font-semibold text-foreground mb-1">{label}</span>
-                        <p className="text-xs text-muted-foreground">
+                        <span className="text-sm font-semibold mb-1" style={{ color: theme.colors.text }}>{label}</span>
+                        <p className="text-xs" style={{ color: theme.colors.textMuted }}>
                             {multiple ? 'Можна обрати декілька файлів' : 'Натисніть для вибору'}
                         </p>
                     </div>
@@ -105,6 +126,7 @@ export default function EditProductPage() {
   const productId = params.id as string;
   const { user } = useAuthStore();
   const { t } = useTranslation();
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
@@ -217,19 +239,28 @@ export default function EditProductPage() {
     }));
   };
 
-  // Styles
-  const inputClass = "w-full px-4 py-3 bg-muted/50 border border-transparent rounded-xl text-foreground text-sm placeholder:text-muted-foreground focus:bg-background focus:border-primary/30 focus:ring-0 outline-none transition-all";
-  const labelClass = "block text-xs font-bold text-muted-foreground mb-2 uppercase tracking-wider";
-
-  if (fetching) return <div className="min-h-screen flex items-center justify-center"><Loader className="animate-spin h-10 w-10 text-primary" /></div>;
+  if (fetching) return <div className="min-h-screen flex items-center justify-center"><Loader className="animate-spin h-10 w-10" style={{ color: theme.colors.primary }} /></div>;
 
   return (
     <div className="space-y-6 pb-20 max-w-5xl mx-auto">
         <div className="flex items-center gap-4">
-            <button onClick={() => router.push('/admin/products')} className="p-2 hover:bg-muted rounded-xl transition-colors">
-                <ArrowLeft size={24} className="text-muted-foreground" />
+            <button
+                onClick={() => router.push('/admin/products')}
+                className="p-2 transition-colors"
+                style={{
+                    borderRadius: theme.radius.xl,
+                    color: theme.colors.textMuted,
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = theme.colors.surface;
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+            >
+                <ArrowLeft size={24} />
             </button>
-            <h1 className="text-2xl font-bold text-foreground">{t('admin.products.form.editTitle', { id: productId })}</h1>
+            <h1 className="text-2xl font-bold" style={{ color: theme.colors.text }}>{t('admin.products.form.editTitle', { id: productId })}</h1>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
