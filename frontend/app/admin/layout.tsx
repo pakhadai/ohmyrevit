@@ -9,6 +9,7 @@ import {
 import { MARKETPLACE_ENABLED } from '@/lib/features';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from '@/lib/theme';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [creatorsMenuOpen, setCreatorsMenuOpen] = useState(pathname.startsWith('/admin/creators'));
   const { t } = useTranslation();
+  const { theme } = useTheme();
 
   const baseMenuItems = [
     { id: 'dashboard', label: t('admin.sidebar.dashboard'), icon: TrendingUp, href: '/admin' },
@@ -42,23 +44,68 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   const getActionButton = () => {
+    const buttonStyle = {
+      backgroundColor: theme.colors.primary,
+      color: '#fff',
+      padding: '8px',
+      borderRadius: theme.radius.xl,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: theme.shadows.md,
+      transition: 'all 0.2s',
+    };
+
     if (pathname === '/admin/products') {
       return (
-        <button onClick={() => router.push('/admin/products/new')} className="btn-primary p-2 rounded-xl flex items-center justify-center">
+        <button
+          onClick={() => router.push('/admin/products/new')}
+          style={buttonStyle}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.05)';
+            e.currentTarget.style.boxShadow = theme.shadows.lg;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = theme.shadows.md;
+          }}
+        >
           <Plus size={20} />
         </button>
       )
     }
     if (pathname === '/admin/promo-codes') {
       return (
-        <button onClick={() => router.push('/admin/promo-codes/new')} className="btn-primary p-2 rounded-xl flex items-center justify-center">
+        <button
+          onClick={() => router.push('/admin/promo-codes/new')}
+          style={buttonStyle}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.05)';
+            e.currentTarget.style.boxShadow = theme.shadows.lg;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = theme.shadows.md;
+          }}
+        >
           <Plus size={20} />
         </button>
       )
     }
     if (pathname === '/admin/coin-packs') {
       return (
-        <button onClick={() => router.push('/admin/coin-packs/new')} className="btn-primary p-2 rounded-xl flex items-center justify-center">
+        <button
+          onClick={() => router.push('/admin/coin-packs/new')}
+          style={buttonStyle}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.05)';
+            e.currentTarget.style.boxShadow = theme.shadows.lg;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = theme.shadows.md;
+          }}
+        >
           <Plus size={20} />
         </button>
       )
@@ -67,7 +114,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div
+      className="flex min-h-screen"
+      style={{
+        backgroundColor: theme.colors.bg,
+        color: theme.colors.text
+      }}
+    >
         <AnimatePresence>
             {sidebarOpen && (
                 <motion.div
@@ -80,12 +133,38 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             )}
         </AnimatePresence>
 
-        <aside className={`fixed lg:sticky top-0 inset-y-0 left-0 h-screen w-64 bg-card/80 backdrop-blur-xl border-r border-border z-50 transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-            <div className="p-6 border-b border-border/50 flex items-center justify-between h-20">
-                <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-pink-soft">
+        <aside
+          className={`fixed lg:sticky top-0 inset-y-0 left-0 h-screen w-64 backdrop-blur-xl z-50 transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          style={{
+            backgroundColor: `${theme.colors.card}cc`,
+            borderRight: `1px solid ${theme.colors.border}`,
+          }}
+        >
+            <div
+              className="p-6 flex items-center justify-between h-20"
+              style={{ borderBottom: `1px solid ${theme.colors.border}80` }}
+            >
+                <h1
+                  className="text-xl font-bold"
+                  style={{
+                    background: `linear-gradient(to right, ${theme.colors.primary}, ${theme.colors.pink})`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
                     Admin Panel
                 </h1>
-                <button onClick={() => router.push('/')} className="lg:hidden p-2 hover:bg-muted rounded-lg text-muted-foreground">
+                <button
+                  onClick={() => router.push('/')}
+                  className="lg:hidden p-2 rounded-lg"
+                  style={{
+                    color: theme.colors.textMuted,
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.colors.surface}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
                     <ArrowLeft size={20} />
                 </button>
             </div>
@@ -101,11 +180,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 router.push(item.href);
                                 setSidebarOpen(false);
                             }}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${
-                                active
-                                ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                            }`}
+                            className="w-full flex items-center gap-3 px-4 py-3 transition-all duration-200 font-medium"
+                            style={{
+                                backgroundColor: active ? theme.colors.primary : 'transparent',
+                                color: active ? '#fff' : theme.colors.textMuted,
+                                borderRadius: theme.radius.xl,
+                                boxShadow: active ? `${theme.shadows.lg}, 0 0 20px ${theme.colors.primary}33` : 'none',
+                            }}
+                            onMouseEnter={(e) => {
+                                if (!active) {
+                                    e.currentTarget.style.backgroundColor = theme.colors.surface;
+                                    e.currentTarget.style.color = theme.colors.text;
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!active) {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.color = theme.colors.textMuted;
+                                }
+                            }}
                         >
                             <Icon size={20} />
                             <span>{item.label}</span>
@@ -118,11 +211,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <div className="space-y-1">
                         <button
                             onClick={() => setCreatorsMenuOpen(!creatorsMenuOpen)}
-                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${
-                                pathname.startsWith('/admin/creators')
-                                ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                            }`}
+                            className="w-full flex items-center justify-between gap-3 px-4 py-3 transition-all duration-200 font-medium"
+                            style={{
+                                backgroundColor: pathname.startsWith('/admin/creators') ? theme.colors.primary : 'transparent',
+                                color: pathname.startsWith('/admin/creators') ? '#fff' : theme.colors.textMuted,
+                                borderRadius: theme.radius.xl,
+                                boxShadow: pathname.startsWith('/admin/creators') ? `${theme.shadows.lg}, 0 0 20px ${theme.colors.primary}33` : 'none',
+                            }}
+                            onMouseEnter={(e) => {
+                                if (!pathname.startsWith('/admin/creators')) {
+                                    e.currentTarget.style.backgroundColor = theme.colors.surface;
+                                    e.currentTarget.style.color = theme.colors.text;
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!pathname.startsWith('/admin/creators')) {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.color = theme.colors.textMuted;
+                                }
+                            }}
                         >
                             <div className="flex items-center gap-3">
                                 <Store size={20} />
@@ -151,11 +258,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                                         router.push(subItem.href);
                                                         setSidebarOpen(false);
                                                     }}
-                                                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium ${
-                                                        subActive
-                                                        ? 'bg-primary/10 text-primary'
-                                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                                                    }`}
+                                                    className="w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-200 text-sm font-medium"
+                                                    style={{
+                                                        backgroundColor: subActive ? theme.colors.primaryLight : 'transparent',
+                                                        color: subActive ? theme.colors.primary : theme.colors.textMuted,
+                                                        borderRadius: theme.radius.lg,
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        if (!subActive) {
+                                                            e.currentTarget.style.backgroundColor = theme.colors.surface;
+                                                            e.currentTarget.style.color = theme.colors.text;
+                                                        }
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        if (!subActive) {
+                                                            e.currentTarget.style.backgroundColor = 'transparent';
+                                                            e.currentTarget.style.color = theme.colors.textMuted;
+                                                        }
+                                                    }}
                                                 >
                                                     <SubIcon size={16} />
                                                     <span>{subItem.label}</span>
@@ -170,10 +290,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 )}
             </nav>
 
-            <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/50">
+            <div
+              className="absolute bottom-0 left-0 right-0 p-4"
+              style={{ borderTop: `1px solid ${theme.colors.border}80` }}
+            >
                 <button
                     onClick={() => router.push('/')}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 transition-colors"
+                    style={{
+                        color: theme.colors.textMuted,
+                        borderRadius: theme.radius.xl,
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = theme.colors.surface;
+                        e.currentTarget.style.color = theme.colors.text;
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = theme.colors.textMuted;
+                    }}
                 >
                     <ArrowLeft size={20} />
                     <span>На головну</span>
@@ -182,11 +317,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0">
-             <header className="lg:hidden sticky top-0 bg-background/80 backdrop-blur-xl border-b border-border z-30 h-16 flex items-center justify-between px-4">
-                <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 text-foreground">
+             <header
+               className="lg:hidden sticky top-0 backdrop-blur-xl z-30 h-16 flex items-center justify-between px-4"
+               style={{
+                 backgroundColor: `${theme.colors.bg}cc`,
+                 borderBottom: `1px solid ${theme.colors.border}`,
+               }}
+             >
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="p-2 -ml-2"
+                  style={{ color: theme.colors.text }}
+                >
                     <Menu size={24} />
                 </button>
-                <h1 className="text-lg font-bold text-foreground truncate px-2">
+                <h1
+                  className="text-lg font-bold truncate px-2"
+                  style={{ color: theme.colors.text }}
+                >
                     {menuItems.find(item => isActive(item.href))?.label || t('admin.sidebar.title')}
                 </h1>
                 {getActionButton()}
