@@ -88,12 +88,14 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <div
-      className="relative overflow-hidden flex flex-col group transition-all duration-300 hover:scale-[1.02]"
+      className="relative flex flex-col group transition-all duration-300 hover:scale-[1.02]"
       style={{
         backgroundColor: theme.colors.card,
         border: `1px solid ${theme.colors.border}`,
         borderRadius: theme.radius.xl,
         boxShadow: theme.shadows.md,
+        overflow: 'hidden',
+        willChange: 'transform',
       }}
     >
       <AddToCollectionModal
@@ -207,7 +209,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
 
           {/* Rating Display */}
-          {product.ratings_count > 0 && (
+          {(product.ratings_count || 0) > 0 && (
             <div className="flex items-center gap-1 mb-2">
               <StarRating rating={product.average_rating || 0} readonly size={14} />
               <span className="text-[10px]" style={{ color: theme.colors.textMuted }}>

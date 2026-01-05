@@ -20,7 +20,14 @@ class RatingService:
         """
         Перевіряє чи має користувач доступ до товару.
         Користувач може ставити оцінку тільки товарам, до яких має доступ.
+        Безкоштовні товари (product_type='free') можна оцінювати без перевірки доступу.
         """
+        # Перевіряємо чи товар безкоштовний
+        product = await self.db.get(Product, product_id)
+        if product and product.product_type == 'free':
+            return True
+
+        # Для платних товарів перевіряємо доступ
         result = await self.db.execute(
             select(UserProductAccess).where(
                 UserProductAccess.user_id == user_id,
