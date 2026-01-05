@@ -106,8 +106,12 @@ export default function ProductCard({ product }: ProductCardProps) {
 
       <Link href={`/product/${product.id}`} className="flex flex-col h-full">
         <div
-          className="relative aspect-square overflow-hidden"
-          style={{ backgroundColor: theme.colors.surface }}
+          className="relative aspect-square"
+          style={{
+            backgroundColor: theme.colors.surface,
+            overflow: 'hidden',
+            borderRadius: `${theme.radius.xl} ${theme.radius.xl} 0 0`,
+          }}
         >
           <Image
             src={fullImageUrl(product.main_image_url)}

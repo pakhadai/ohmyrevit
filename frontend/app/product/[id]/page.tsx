@@ -67,11 +67,11 @@ export default function ProductDetailPage() {
 
             try {
               const ratingStats = await ratingsAPI.getProductRatingStats(Number(productId));
-              if (ratingStats && ratingStats.user_rating) {
-                setUserRating(ratingStats.user_rating);
-              }
+              // Завжди встановлюємо userRating (null якщо немає)
+              setUserRating(ratingStats?.user_rating || null);
             } catch (err) {
               console.warn('Failed to fetch rating stats:', err);
+              setUserRating(null);
             }
           }
 

@@ -194,7 +194,7 @@ export default function CartPage() {
 
   return (
     <div className="min-h-screen pb-24" style={{ background: theme.colors.bgGradient }}>
-      <div className="max-w-7xl mx-auto px-5 pt-14">
+      <div className="max-w-6xl mx-auto px-5 pt-14">
         <AnimatePresence>
           {showEmailModal && (
               <EmailLinkModal
