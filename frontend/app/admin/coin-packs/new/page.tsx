@@ -7,10 +7,12 @@ import { adminAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import Image from 'next/image';
+import { useTheme } from '@/lib/theme';
 
 export default function NewCoinPackPage() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -70,32 +72,51 @@ export default function NewCoinPackPage() {
     }
   };
 
-  const inputClass = "w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all";
-
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
         <button
           onClick={() => router.back()}
-          className="p-2 hover:bg-muted rounded-xl transition-colors"
+          className="p-2 transition-colors"
+          style={{
+            borderRadius: theme.radius.xl,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = theme.colors.surface;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
         >
-          <ArrowLeft size={24} />
+          <ArrowLeft size={24} style={{ color: theme.colors.textMuted }} />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('admin.coinPacks.form.createTitle', 'Новий пакет монет')}</h1>
-          <p className="text-sm text-muted-foreground">{t('admin.coinPacks.form.createSubtitle', 'Створіть новий пакет для поповнення балансу')}</p>
+          <h1 className="text-2xl font-bold" style={{ color: theme.colors.text }}>
+            {t('admin.coinPacks.form.createTitle', 'Новий пакет монет')}
+          </h1>
+          <p className="text-sm" style={{ color: theme.colors.textMuted }}>
+            {t('admin.coinPacks.form.createSubtitle', 'Створіть новий пакет для поповнення балансу')}
+          </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="card-minimal p-6 space-y-5">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Coins size={20} className="text-primary" />
+        <div
+          className="p-6 space-y-5"
+          style={{
+            backgroundColor: theme.colors.card,
+            border: `1px solid ${theme.colors.border}`,
+            borderRadius: theme.radius.xl,
+            boxShadow: theme.shadows.md,
+          }}
+        >
+          <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: theme.colors.text }}>
+            <Coins size={20} style={{ color: theme.colors.primary }} />
             {t('admin.coinPacks.form.mainInfo', 'Основна інформація')}
           </h2>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: theme.colors.text }}>
               {t('admin.coinPacks.form.name', 'Назва пакету')} *
             </label>
             <input
@@ -104,14 +125,30 @@ export default function NewCoinPackPage() {
               value={formData.name}
               onChange={handleChange}
               placeholder="Starter Pack"
-              className={inputClass}
+              className="w-full px-4 py-3 outline-none transition-all"
+              style={{
+                backgroundColor: theme.colors.surface,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.xl,
+                color: theme.colors.text,
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.bg;
+                e.currentTarget.style.borderColor = `${theme.colors.primary}80`;
+                e.currentTarget.style.boxShadow = `0 0 0 2px ${theme.colors.primary}33`;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.surface;
+                e.currentTarget.style.borderColor = theme.colors.border;
+                e.currentTarget.style.boxShadow = 'none';
+              }}
               required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: theme.colors.text }}>
                 <DollarSign size={14} className="inline mr-1" />
                 {t('admin.coinPacks.form.price', 'Ціна (USD)')} *
               </label>
@@ -123,12 +160,28 @@ export default function NewCoinPackPage() {
                 placeholder="5.00"
                 step="0.01"
                 min="0"
-                className={inputClass}
+                className="w-full px-4 py-3 outline-none transition-all"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: theme.radius.xl,
+                  color: theme.colors.text,
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.colors.bg;
+                  e.currentTarget.style.borderColor = `${theme.colors.primary}80`;
+                  e.currentTarget.style.boxShadow = `0 0 0 2px ${theme.colors.primary}33`;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.colors.surface;
+                  e.currentTarget.style.borderColor = theme.colors.border;
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: theme.colors.text }}>
                 <Coins size={14} className="inline mr-1" />
                 {t('admin.coinPacks.form.coinsAmount', 'Кількість монет')} *
               </label>
@@ -139,7 +192,23 @@ export default function NewCoinPackPage() {
                 onChange={handleChange}
                 placeholder="500"
                 min="1"
-                className={inputClass}
+                className="w-full px-4 py-3 outline-none transition-all"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: theme.radius.xl,
+                  color: theme.colors.text,
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.colors.bg;
+                  e.currentTarget.style.borderColor = `${theme.colors.primary}80`;
+                  e.currentTarget.style.boxShadow = `0 0 0 2px ${theme.colors.primary}33`;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.colors.surface;
+                  e.currentTarget.style.borderColor = theme.colors.border;
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
                 required
               />
             </div>
@@ -147,7 +216,7 @@ export default function NewCoinPackPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: theme.colors.text }}>
                 <Gift size={14} className="inline mr-1" />
                 {t('admin.coinPacks.form.bonusPercent', 'Бонус (%)')}
               </label>
@@ -159,11 +228,27 @@ export default function NewCoinPackPage() {
                 placeholder="0"
                 min="0"
                 max="100"
-                className={inputClass}
+                className="w-full px-4 py-3 outline-none transition-all"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: theme.radius.xl,
+                  color: theme.colors.text,
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.colors.bg;
+                  e.currentTarget.style.borderColor = `${theme.colors.primary}80`;
+                  e.currentTarget.style.boxShadow = `0 0 0 2px ${theme.colors.primary}33`;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.colors.surface;
+                  e.currentTarget.style.borderColor = theme.colors.border;
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: theme.colors.text }}>
                 {t('admin.coinPacks.form.sortOrder', 'Порядок сортування')}
               </label>
               <input
@@ -173,30 +258,64 @@ export default function NewCoinPackPage() {
                 onChange={handleChange}
                 placeholder="0"
                 min="0"
-                className={inputClass}
+                className="w-full px-4 py-3 outline-none transition-all"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: theme.radius.xl,
+                  color: theme.colors.text,
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.colors.bg;
+                  e.currentTarget.style.borderColor = `${theme.colors.primary}80`;
+                  e.currentTarget.style.boxShadow = `0 0 0 2px ${theme.colors.primary}33`;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.colors.surface;
+                  e.currentTarget.style.borderColor = theme.colors.border;
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               />
             </div>
           </div>
 
-          <div className="p-4 bg-primary/10 rounded-xl">
+          <div
+            className="p-4"
+            style={{
+              backgroundColor: `${theme.colors.primaryLight}4d`,
+              borderRadius: theme.radius.xl,
+            }}
+          >
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">{t('admin.coinPacks.form.totalCoins', 'Всього монет (з бонусом):')}</span>
+              <span className="text-sm" style={{ color: theme.colors.textMuted }}>
+                {t('admin.coinPacks.form.totalCoins', 'Всього монет (з бонусом):')}
+              </span>
               <div className="flex items-center gap-2">
                 <Image src="/omr_coin.png" alt="OMR" width={24} height={24} />
-                <span className="text-2xl font-bold text-primary">{totalCoins.toLocaleString()}</span>
+                <span className="text-2xl font-bold" style={{ color: theme.colors.primary }}>
+                  {totalCoins.toLocaleString()}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="card-minimal p-6 space-y-5">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Link size={20} className="text-primary" />
+        <div
+          className="p-6 space-y-5"
+          style={{
+            backgroundColor: theme.colors.card,
+            border: `1px solid ${theme.colors.border}`,
+            borderRadius: theme.radius.xl,
+            boxShadow: theme.shadows.md,
+          }}
+        >
+          <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: theme.colors.text }}>
+            <Link size={20} style={{ color: theme.colors.primary }} />
             Stripe
           </h2>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: theme.colors.text }}>
               {t('admin.coinPacks.form.stripePriceId', 'Stripe Price ID')} *
             </label>
             <input
@@ -205,16 +324,32 @@ export default function NewCoinPackPage() {
               value={formData.stripe_price_id}
               onChange={handleChange}
               placeholder="price_1234567890abcdef"
-              className={inputClass}
+              className="w-full px-4 py-3 outline-none transition-all"
+              style={{
+                backgroundColor: theme.colors.surface,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.xl,
+                color: theme.colors.text,
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.bg;
+                e.currentTarget.style.borderColor = `${theme.colors.primary}80`;
+                e.currentTarget.style.boxShadow = `0 0 0 2px ${theme.colors.primary}33`;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.surface;
+                e.currentTarget.style.borderColor = theme.colors.border;
+                e.currentTarget.style.boxShadow = 'none';
+              }}
               required
             />
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs mt-1" style={{ color: theme.colors.textMuted }}>
               {t('admin.coinPacks.form.stripePriceIdHint', 'Price ID з Stripe Dashboard (починається з price_)')}
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: theme.colors.text }}>
               <FileText size={14} className="inline mr-1" />
               {t('admin.coinPacks.form.description', 'Опис')}
             </label>
@@ -224,14 +359,38 @@ export default function NewCoinPackPage() {
               onChange={handleChange}
               placeholder="Опис пакету для користувачів..."
               rows={3}
-              className={inputClass}
+              className="w-full px-4 py-3 outline-none transition-all"
+              style={{
+                backgroundColor: theme.colors.surface,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.xl,
+                color: theme.colors.text,
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.bg;
+                e.currentTarget.style.borderColor = `${theme.colors.primary}80`;
+                e.currentTarget.style.boxShadow = `0 0 0 2px ${theme.colors.primary}33`;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.surface;
+                e.currentTarget.style.borderColor = theme.colors.border;
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
           </div>
         </div>
 
-        <div className="card-minimal p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Sparkles size={20} className="text-primary" />
+        <div
+          className="p-6 space-y-4"
+          style={{
+            backgroundColor: theme.colors.card,
+            border: `1px solid ${theme.colors.border}`,
+            borderRadius: theme.radius.xl,
+            boxShadow: theme.shadows.md,
+          }}
+        >
+          <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: theme.colors.text }}>
+            <Sparkles size={20} style={{ color: theme.colors.primary }} />
             {t('admin.coinPacks.form.settings', 'Налаштування')}
           </h2>
 
@@ -241,11 +400,19 @@ export default function NewCoinPackPage() {
               name="is_active"
               checked={formData.is_active}
               onChange={handleChange}
-              className="w-5 h-5 rounded border-border text-primary focus:ring-primary/50"
+              className="w-5 h-5"
+              style={{
+                accentColor: theme.colors.primary,
+                borderRadius: theme.radius.md,
+              }}
             />
             <div>
-              <span className="font-medium text-foreground">{t('admin.coinPacks.form.isActive', 'Активний')}</span>
-              <p className="text-xs text-muted-foreground">{t('admin.coinPacks.form.isActiveHint', 'Пакет доступний для покупки')}</p>
+              <span className="font-medium" style={{ color: theme.colors.text }}>
+                {t('admin.coinPacks.form.isActive', 'Активний')}
+              </span>
+              <p className="text-xs" style={{ color: theme.colors.textMuted }}>
+                {t('admin.coinPacks.form.isActiveHint', 'Пакет доступний для покупки')}
+              </p>
             </div>
           </label>
 
@@ -255,11 +422,19 @@ export default function NewCoinPackPage() {
               name="is_featured"
               checked={formData.is_featured}
               onChange={handleChange}
-              className="w-5 h-5 rounded border-border text-primary focus:ring-primary/50"
+              className="w-5 h-5"
+              style={{
+                accentColor: theme.colors.primary,
+                borderRadius: theme.radius.md,
+              }}
             />
             <div>
-              <span className="font-medium text-foreground">{t('admin.coinPacks.form.isFeatured', 'Featured')}</span>
-              <p className="text-xs text-muted-foreground">{t('admin.coinPacks.form.isFeaturedHint', 'Виділити пакет як рекомендований')}</p>
+              <span className="font-medium" style={{ color: theme.colors.text }}>
+                {t('admin.coinPacks.form.isFeatured', 'Featured')}
+              </span>
+              <p className="text-xs" style={{ color: theme.colors.textMuted }}>
+                {t('admin.coinPacks.form.isFeaturedHint', 'Виділити пакет як рекомендований')}
+              </p>
             </div>
           </label>
         </div>
@@ -268,14 +443,42 @@ export default function NewCoinPackPage() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="flex-1 px-6 py-3 bg-muted text-foreground rounded-xl font-medium hover:bg-muted/80 transition-colors"
+            className="flex-1 px-6 py-3 font-medium transition-colors"
+            style={{
+              backgroundColor: theme.colors.surface,
+              color: theme.colors.text,
+              borderRadius: theme.radius.xl,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = `${theme.colors.surface}cc`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = theme.colors.surface;
+            }}
           >
             {t('common.cancel', 'Скасувати')}
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 btn-primary px-6 py-3 rounded-xl flex items-center justify-center gap-2"
+            className="flex-1 px-6 py-3 flex items-center justify-center gap-2 font-medium transition-all"
+            style={{
+              backgroundColor: loading ? `${theme.colors.primary}cc` : theme.colors.primary,
+              color: '#FFFFFF',
+              borderRadius: theme.radius.xl,
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? 'not-allowed' : 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.backgroundColor = `${theme.colors.primary}e6`;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.currentTarget.style.backgroundColor = theme.colors.primary;
+              }
+            }}
           >
             <Save size={20} />
             {loading ? t('common.saving', 'Збереження...') : t('admin.coinPacks.form.create', 'Створити')}

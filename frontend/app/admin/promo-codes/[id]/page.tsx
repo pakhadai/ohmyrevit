@@ -8,6 +8,7 @@ import { LoadingSpinner } from '@/components/admin/Shared';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
+import { useTheme } from '@/lib/theme';
 
 export default function PromoCodeDetailPage() {
     const router = useRouter();
@@ -15,6 +16,7 @@ export default function PromoCodeDetailPage() {
     const promoId = params.id as string;
     const isNew = promoId === 'new';
     const { t } = useTranslation();
+    const { theme } = useTheme();
 
     const [promo, setPromo] = useState({
         code: '',
@@ -84,126 +86,275 @@ export default function PromoCodeDetailPage() {
         }
     };
 
-    const inputClass = "w-full px-4 py-3 bg-muted/50 border border-transparent rounded-xl text-foreground text-sm placeholder:text-muted-foreground focus:bg-background focus:border-primary/30 focus:ring-0 outline-none transition-all";
-    const labelClass = "block text-xs font-bold text-muted-foreground mb-2 uppercase tracking-wider";
-
     if (loading) return <LoadingSpinner />;
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
             <div className="flex items-center gap-4">
-                <button onClick={() => router.push('/admin/promo-codes')} className="p-2 hover:bg-muted rounded-xl transition-colors">
-                    <ArrowLeft size={24} className="text-muted-foreground" />
+                <button
+                    onClick={() => router.push('/admin/promo-codes')}
+                    className="p-2 transition-colors"
+                    style={{
+                        borderRadius: theme.radius.xl,
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = theme.colors.surface;
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                >
+                    <ArrowLeft size={24} style={{ color: theme.colors.textMuted }} />
                 </button>
-                <h2 className="text-3xl font-bold text-foreground">
+                <h2 className="text-3xl font-bold" style={{ color: theme.colors.text }}>
                     {isNew ? t('admin.promo.detail.titleNew') : t('admin.promo.detail.titleEdit', { code: promo.code })}
                 </h2>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Форма редагування */}
+                {/* Left Column: Form */}
                 <div className="lg:col-span-2">
-                    <div className="card-minimal p-6">
-                        <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-foreground">
-                            <Tag size={20} className="text-primary" />
+                    <div
+                        className="p-6"
+                        style={{
+                            backgroundColor: theme.colors.card,
+                            border: `1px solid ${theme.colors.border}`,
+                            borderRadius: theme.radius.xl,
+                            boxShadow: theme.shadows.md,
+                        }}
+                    >
+                        <h3 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: theme.colors.text }}>
+                            <Tag size={20} style={{ color: theme.colors.primary }} />
                             Основна інформація
                         </h3>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                             <div>
-                                <label className={labelClass}>{t('admin.promo.form.codePlaceholder').split(' ')[0]}</label>
+                                <label className="block text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                                    {t('admin.promo.form.codePlaceholder').split(' ')[0]}
+                                </label>
                                 <div className="relative">
                                     <input
                                         type="text"
                                         value={promo.code}
                                         onChange={(e) => setPromo({...promo, code: e.target.value.toUpperCase()})}
                                         placeholder={t('admin.promo.form.codePlaceholder')}
-                                        className={`${inputClass} uppercase font-mono font-bold tracking-wider`}
+                                        className="w-full px-4 py-3 text-sm uppercase font-mono font-bold tracking-wider outline-none transition-all"
+                                        style={{
+                                            backgroundColor: `${theme.colors.surface}80`,
+                                            border: `1px solid transparent`,
+                                            borderRadius: theme.radius.xl,
+                                            color: theme.colors.text,
+                                        }}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.backgroundColor = theme.colors.bg;
+                                            e.currentTarget.style.borderColor = `${theme.colors.primary}4d`;
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.backgroundColor = `${theme.colors.surface}80`;
+                                            e.currentTarget.style.borderColor = 'transparent';
+                                        }}
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className={labelClass}>{t('admin.promo.form.discountType')}</label>
+                                <label className="block text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                                    {t('admin.promo.form.discountType')}
+                                </label>
                                 <div className="relative">
                                     <select
                                         value={promo.discount_type}
                                         onChange={(e) => setPromo({...promo, discount_type: e.target.value})}
-                                        className={`${inputClass} appearance-none cursor-pointer`}
+                                        className="w-full px-4 py-3 text-sm appearance-none cursor-pointer outline-none transition-all"
+                                        style={{
+                                            backgroundColor: `${theme.colors.surface}80`,
+                                            border: `1px solid transparent`,
+                                            borderRadius: theme.radius.xl,
+                                            color: theme.colors.text,
+                                        }}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.backgroundColor = theme.colors.bg;
+                                            e.currentTarget.style.borderColor = `${theme.colors.primary}4d`;
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.backgroundColor = `${theme.colors.surface}80`;
+                                            e.currentTarget.style.borderColor = 'transparent';
+                                        }}
                                     >
                                         <option value="percentage">{t('admin.promo.form.percentage')}</option>
                                         <option value="fixed">{t('admin.promo.form.fixed')}</option>
                                     </select>
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: theme.colors.textMuted }}>
                                         {promo.discount_type === 'percentage' ? <Percent size={16} /> : <DollarSign size={16} />}
                                     </div>
                                 </div>
                             </div>
 
                             <div>
-                                <label className={labelClass}>{t('admin.promo.form.value')}</label>
+                                <label className="block text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                                    {t('admin.promo.form.value')}
+                                </label>
                                 <input
                                     type="number"
                                     value={promo.value}
                                     onChange={(e) => setPromo({...promo, value: Number(e.target.value)})}
-                                    className={inputClass}
+                                    className="w-full px-4 py-3 text-sm outline-none transition-all"
+                                    style={{
+                                        backgroundColor: `${theme.colors.surface}80`,
+                                        border: `1px solid transparent`,
+                                        borderRadius: theme.radius.xl,
+                                        color: theme.colors.text,
+                                    }}
+                                    onFocus={(e) => {
+                                        e.currentTarget.style.backgroundColor = theme.colors.bg;
+                                        e.currentTarget.style.borderColor = `${theme.colors.primary}4d`;
+                                    }}
+                                    onBlur={(e) => {
+                                        e.currentTarget.style.backgroundColor = `${theme.colors.surface}80`;
+                                        e.currentTarget.style.borderColor = 'transparent';
+                                    }}
                                 />
                             </div>
 
                             <div>
-                                <label className={labelClass}>{t('admin.promo.form.maxUses')}</label>
+                                <label className="block text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                                    {t('admin.promo.form.maxUses')}
+                                </label>
                                 <input
                                     type="number"
                                     placeholder={t('admin.promo.form.unlimitedPlaceholder')}
                                     value={promo.max_uses || ''}
                                     onChange={(e) => setPromo({...promo, max_uses: e.target.value ? Number(e.target.value) : null})}
-                                    className={inputClass}
+                                    className="w-full px-4 py-3 text-sm outline-none transition-all"
+                                    style={{
+                                        backgroundColor: `${theme.colors.surface}80`,
+                                        border: `1px solid transparent`,
+                                        borderRadius: theme.radius.xl,
+                                        color: theme.colors.text,
+                                    }}
+                                    onFocus={(e) => {
+                                        e.currentTarget.style.backgroundColor = theme.colors.bg;
+                                        e.currentTarget.style.borderColor = `${theme.colors.primary}4d`;
+                                    }}
+                                    onBlur={(e) => {
+                                        e.currentTarget.style.backgroundColor = `${theme.colors.surface}80`;
+                                        e.currentTarget.style.borderColor = 'transparent';
+                                    }}
                                 />
                             </div>
 
                             <div className="md:col-span-2">
-                                <label className={labelClass}>{t('admin.promo.form.expiresAt')}</label>
+                                <label className="block text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                                    {t('admin.promo.form.expiresAt')}
+                                </label>
                                 <div className="relative">
                                     <input
                                         type="datetime-local"
                                         value={promo.expires_at}
                                         onChange={(e) => setPromo({...promo, expires_at: e.target.value})}
-                                        className={inputClass}
+                                        className="w-full px-4 py-3 text-sm outline-none transition-all"
+                                        style={{
+                                            backgroundColor: `${theme.colors.surface}80`,
+                                            border: `1px solid transparent`,
+                                            borderRadius: theme.radius.xl,
+                                            color: theme.colors.text,
+                                        }}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.backgroundColor = theme.colors.bg;
+                                            e.currentTarget.style.borderColor = `${theme.colors.primary}4d`;
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.backgroundColor = `${theme.colors.surface}80`;
+                                            e.currentTarget.style.borderColor = 'transparent';
+                                        }}
                                     />
-                                    <Clock className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={18} />
+                                    <Clock className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" size={18} style={{ color: theme.colors.textMuted }} />
                                 </div>
                             </div>
                         </div>
 
-                        <div className="pt-4 border-t border-border/50">
-                            <label className="flex items-center gap-3 cursor-pointer group p-3 rounded-xl hover:bg-muted/30 transition-colors w-fit border border-transparent hover:border-border/50">
+                        <div className="pt-4" style={{ borderTop: `1px solid ${theme.colors.border}80` }}>
+                            <label
+                                className="flex items-center gap-3 cursor-pointer group p-3 w-fit transition-colors"
+                                style={{
+                                    borderRadius: theme.radius.xl,
+                                    border: `1px solid transparent`,
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = `${theme.colors.surface}4d`;
+                                    e.currentTarget.style.borderColor = `${theme.colors.border}80`;
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.borderColor = 'transparent';
+                                }}
+                            >
                                 <input
                                     type="checkbox"
                                     checked={promo.is_active}
                                     onChange={(e) => setPromo({...promo, is_active: e.target.checked})}
-                                    className="w-5 h-5 rounded text-primary focus:ring-primary border-border bg-muted"
+                                    className="w-5 h-5"
+                                    style={{
+                                        accentColor: theme.colors.primary,
+                                        borderRadius: theme.radius.md,
+                                    }}
                                 />
-                                <span className="font-medium text-foreground">{t('admin.promo.form.isActive')}</span>
+                                <span className="font-medium" style={{ color: theme.colors.text }}>
+                                    {t('admin.promo.form.isActive')}
+                                </span>
                             </label>
                         </div>
                     </div>
                 </div>
 
-                {/* Права колонка: Дії та Історія */}
+                {/* Right Column: Actions and History */}
                 <div className="space-y-6">
-                    <div className="card-minimal p-6">
-                        <h3 className="text-lg font-bold mb-4 text-foreground">{t('admin.promo.detail.actions')}</h3>
+                    <div
+                        className="p-6"
+                        style={{
+                            backgroundColor: theme.colors.card,
+                            border: `1px solid ${theme.colors.border}`,
+                            borderRadius: theme.radius.xl,
+                            boxShadow: theme.shadows.md,
+                        }}
+                    >
+                        <h3 className="text-lg font-bold mb-4" style={{ color: theme.colors.text }}>
+                            {t('admin.promo.detail.actions')}
+                        </h3>
                         <div className="flex flex-col gap-3">
                             <button
                                 onClick={handleSave}
-                                className="btn-primary w-full flex items-center justify-center gap-2"
+                                className="w-full flex items-center justify-center gap-2 px-4 py-3.5 font-medium transition-all"
+                                style={{
+                                    backgroundColor: theme.colors.primary,
+                                    color: '#FFFFFF',
+                                    borderRadius: theme.radius.xl,
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = `${theme.colors.primary}e6`;
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = theme.colors.primary;
+                                }}
                             >
                                 <Save size={18} /> {t('common.save')}
                             </button>
                             {!isNew && (
                                 <button
                                     onClick={handleDelete}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-destructive/10 text-destructive rounded-xl font-medium hover:bg-destructive/20 transition-colors"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3.5 font-medium transition-colors"
+                                    style={{
+                                        backgroundColor: `${theme.colors.errorLight}33`,
+                                        color: theme.colors.error,
+                                        borderRadius: theme.radius.xl,
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = `${theme.colors.errorLight}4d`;
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = `${theme.colors.errorLight}33`;
+                                    }}
                                 >
                                     <Trash2 size={18} /> {t('common.delete')}
                                 </button>
@@ -212,28 +363,60 @@ export default function PromoCodeDetailPage() {
                     </div>
 
                     {!isNew && (
-                        <div className="card-minimal p-6">
-                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                                <History size={20} className="text-blue-500" />
+                        <div
+                            className="p-6"
+                            style={{
+                                backgroundColor: theme.colors.card,
+                                border: `1px solid ${theme.colors.border}`,
+                                borderRadius: theme.radius.xl,
+                                boxShadow: theme.shadows.md,
+                            }}
+                        >
+                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: theme.colors.text }}>
+                                <History size={20} style={{ color: theme.colors.blue }} />
                                 {t('admin.promo.detail.history', { count: orders.length })}
                             </h3>
 
                             {orders.length > 0 ? (
                                 <div className="max-h-64 overflow-y-auto pr-2 space-y-2">
                                    {orders.map((o: any) => (
-                                       <div key={o.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-border/50 text-sm">
-                                           <Link href={`/admin/orders/${o.id}`} className="font-bold text-primary hover:underline">
+                                       <div
+                                           key={o.id}
+                                           className="flex items-center justify-between p-3 text-sm"
+                                           style={{
+                                               backgroundColor: `${theme.colors.surface}4d`,
+                                               border: `1px solid ${theme.colors.border}80`,
+                                               borderRadius: theme.radius.xl,
+                                           }}
+                                       >
+                                           <Link
+                                               href={`/admin/orders/${o.id}`}
+                                               className="font-bold hover:underline"
+                                               style={{ color: theme.colors.primary }}
+                                           >
                                                Order #{o.id}
                                            </Link>
                                            <div className="text-right">
-                                               <div className="font-medium text-foreground">{o.user.first_name}</div>
-                                               <div className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</div>
+                                               <div className="font-medium" style={{ color: theme.colors.text }}>
+                                                   {o.user.first_name}
+                                               </div>
+                                               <div className="text-xs" style={{ color: theme.colors.textMuted }}>
+                                                   {new Date(o.created_at).toLocaleDateString()}
+                                               </div>
                                            </div>
                                        </div>
                                    ))}
                                 </div>
                             ) : (
-                                <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-xl border border-dashed border-border">
+                                <div
+                                    className="text-center py-8 border border-dashed"
+                                    style={{
+                                        backgroundColor: `${theme.colors.surface}33`,
+                                        borderColor: theme.colors.border,
+                                        borderRadius: theme.radius.xl,
+                                        color: theme.colors.textMuted,
+                                    }}
+                                >
                                     <Hash size={24} className="mx-auto mb-2 opacity-50" />
                                     <p className="text-sm">{t('admin.promo.detail.noUses')}</p>
                                 </div>
