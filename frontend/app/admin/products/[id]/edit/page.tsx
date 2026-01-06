@@ -7,7 +7,6 @@ import { ArrowLeft, Upload, X, Package, Tag, Image as ImageIcon, FileArchive, Lo
 import { adminAPI, productsAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
 import { useTheme } from '@/lib/theme';
 
 // Хелпер для відображення повного шляху картинки
@@ -260,37 +259,79 @@ export default function EditProductPage() {
             >
                 <ArrowLeft size={24} />
             </button>
-            <h1 className="text-2xl font-bold" style={{ color: theme.colors.text }}>{t('admin.products.form.editTitle', { id: productId })}</h1>
+            <h1 className="text-2xl font-bold" style={{ color: theme.colors.text }}>
+                {t('admin.products.form.editTitle', { id: productId })}
+            </h1>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             {/* Ліва колонка - Основна інформація */}
             <div className="lg:col-span-2 space-y-6">
-                <div className="card-minimal p-6">
-                    <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-foreground">
-                        <Package size={20} className="text-primary" />
+                <div
+                    className="p-6"
+                    style={{
+                        backgroundColor: theme.colors.card,
+                        border: `1px solid ${theme.colors.border}`,
+                        borderRadius: theme.radius.xl,
+                        boxShadow: theme.shadows.md,
+                    }}
+                >
+                    <h2 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: theme.colors.text }}>
+                        <Package size={20} style={{ color: theme.colors.primary }} />
                         {t('admin.products.form.mainInfo')}
                     </h2>
                     <div className="space-y-5">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div>
-                                <label className={labelClass}>{t('admin.products.form.titleUk')}</label>
+                                <label className="block text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                                    {t('admin.products.form.titleUk')}
+                                </label>
                                 <input
                                     type="text"
                                     value={formData.title_uk}
                                     onChange={(e) => setFormData({ ...formData, title_uk: e.target.value })}
-                                    className={inputClass}
+                                    className="w-full px-4 py-3 text-sm outline-none transition-all"
+                                    style={{
+                                        backgroundColor: `${theme.colors.surface}80`,
+                                        border: `1px solid transparent`,
+                                        borderRadius: theme.radius.xl,
+                                        color: theme.colors.text,
+                                    }}
+                                    onFocus={(e) => {
+                                        e.currentTarget.style.backgroundColor = theme.colors.bg;
+                                        e.currentTarget.style.borderColor = `${theme.colors.primary}4d`;
+                                    }}
+                                    onBlur={(e) => {
+                                        e.currentTarget.style.backgroundColor = `${theme.colors.surface}80`;
+                                        e.currentTarget.style.borderColor = 'transparent';
+                                    }}
                                     required
                                 />
                             </div>
                             <div>
-                                <label className={labelClass}>{t('admin.products.form.productType')}</label>
+                                <label className="block text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                                    {t('admin.products.form.productType')}
+                                </label>
                                 <div className="relative">
                                     <select
                                         value={formData.product_type}
                                         onChange={(e) => setFormData({ ...formData, product_type: e.target.value })}
-                                        className={`${inputClass} appearance-none cursor-pointer`}
+                                        className="w-full px-4 py-3 text-sm appearance-none cursor-pointer outline-none transition-all"
+                                        style={{
+                                            backgroundColor: `${theme.colors.surface}80`,
+                                            border: `1px solid transparent`,
+                                            borderRadius: theme.radius.xl,
+                                            color: theme.colors.text,
+                                        }}
+                                        onFocus={(e) => {
+                                            e.currentTarget.style.backgroundColor = theme.colors.bg;
+                                            e.currentTarget.style.borderColor = `${theme.colors.primary}4d`;
+                                        }}
+                                        onBlur={(e) => {
+                                            e.currentTarget.style.backgroundColor = `${theme.colors.surface}80`;
+                                            e.currentTarget.style.borderColor = 'transparent';
+                                        }}
                                     >
                                         <option value="premium">{t('admin.products.form.premium')}</option>
                                         <option value="free">{t('admin.products.form.free')}</option>
@@ -299,43 +340,99 @@ export default function EditProductPage() {
                             </div>
                         </div>
                         <div>
-                            <label className={labelClass}>{t('admin.products.form.descriptionUk')}</label>
+                            <label className="block text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                                {t('admin.products.form.descriptionUk')}
+                            </label>
                             <textarea
                                 value={formData.description_uk}
                                 onChange={(e) => setFormData({ ...formData, description_uk: e.target.value })}
-                                className={inputClass}
+                                className="w-full px-4 py-3 text-sm outline-none transition-all"
+                                style={{
+                                    backgroundColor: `${theme.colors.surface}80`,
+                                    border: `1px solid transparent`,
+                                    borderRadius: theme.radius.xl,
+                                    color: theme.colors.text,
+                                }}
+                                onFocus={(e) => {
+                                    e.currentTarget.style.backgroundColor = theme.colors.bg;
+                                    e.currentTarget.style.borderColor = `${theme.colors.primary}4d`;
+                                }}
+                                onBlur={(e) => {
+                                    e.currentTarget.style.backgroundColor = `${theme.colors.surface}80`;
+                                    e.currentTarget.style.borderColor = 'transparent';
+                                }}
                                 rows={6}
                             />
                         </div>
                         <div>
-                            <label className={labelClass}>{t('admin.products.form.compatibility')}</label>
+                            <label className="block text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                                {t('admin.products.form.compatibility')}
+                            </label>
                             <input
                                 type="text"
                                 value={formData.compatibility}
                                 onChange={(e) => setFormData({ ...formData, compatibility: e.target.value })}
-                                className={inputClass}
+                                className="w-full px-4 py-3 text-sm outline-none transition-all"
+                                style={{
+                                    backgroundColor: `${theme.colors.surface}80`,
+                                    border: `1px solid transparent`,
+                                    borderRadius: theme.radius.xl,
+                                    color: theme.colors.text,
+                                }}
+                                onFocus={(e) => {
+                                    e.currentTarget.style.backgroundColor = theme.colors.bg;
+                                    e.currentTarget.style.borderColor = `${theme.colors.primary}4d`;
+                                }}
+                                onBlur={(e) => {
+                                    e.currentTarget.style.backgroundColor = `${theme.colors.surface}80`;
+                                    e.currentTarget.style.borderColor = 'transparent';
+                                }}
                             />
                         </div>
                     </div>
                 </div>
 
-                <div className="card-minimal p-6">
-                    <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-foreground">
-                        <ImageIcon size={20} className="text-primary" />
+                <div
+                    className="p-6"
+                    style={{
+                        backgroundColor: theme.colors.card,
+                        border: `1px solid ${theme.colors.border}`,
+                        borderRadius: theme.radius.xl,
+                        boxShadow: theme.shadows.md,
+                    }}
+                >
+                    <h2 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: theme.colors.text }}>
+                        <ImageIcon size={20} style={{ color: theme.colors.primary }} />
                         {t('admin.products.form.images')}
                     </h2>
 
                     <div className="space-y-6">
                         {/* Головне фото */}
                         <div>
-                            <h3 className="text-sm font-semibold mb-3">Головне зображення</h3>
+                            <h3 className="text-sm font-semibold mb-3" style={{ color: theme.colors.text }}>Головне зображення</h3>
                             {formData.main_image_url ? (
-                                <div className="relative group rounded-xl overflow-hidden border border-border aspect-video max-w-md bg-muted">
+                                <div
+                                    className="relative group overflow-hidden aspect-video max-w-md"
+                                    style={{
+                                        borderRadius: theme.radius.xl,
+                                        border: `1px solid ${theme.colors.border}`,
+                                        backgroundColor: theme.colors.surface,
+                                    }}
+                                >
                                     <img src={fullImageUrl(formData.main_image_url)} alt="Main" className="w-full h-full object-cover" />
                                     <button
                                         type="button"
                                         onClick={() => setFormData({...formData, main_image_url: ''})}
-                                        className="absolute top-2 right-2 p-2 bg-destructive/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive shadow-lg transform translate-y-2 group-hover:translate-y-0"
+                                        className="absolute top-2 right-2 p-2 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-lg transform translate-y-2 group-hover:translate-y-0"
+                                        style={{
+                                            backgroundColor: `${theme.colors.error}e6`,
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.backgroundColor = theme.colors.error;
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.backgroundColor = `${theme.colors.error}e6`;
+                                        }}
                                     >
                                         <Trash2 size={18} />
                                     </button>
@@ -354,18 +451,40 @@ export default function EditProductPage() {
                         {/* Галерея */}
                         <div>
                             <div className="flex justify-between items-center mb-3">
-                                <h3 className="text-sm font-semibold">{t('admin.products.form.gallery')}</h3>
-                                <span className="text-xs text-muted-foreground">{formData.gallery_image_urls.length}/6</span>
+                                <h3 className="text-sm font-semibold" style={{ color: theme.colors.text }}>
+                                    {t('admin.products.form.gallery')}
+                                </h3>
+                                <span className="text-xs" style={{ color: theme.colors.textMuted }}>
+                                    {formData.gallery_image_urls.length}/6
+                                </span>
                             </div>
 
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                 {formData.gallery_image_urls.map((url, index) => (
-                                    <div key={index} className="relative group rounded-xl overflow-hidden border border-border aspect-square bg-muted">
+                                    <div
+                                        key={index}
+                                        className="relative group overflow-hidden aspect-square"
+                                        style={{
+                                            borderRadius: theme.radius.xl,
+                                            border: `1px solid ${theme.colors.border}`,
+                                            backgroundColor: theme.colors.surface,
+                                        }}
+                                    >
                                         <img src={fullImageUrl(url)} alt={`Gallery ${index + 1}`} className="w-full h-full object-cover" />
                                         <button
                                             type="button"
                                             onClick={() => removeGalleryImage(index)}
-                                            className="absolute top-1 right-1 p-1.5 bg-destructive/90 text-white rounded-md opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive"
+                                            className="absolute top-1 right-1 p-1.5 text-white opacity-0 group-hover:opacity-100 transition-all"
+                                            style={{
+                                                backgroundColor: `${theme.colors.error}e6`,
+                                                borderRadius: theme.radius.md,
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.backgroundColor = theme.colors.error;
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.backgroundColor = `${theme.colors.error}e6`;
+                                            }}
                                         >
                                             <X size={14} />
                                         </button>
@@ -394,26 +513,52 @@ export default function EditProductPage() {
 
             {/* Права колонка - Налаштування та файли */}
             <div className="space-y-6">
-                <div className="card-minimal p-6">
-                    <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-foreground">
-                        <Tag size={20} className="text-primary" />
+                <div
+                    className="p-6"
+                    style={{
+                        backgroundColor: theme.colors.card,
+                        border: `1px solid ${theme.colors.border}`,
+                        borderRadius: theme.radius.xl,
+                        boxShadow: theme.shadows.md,
+                    }}
+                >
+                    <h2 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: theme.colors.text }}>
+                        <Tag size={20} style={{ color: theme.colors.primary }} />
                         {t('admin.products.form.pricing')}
                     </h2>
                     <div className="space-y-4">
                         <div>
-                            <label className={labelClass}>{t('admin.products.form.price')}</label>
+                            <label className="block text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                                {t('admin.products.form.price')}
+                            </label>
                             <input
                                 type="number"
                                 step="0.01"
                                 min="0"
                                 value={formData.price}
                                 onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                                className={inputClass}
+                                className="w-full px-4 py-3 text-sm outline-none transition-all"
+                                style={{
+                                    backgroundColor: `${theme.colors.surface}80`,
+                                    border: `1px solid transparent`,
+                                    borderRadius: theme.radius.xl,
+                                    color: theme.colors.text,
+                                }}
+                                onFocus={(e) => {
+                                    e.currentTarget.style.backgroundColor = theme.colors.bg;
+                                    e.currentTarget.style.borderColor = `${theme.colors.primary}4d`;
+                                }}
+                                onBlur={(e) => {
+                                    e.currentTarget.style.backgroundColor = `${theme.colors.surface}80`;
+                                    e.currentTarget.style.borderColor = 'transparent';
+                                }}
                                 required
                             />
                         </div>
                         <div>
-                            <label className={labelClass}>{t('admin.products.form.salePrice')}</label>
+                            <label className="block text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: theme.colors.textMuted }}>
+                                {t('admin.products.form.salePrice')}
+                            </label>
                             <input
                                 type="number"
                                 step="0.01"
@@ -422,38 +567,113 @@ export default function EditProductPage() {
                                 disabled={!formData.is_on_sale}
                                 value={formData.sale_price || ''}
                                 onChange={(e) => setFormData({ ...formData, sale_price: e.target.value ? Number(e.target.value) : null })}
-                                className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                className="w-full px-4 py-3 text-sm outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{
+                                    backgroundColor: `${theme.colors.surface}80`,
+                                    border: `1px solid transparent`,
+                                    borderRadius: theme.radius.xl,
+                                    color: theme.colors.text,
+                                }}
+                                onFocus={(e) => {
+                                    if (!formData.is_on_sale) return;
+                                    e.currentTarget.style.backgroundColor = theme.colors.bg;
+                                    e.currentTarget.style.borderColor = `${theme.colors.primary}4d`;
+                                }}
+                                onBlur={(e) => {
+                                    e.currentTarget.style.backgroundColor = `${theme.colors.surface}80`;
+                                    e.currentTarget.style.borderColor = 'transparent';
+                                }}
                             />
                         </div>
-                        <label className="flex items-center gap-3 cursor-pointer group p-3 rounded-xl hover:bg-muted/30 transition-colors border border-transparent hover:border-border/50">
+                        <label
+                            className="flex items-center gap-3 cursor-pointer group p-3 transition-colors"
+                            style={{
+                                borderRadius: theme.radius.xl,
+                                border: `1px solid transparent`,
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = `${theme.colors.surface}4d`;
+                                e.currentTarget.style.borderColor = `${theme.colors.border}80`;
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                                e.currentTarget.style.borderColor = 'transparent';
+                            }}
+                        >
                             <input
                                 type="checkbox"
                                 checked={formData.is_on_sale}
                                 onChange={(e) => setFormData({ ...formData, is_on_sale: e.target.checked, sale_price: e.target.checked ? formData.sale_price : null })}
-                                className="w-5 h-5 rounded text-primary focus:ring-primary border-border bg-muted"
+                                className="w-5 h-5"
+                                style={{
+                                    accentColor: theme.colors.primary,
+                                    borderRadius: theme.radius.md,
+                                }}
                             />
-                            <span className="text-sm font-medium">{t('admin.products.form.onSale')}</span>
+                            <span className="text-sm font-medium" style={{ color: theme.colors.text }}>
+                                {t('admin.products.form.onSale')}
+                            </span>
                         </label>
                     </div>
                 </div>
 
-                <div className="card-minimal p-6">
-                    <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-foreground">
-                        <FileArchive size={20} className="text-primary" />
+                <div
+                    className="p-6"
+                    style={{
+                        backgroundColor: theme.colors.card,
+                        border: `1px solid ${theme.colors.border}`,
+                        borderRadius: theme.radius.xl,
+                        boxShadow: theme.shadows.md,
+                    }}
+                >
+                    <h2 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: theme.colors.text }}>
+                        <FileArchive size={20} style={{ color: theme.colors.primary }} />
                         {t('admin.products.form.files')}
                     </h2>
 
                     {formData.zip_file_path ? (
                         <div className="space-y-4">
-                            <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-xl border border-border">
-                                <div className="p-2.5 bg-primary/10 text-primary rounded-lg">
+                            <div
+                                className="flex items-center gap-3 p-4"
+                                style={{
+                                    backgroundColor: `${theme.colors.surface}4d`,
+                                    border: `1px solid ${theme.colors.border}`,
+                                    borderRadius: theme.radius.xl,
+                                }}
+                            >
+                                <div
+                                    className="p-2.5 rounded-lg"
+                                    style={{
+                                        backgroundColor: `${theme.colors.primaryLight}33`,
+                                        color: theme.colors.primary,
+                                    }}
+                                >
                                     <FileArchive size={24} />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-mono truncate" title={formData.zip_file_path}>{formData.zip_file_path.split('/').pop()}</p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">{formData.file_size_mb} MB</p>
+                                    <p className="text-sm font-mono truncate" title={formData.zip_file_path} style={{ color: theme.colors.text }}>
+                                        {formData.zip_file_path.split('/').pop()}
+                                    </p>
+                                    <p className="text-xs mt-0.5" style={{ color: theme.colors.textMuted }}>
+                                        {formData.file_size_mb} MB
+                                    </p>
                                 </div>
-                                <button onClick={() => setFormData({...formData, zip_file_path: '', file_size_mb: 0})} className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors">
+                                <button
+                                    onClick={() => setFormData({...formData, zip_file_path: '', file_size_mb: 0})}
+                                    className="p-2 transition-colors"
+                                    style={{
+                                        color: theme.colors.textMuted,
+                                        borderRadius: theme.radius.lg,
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.color = theme.colors.error;
+                                        e.currentTarget.style.backgroundColor = `${theme.colors.errorLight}33`;
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.color = theme.colors.textMuted;
+                                        e.currentTarget.style.backgroundColor = 'transparent';
+                                    }}
+                                >
                                     <Trash2 size={18}/>
                                 </button>
                             </div>
@@ -467,15 +687,41 @@ export default function EditProductPage() {
                     )}
                 </div>
 
-                <div className="card-minimal p-6">
-                    <h2 className="text-lg font-bold mb-6 text-foreground">{t('admin.products.form.categories')}</h2>
+                <div
+                    className="p-6"
+                    style={{
+                        backgroundColor: theme.colors.card,
+                        border: `1px solid ${theme.colors.border}`,
+                        borderRadius: theme.radius.xl,
+                        boxShadow: theme.shadows.md,
+                    }}
+                >
+                    <h2 className="text-lg font-bold mb-6" style={{ color: theme.colors.text }}>
+                        {t('admin.products.form.categories')}
+                    </h2>
                     <div className="flex flex-wrap gap-2">
                         {categories.map((category) => (
-                            <label key={category.id} className={`px-3 py-2 rounded-lg border cursor-pointer transition-all text-xs font-medium select-none ${
-                                formData.category_ids.includes(category.id)
-                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                : 'bg-muted/30 border-transparent hover:bg-muted text-foreground'
-                            }`}>
+                            <label
+                                key={category.id}
+                                className="px-3 py-2 text-xs font-medium select-none cursor-pointer transition-all"
+                                style={{
+                                    borderRadius: theme.radius.lg,
+                                    border: `1px solid ${formData.category_ids.includes(category.id) ? theme.colors.primary : 'transparent'}`,
+                                    backgroundColor: formData.category_ids.includes(category.id) ? theme.colors.primary : `${theme.colors.surface}4d`,
+                                    color: formData.category_ids.includes(category.id) ? '#FFFFFF' : theme.colors.text,
+                                    boxShadow: formData.category_ids.includes(category.id) ? theme.shadows.sm : 'none',
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (!formData.category_ids.includes(category.id)) {
+                                        e.currentTarget.style.backgroundColor = theme.colors.surface;
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!formData.category_ids.includes(category.id)) {
+                                        e.currentTarget.style.backgroundColor = `${theme.colors.surface}4d`;
+                                    }
+                                }}
+                            >
                                 <input
                                     type="checkbox"
                                     checked={formData.category_ids.includes(category.id)}
@@ -492,7 +738,24 @@ export default function EditProductPage() {
                     <button
                         onClick={handleSubmit}
                         disabled={loading}
-                        className="btn-primary w-full flex items-center justify-center gap-2"
+                        className="w-full flex items-center justify-center gap-2 px-6 py-3.5 font-semibold transition-all"
+                        style={{
+                            backgroundColor: loading ? `${theme.colors.primary}cc` : theme.colors.primary,
+                            color: '#FFFFFF',
+                            borderRadius: theme.radius.xl,
+                            opacity: loading ? 0.7 : 1,
+                            cursor: loading ? 'not-allowed' : 'pointer',
+                        }}
+                        onMouseEnter={(e) => {
+                            if (!loading) {
+                                e.currentTarget.style.backgroundColor = `${theme.colors.primary}e6`;
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (!loading) {
+                                e.currentTarget.style.backgroundColor = theme.colors.primary;
+                            }
+                        }}
                     >
                         {loading ? <Loader className="animate-spin" size={18} /> : <Save size={18} />}
                         {t('common.save')}
@@ -501,7 +764,18 @@ export default function EditProductPage() {
                     <button
                         onClick={handleDelete}
                         disabled={loading}
-                        className="w-full py-3.5 bg-destructive/10 text-destructive rounded-xl font-semibold hover:bg-destructive/20 transition-colors flex items-center justify-center gap-2"
+                        className="w-full py-3.5 font-semibold transition-colors flex items-center justify-center gap-2"
+                        style={{
+                            backgroundColor: `${theme.colors.errorLight}33`,
+                            color: theme.colors.error,
+                            borderRadius: theme.radius.xl,
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = `${theme.colors.errorLight}4d`;
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = `${theme.colors.errorLight}33`;
+                        }}
                     >
                         <Trash2 size={18} />
                         {t('common.delete')}
